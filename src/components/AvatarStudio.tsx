@@ -1,0 +1,547 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { avatarApi, uploadMedia, type AvatarAssets } from '../lib/api'
+
+const C = {
+  paper: '#ece3d2', card: '#fbf6ec', ink: '#2b241c', ink2: '#6e6253', ink3: '#9a8d79',
+  line: '#ddccb0', terra: '#c06a44', umber: '#7a5236', gold: '#b3902f', sage: '#71805c',
+}
+const serif = "'Newsreader', Georgia, serif"
+const sans = "'Hanken Grotesk', system-ui, sans-serif"
+const mono = "'Spline Sans Mono', ui-monospace, monospace"
+
+const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, border: 'none', borderRadius: 999, padding: '13px 26px', fontFamily: sans, fontWeight: 600, fontSize: 14, cursor: 'pointer' }
+const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 999, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
+const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: '26px 28px' }
+
+const VOICE_SCRIPT = [
+  'Hello. My name is here, and these are the stories I want to leave behind.',
+  'I grew up in a place I loved, with people who shaped who I became.',
+  'If there is one thing I would want you to remember, it is to be kind, and to be brave.',
+]
+
+type StepId = 'intro' | 'voice' | 'photo' | 'generate'
+const STEPS: { id: StepId; label: string }[] = [
+  { id: 'voice', label: 'Voice' },
+  { id: 'photo', label: 'Photo' },
+  { id: 'generate', label: 'Avatar video' },
+]
+
+function pickMime(candidates: string[]): string | undefined {
+  if (typeof MediaRecorder === 'undefined') return undefined
+  return candidates.find((t) => MediaRecorder.isTypeSupported(t))
+}
+
+/**
+ * HeyGen voice cloning only accepts WAV/MP3 — a browser .webm recording is sniffed
+ * as video/webm and rejected. Decode the recording and re-encode it as 16-bit PCM
+ * mono WAV (16 kHz, plenty for voice) so the upload is unambiguously audio.
+ */
+async function blobToWav(blob: Blob, targetRate = 16000): Promise<Blob> {
+  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+  const ctx = new AudioCtx()
+  try {
+    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer())
+    const rate = Math.min(targetRate, decoded.sampleRate)
+    const length = Math.ceil(decoded.duration * rate)
+    const offline = new OfflineAudioContext(1, length, rate)
+    const src = offline.createBufferSource()
+    src.buffer = decoded
+    src.connect(offline.destination)
+    src.start()
+    const rendered = await offline.startRendering()
+    return encodeWav(rendered.getChannelData(0), rate)
+  } finally {
+    ctx.close()
+  }
+}
+
+function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+  const buffer = new ArrayBuffer(44 + samples.length * 2)
+  const view = new DataView(buffer)
+  const writeStr = (offset: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)) }
+  writeStr(0, 'RIFF')
+  view.setUint32(4, 36 + samples.length * 2, true)
+  writeStr(8, 'WAVE')
+  writeStr(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, sampleRate * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  writeStr(36, 'data')
+  view.setUint32(40, samples.length * 2, true)
+  let offset = 44
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]))
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+    offset += 2
+  }
+  return new Blob([buffer], { type: 'audio/wav' })
+}
+
+interface Props {
+  onExit: () => void
+}
+
+export default function AvatarStudio({ onExit }: Props) {
+  const [step, setStep] = useState<StepId>('intro')
+  const [creatorId, setCreatorId] = useState<string | null>(null)
+  const [assets, setAssets] = useState<AvatarAssets | null>(null)
+  const [voiceCloned, setVoiceCloned] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    avatarApi.getAssets()
+      .then((r) => { setCreatorId(r.creatorId); setAssets(r.assets); setVoiceCloned(r.voiceCloned ?? null) })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load avatar studio'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const refresh = useCallback(async () => {
+    const r = await avatarApi.getAssets()
+    setCreatorId(r.creatorId)
+    setAssets(r.assets)
+    setVoiceCloned(r.voiceCloned ?? null)
+  }, [])
+
+  if (loading) return <Centered>Preparing the studio…</Centered>
+  if (error) return <Centered><strong>{error}</strong><button style={primaryBtn} onClick={onExit}>Back</button></Centered>
+  if (!creatorId) {
+    return (
+      <Centered>
+        <strong>Finish your interview first</strong>
+        <p style={{ color: C.ink2, maxWidth: 420, textAlign: 'center' }}>Your legacy needs to exist before we can build its avatar.</p>
+        <button style={primaryBtn} onClick={onExit}>Back</button>
+      </Centered>
+    )
+  }
+
+  const currentIndex = STEPS.findIndex((s) => s.id === step)
+
+  return (
+    <div style={{ minHeight: '100vh', background: C.paper, fontFamily: sans, color: C.ink }}>
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 96px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: C.ink3 }}>Avatar Studio</div>
+          <button style={ghostBtn} onClick={onExit}>Exit</button>
+        </div>
+
+        {step !== 'intro' && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
+            {STEPS.map((s, i) => (
+              <div key={s.id} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ height: 4, borderRadius: 2, background: i <= currentIndex ? C.terra : C.line }} />
+                <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: i === currentIndex ? C.ink : C.ink3, marginTop: 8 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginTop: 26 }}>
+          {step === 'intro' && <Intro assets={assets} voiceCloned={voiceCloned} onStart={() => setStep('voice')} />}
+          {step === 'voice' && (
+            <VoiceStep creatorId={creatorId} assets={assets} onDone={async () => { await refresh(); setStep('photo') }} />
+          )}
+          {step === 'photo' && (
+            <PhotoStep creatorId={creatorId} onDone={async () => { await refresh(); setStep('generate') }} onBack={() => setStep('voice')} />
+          )}
+          {step === 'generate' && (
+            <GenerateVideoStep
+              onDone={onExit}
+              onBack={() => setStep('photo')}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.paper, fontFamily: sans, color: C.ink, gap: 14, padding: '0 24px' }}>
+      {children}
+    </div>
+  )
+}
+
+function Intro({ assets, voiceCloned, onStart }: { assets: AvatarAssets | null; voiceCloned: boolean | null; onStart: () => void }) {
+  const hasVoice = assets?.voice_status === 'ready'
+  const cloned = voiceCloned === true
+  return (
+    <div style={card}>
+      <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: 0 }}>Create your living avatar</h1>
+      <p style={{ fontSize: 15, lineHeight: 1.6, color: C.ink2, marginTop: 12 }}>
+        Record your <strong>voice</strong> and take a <strong>photo</strong>. The system automatically
+        clones your voice and builds a talking avatar from your face — no extra steps on other websites.
+      </p>
+      <ul style={{ fontSize: 14, lineHeight: 1.9, color: C.ink2, marginTop: 8 }}>
+        <li>Voice sample (about a minute) → cloned automatically</li>
+        <li>A clear photo of your face → registered as your avatar automatically</li>
+        <li>Preview video speaks in your cloned voice</li>
+      </ul>
+      <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
+        <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update my avatar' : 'Begin'}</button>
+        {cloned && <span style={{ fontFamily: mono, fontSize: 11, color: C.sage }}>✓ your voice is cloned</span>}
+        {hasVoice && !cloned && <span style={{ fontFamily: mono, fontSize: 11, color: '#b04a3a' }}>⚠ voice not cloned — re-record in Voice step</span>}
+      </div>
+      <p style={{ fontSize: 12, color: C.ink3, marginTop: 16 }}>You’ll be asked for microphone and camera permission. Nothing is shared — only you and people you invite can see it.</p>
+    </div>
+  )
+}
+
+/* ------------------------------- Voice step ------------------------------ */
+function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: AvatarAssets | null; onDone: () => void }) {
+  const [recording, setRecording] = useState(false)
+  const [blob, setBlob] = useState<Blob | null>(null)
+  const [url, setUrl] = useState<string | null>(null)
+  const [seconds, setSeconds] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const recRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); if (timerRef.current) clearInterval(timerRef.current) }, [url])
+
+  const start = async () => {
+    setError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mime = pickMime(['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'])
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
+      chunksRef.current = []
+      rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const b = new Blob(chunksRef.current, { type: mime || 'audio/webm' })
+        setBlob(b)
+        setUrl(URL.createObjectURL(b))
+      }
+      recRef.current = rec
+      rec.start()
+      setRecording(true)
+      setSeconds(0)
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
+    } catch {
+      setError('Microphone permission is needed to record your voice.')
+    }
+  }
+
+  const stop = () => {
+    recRef.current?.stop()
+    setRecording(false)
+    if (timerRef.current) clearInterval(timerRef.current)
+  }
+
+  const submit = async () => {
+    if (!blob) return
+    setBusy(true)
+    setError(null)
+    try {
+      const wav = await blobToWav(blob)
+      const path = await uploadMedia(creatorId, 'voice-sample', wav, 'wav', 'audio/wav')
+      const result = await avatarApi.cloneVoice(path)
+      if (result.warning) setError(result.warning)
+      else if (!result.cloned) {
+        setError('Voice cloning did not succeed. Try again with a longer recording (30+ seconds) in a quiet room.')
+      }
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not clone your voice')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const enough = seconds >= 20 || (blob && !recording)
+
+  return (
+    <div style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Record your voice</h2>
+      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>Read these lines slowly and naturally. Aim for 30–90 seconds in a quiet room.</p>
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px', marginTop: 12 }}>
+        {VOICE_SCRIPT.map((l, i) => (
+          <p key={i} style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.5, color: C.ink, margin: i ? '10px 0 0' : 0 }}>{l}</p>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 18 }}>
+        {!recording && (
+          <button style={primaryBtn} onClick={start}>{blob ? 'Re-record' : 'Start recording'}</button>
+        )}
+        {recording && (
+          <button style={{ ...primaryBtn, background: C.terra }} onClick={stop}>■ Stop ({seconds}s)</button>
+        )}
+        {recording && <span style={{ width: 10, height: 10, borderRadius: '50%', background: C.terra, animation: 'none' }} />}
+        {url && !recording && <audio src={url} controls style={{ height: 36 }} />}
+      </div>
+
+      {assets?.voice_status === 'ready' && !blob && (
+        <p style={{ fontFamily: mono, fontSize: 11, color: assets.metadata?.cloned === false ? '#b04a3a' : C.sage, marginTop: 12 }}>
+          {assets.metadata?.cloned === false
+            ? '⚠ Voice is not cloned yet — re-record here (30+ seconds, quiet room).'
+            : '✓ Your cloned voice is saved. Re-recording replaces it.'}
+        </p>
+      )}
+      {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button style={{ ...primaryBtn, opacity: enough && !busy ? 1 : 0.5, pointerEvents: enough && !busy ? 'auto' : 'none' }} onClick={submit}>
+          {busy ? 'Cloning your voice…' : 'Use this & continue'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------- Photo step ------------------------------ */
+const PORTRAIT_MIN_PX = 1024
+const PORTRAIT_TARGET_PX = 1536
+
+function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: () => void; onBack: () => void }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [live, setLive] = useState(false)
+  const [shot, setShot] = useState<Blob | null>(null)
+  const [url, setUrl] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); if (url) URL.revokeObjectURL(url) }, [url])
+
+  const startCamera = async () => {
+    setError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1920, min: 1280 },
+        },
+      })
+      streamRef.current = stream
+      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
+      setLive(true)
+    } catch {
+      setError('Camera permission is needed. You can also upload a photo instead.')
+    }
+  }
+
+  const capture = () => {
+    const v = videoRef.current
+    if (!v || !v.videoWidth) return
+    const vw = v.videoWidth
+    const vh = v.videoHeight
+    const crop = Math.min(vw, vh)
+    const out = Math.min(Math.max(crop, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
+    const canvas = document.createElement('canvas')
+    canvas.width = out
+    canvas.height = out
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(v, (vw - crop) / 2, (vh - crop) / 2, crop, crop, 0, 0, out, out)
+    canvas.toBlob((b) => {
+      if (!b) return
+      setShot(b); setUrl(URL.createObjectURL(b))
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      setLive(false)
+    }, 'image/jpeg', 0.95)
+  }
+
+  const loadImage = (file: File): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error('Could not read that image'))
+      img.src = URL.createObjectURL(file)
+    })
+
+  const normalizePortrait = async (file: File): Promise<Blob> => {
+    const img = await loadImage(file)
+    const crop = Math.min(img.width, img.height)
+    const out = Math.min(Math.max(crop, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
+    const canvas = document.createElement('canvas')
+    canvas.width = out
+    canvas.height = out
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(img, (img.width - crop) / 2, (img.height - crop) / 2, crop, crop, 0, 0, out, out)
+    URL.revokeObjectURL(img.src)
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process photo'))), 'image/jpeg', 0.95)
+    })
+  }
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setError(null)
+    try {
+      const normalized = await normalizePortrait(f)
+      setShot(normalized)
+      setUrl(URL.createObjectURL(normalized))
+    } catch {
+      setError('Could not use that photo — try a JPG or PNG with your face centered.')
+    }
+  }
+
+  const submit = async () => {
+    if (!shot) return
+    setBusy(true); setError(null)
+    try {
+      const ext = shot.type.includes('png') ? 'png' : 'jpg'
+      const path = await uploadMedia(creatorId, 'portrait', shot, ext)
+      await avatarApi.saveAssets({ portraitPath: path })
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save your photo')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your photo</h2>
+      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
+        Face the light, center your face, and look at the camera. For the sharpest live avatar, upload a high-resolution photo from your phone (1024px+).
+      </p>
+
+      <div style={{ width: 280, height: 280, borderRadius: 14, overflow: 'hidden', background: '#e4d8c2', margin: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {url ? (
+          <img src={url} alt="portrait" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: live ? 'block' : 'none' }} />
+        )}
+        {!live && !url && <span style={{ fontFamily: serif, fontStyle: 'italic', color: C.ink3 }}>Camera off</span>}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {!live && !url && <button style={primaryBtn} onClick={startCamera}>Open camera</button>}
+        {live && <button style={primaryBtn} onClick={capture}>Capture</button>}
+        {url && <button style={ghostBtn} onClick={() => { setShot(null); setUrl(null); startCamera() }}>Retake</button>}
+        <label style={{ ...ghostBtn, display: 'inline-block' }}>
+          Upload instead
+          <input type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
+        </label>
+      </div>
+
+      {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button style={ghostBtn} onClick={onBack} disabled={busy}>← Back</button>
+        <button style={{ ...primaryBtn, opacity: shot && !busy ? 1 : 0.5, pointerEvents: shot && !busy ? 'auto' : 'none' }} onClick={submit}>
+          {busy ? 'Saving…' : 'Use this & continue'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- Talking-avatar preview (HeyGen Avatar IV) --------------- */
+function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [status, setStatus] = useState<'idle' | 'generating' | 'done' | 'error'>('idle')
+  const [phase, setPhase] = useState('Preparing…')
+  const [error, setError] = useState<string | null>(null)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [audioOnlyNotice, setAudioOnlyNotice] = useState<string | null>(null)
+  const started = useRef(false)
+
+  const run = async () => {
+    setStatus('generating')
+    setError(null)
+    setAudioOnlyNotice(null)
+    setPhase('Registering your face and voice…')
+    try {
+      const prov = await avatarApi.provision()
+      if (prov.liveReady) {
+        setAudioOnlyNotice(
+          'Your live avatar is ready — use Call on your legacy page for real-time face + voice. HeyGen pre-recorded video needs separate credits.',
+        )
+        setStatus('done')
+        return
+      }
+      setPhase('Waking up your avatar…')
+      const { text } = await avatarApi.greetingText()
+      const url = await avatarApi.renderTalkingVideo(text, undefined, {
+        onAudio: (audioUrl) => {
+          const a = new Audio(audioUrl)
+          void a.play()
+        },
+        onAudioOnly: (notice) => setAudioOnlyNotice(notice),
+        onLiveCallHint: (notice) => setAudioOnlyNotice(notice),
+        onProgress: (s) => {
+          setPhase(s === 'starting' ? 'Building your talking avatar…' : 'Rendering your first message…')
+        },
+      })
+      setVideoUrl(url)
+      setStatus('done')
+    } catch (e) {
+      const err = e as Error & { liveCallAvailable?: boolean };
+      if (err.liveCallAvailable) {
+        setAudioOnlyNotice(err.message);
+        setStatus('done');
+        return;
+      }
+      setError(err instanceof Error ? err.message : 'Could not create your talking avatar')
+      setStatus('error')
+    }
+  }
+
+  useEffect(() => {
+    if (started.current) return
+    started.current = true
+    run()
+  }, [])
+
+  const retry = () => { run() }
+
+  return (
+    <div style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
+      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
+        HeyGen is turning your photo into a talking avatar that speaks in your voice. The first render takes a minute or two —
+        after this, your avatar replies on its own whenever someone talks with it.
+      </p>
+
+      {status === 'generating' && (
+        <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
+          <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: C.terra }}>{phase}</div>
+          <div style={{ marginTop: 12, height: 4, borderRadius: 2, background: C.line, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '40%', background: C.terra, animation: 'legacyPulse 1.4s ease-in-out infinite alternate' }} />
+          </div>
+          <style>{`@keyframes legacyPulse { from { margin-left: 0; width: 20%; } to { margin-left: 60%; width: 35%; } }`}</style>
+        </div>
+      )}
+
+      {status === 'done' && videoUrl && (
+        <div style={{ margin: '20px 0' }}>
+          <div style={{ width: 240, height: 240, borderRadius: 14, overflow: 'hidden', background: '#e4d8c2' }}>
+            <video src={videoUrl} autoPlay loop playsInline controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginTop: 8 }}>✓ Your avatar can speak</div>
+        </div>
+      )}
+
+      {status === 'done' && !videoUrl && (
+        <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
+          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Live avatar ready</div>
+          <p style={{ fontSize: 14, color: C.ink2, margin: 0, lineHeight: 1.5 }}>
+            {audioOnlyNotice || 'Your face and voice are set up for Live Call. HeyGen pre-recorded video needs credits — use Call on your legacy page for real-time face + voice.'}
+          </p>
+        </div>
+      )}
+
+      {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button style={ghostBtn} onClick={onBack} disabled={status === 'generating'}>← Back</button>
+        {status === 'error' && <button style={primaryBtn} onClick={retry}>Try again</button>}
+        {status === 'done' && <button style={primaryBtn} onClick={onDone}>Go to my legacy & talk →</button>}
+      </div>
+    </div>
+  )
+}
+
