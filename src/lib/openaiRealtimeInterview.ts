@@ -1,6 +1,6 @@
 import type { ConductorContext } from '../components/InterviewSession';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from './apiUrl';
 
 let cachedAuth: { token: string; expiresAtMs: number } | null = null;
 
@@ -45,7 +45,7 @@ export type RealtimeVoiceInterview = {
 export async function checkAiVoiceAvailable(): Promise<boolean> {
   try {
     const headers = await authHeaders();
-    const res = await fetch(`${API_URL}/api/interview/voice/status`, { headers });
+    const res = await fetch(apiUrl('/api/interview/voice/status'), { headers });
     if (!res.ok) return false;
     const data = await res.json();
     return Boolean(data.realtime || data.available);
@@ -81,7 +81,7 @@ async function waitForIceGatheringComplete(pc: RTCPeerConnection, timeoutMs = 80
 
 export async function fetchRealtimeInstructions(ctx: ConductorContext): Promise<string> {
   const headers = await authHeaders();
-  const res = await fetch(`${API_URL}/api/interview/voice/realtime/instructions`, {
+  const res = await fetch(apiUrl('/api/interview/voice/realtime/instructions'), {
     method: 'POST',
     headers,
     body: JSON.stringify(ctx),
@@ -237,7 +237,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       const headers = await authHeaders();
       if (!isActiveConnect(generation)) return;
 
-      const tokenRes = await fetch(`${API_URL}/api/interview/voice/realtime/token`, {
+      const tokenRes = await fetch(apiUrl('/api/interview/voice/realtime/token'), {
         method: 'POST',
         headers,
         body: JSON.stringify(ctx),

@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from './apiUrl';
 
 const SILENCE_MS = 2800;
 const MIN_SPEECH_MS = 400;
@@ -229,7 +229,7 @@ type Turn = { role: 'assistant' | 'user'; text: string };
 export async function checkAiVoiceAvailable(): Promise<boolean> {
   try {
     const headers = await authHeaders();
-    const res = await fetch(`${API_URL}/api/interview/voice/status`, { headers });
+    const res = await fetch(apiUrl('/api/interview/voice/status'), { headers });
     if (!res.ok) return false;
     const data = await res.json();
     return Boolean(data.available);
@@ -259,7 +259,7 @@ export function createAiVoiceInterview() {
 
       let res: Response;
       try {
-        res = await fetch(`${API_URL}/api/interview/voice/speak`, {
+        res = await fetch(apiUrl('/api/interview/voice/speak'), {
           method: 'POST',
           headers,
           body: JSON.stringify({ text: trimmed }),
@@ -281,7 +281,7 @@ export function createAiVoiceInterview() {
     transcribe: async (blob: Blob) => {
       const audio = await blobToBase64(blob);
       const headers = await authHeaders();
-      const res = await fetch(`${API_URL}/api/interview/voice/transcribe`, {
+      const res = await fetch(apiUrl('/api/interview/voice/transcribe'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ audio, mimeType: blob.type || 'audio/webm' }),
@@ -293,7 +293,7 @@ export function createAiVoiceInterview() {
 
     conductorOpening: async (ctx: ConductorContext) => {
       const headers = await authHeaders();
-      const res = await fetch(`${API_URL}/api/interview/voice/turn`, {
+      const res = await fetch(apiUrl('/api/interview/voice/turn'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ ...ctx, isOpening: true, turns: [], userTranscript: '' }),
@@ -309,7 +309,7 @@ export function createAiVoiceInterview() {
 
     conductorReply: async (ctx: ConductorContext, userTranscript: string, turns: Turn[]) => {
       const headers = await authHeaders();
-      const res = await fetch(`${API_URL}/api/interview/voice/turn`, {
+      const res = await fetch(apiUrl('/api/interview/voice/turn'), {
         method: 'POST',
         headers,
         body: JSON.stringify({ ...ctx, isOpening: false, turns, userTranscript }),

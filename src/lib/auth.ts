@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from './apiUrl';
 
 interface AuthSessionResponse {
   session: {
@@ -14,7 +13,7 @@ interface AuthSessionResponse {
 }
 
 async function postAuth(path: string, body: Record<string, string>) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -52,7 +51,7 @@ export async function signUpWithPassword(name: string, email: string, password: 
 }
 
 export async function requestPasswordReset(email: string, redirectTo: string) {
-  const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+  const res = await fetch(apiUrl('/api/auth/forgot-password'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, redirectTo }),

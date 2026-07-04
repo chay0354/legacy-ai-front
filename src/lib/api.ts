@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
 import { ACTIONS, can, type Role } from './permissions';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { apiUrl } from './apiUrl';
 
 let cachedAuth: { token: string; expiresAtMs: number } | null = null;
 
@@ -30,7 +29,7 @@ async function authHeaders() {
 
 async function apiFetch(path: string, options: RequestInit = {}) {
   const headers = await authHeaders();
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(apiUrl(path), {
     ...options,
     headers: { ...headers, ...options.headers },
   });
@@ -142,7 +141,7 @@ export const accessApi = {
     apiFetch('/api/access/invitations', { method: 'POST', body: JSON.stringify(payload) }) as Promise<{ invitation: InvitationRow }>,
 
   previewInvite: (token: string) =>
-    fetch(`${API_URL}/api/access/invite/${encodeURIComponent(token)}`).then(async (res) => {
+    fetch(apiUrl(`/api/access/invite/${encodeURIComponent(token)}`)).then(async (res) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
       return data as InvitePreview;
@@ -362,7 +361,7 @@ export const avatarApi = {
   /** Render text in the cloned voice; resolves to a playable audio src (URL or object URL). */
   speak: async (text: string, creatorId?: string) => {
     const headers = await authHeaders();
-    const res = await fetch(`${API_URL}/api/avatar/speak`, {
+    const res = await fetch(apiUrl('/api/avatar/speak'), {
       method: 'POST',
       headers,
       body: JSON.stringify({ text, creatorId }),
