@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AvatarData } from "../lib/mapAvatarData";
 import { avatarApi } from "../lib/api";
-import { normalizeRole, type Role } from "../lib/permissions";
+import { normalizeRole, can, ACTIONS, type Role } from "../lib/permissions";
+import { authHeaders } from "../lib/api";
+import { apiUrl } from "../lib/apiUrl";
 import { openLiveCallMic, startLiveCallStt, type LiveCallSttSession } from "../lib/liveCallStt";
 import { useAnamLiveCall, LiveCallControls } from "./LiveAvatarCall";
 import GallerySection from "./GallerySection";
@@ -540,6 +542,7 @@ export default function LegacyAvatar({
   useInjectedHead();
   const D = data;
   const role = normalizeRole(rawRole) || "member";
+  const canChat = can(role, ACTIONS.CHAT_WITH_AVATAR);
 
   const [layer, setLayer] = useState(0);
   const [chapter, setChapter] = useState(0);
@@ -849,7 +852,11 @@ export default function LegacyAvatar({
               <div style={{ fontSize: 12.5, lineHeight: 1.2 }}><div style={{ color: C.ink }}>{D.viewer.name}</div><div style={{ color: C.ink3, fontSize: 11 }}>{D.viewer.relation}</div></div>
             </div>
             <button
-              onClick={() => (showCreateAvatar && !liveReady && onCreateAvatar ? onCreateAvatar() : startPortraitLive())}
+              onClick={() => {
+                if (showCreateAvatar && !liveReady && onCreateAvatar) onCreateAvatar();
+                else if (liveReady) startPortraitLive();
+                else if (canChat && onAsk) openCall();
+              }}
               style={{ border: "none", cursor: "pointer", background: accent, color: "#fbf6ec", fontFamily: sans, fontWeight: 600, fontSize: 13, padding: "10px 18px", borderRadius: 999, boxShadow: "0 6px 16px rgba(192,106,68,.28)" }}
             >
               {showCreateAvatar && !liveReady ? "Create avatar" : `Talk to ${firstName}`}
@@ -866,12 +873,14 @@ export default function LegacyAvatar({
               D={D}
               accent={accent}
               liveReady={liveReady}
+              canChat={canChat}
               portraitLive={portraitLive}
               portraitConnectKey={portraitConnectKey}
               talkCreatorId={talkCreatorId}
               showCreateAvatar={showCreateAvatar}
               onCreateAvatar={onCreateAvatar}
               onStartLive={startPortraitLive}
+              onTextTalk={() => openCall()}
               onEndLive={endPortraitLive}
             />
           </div>
@@ -1122,35 +1131,77 @@ function PortraitCard({
   D,
   accent,
   liveReady,
+  canChat,
   portraitLive,
   portraitConnectKey,
   talkCreatorId,
   showCreateAvatar,
   onCreateAvatar,
   onStartLive,
+  onTextTalk,
   onEndLive,
 }: {
   D: AvatarData;
   accent: string;
   liveReady: boolean;
+  canChat: boolean;
   portraitLive: boolean;
   portraitConnectKey: number;
   talkCreatorId?: string;
   showCreateAvatar?: boolean;
   onCreateAvatar?: () => void;
   onStartLive: () => void;
+  onTextTalk?: () => void;
   onEndLive: () => void;
 }) {
   const firstName = D.name.split(" ")[0];
   const live = useAnamLiveCall(talkCreatorId, PORTRAIT_LIVE_VIDEO_ID, portraitConnectKey);
   const videoLive = live.videoReady;
   const [portraitBroken, setPortraitBroken] = useState(false);
-  const portraitSrc = portraitBroken ? null : (D.portraitSrc || null);
+  const [proxyPortrait, setProxyPortrait] = useState<string | null>(null);
+  const portraitSrc = portraitBroken ? null : (D.portraitSrc || proxyPortrait || null);
+  const showLiveTalk = liveReady && canChat;
+  const showTextTalk = !liveReady && canChat && Boolean(onTextTalk);
   const portraitHint = showCreateAvatar && !liveReady
     ? "Add a portrait"
     : liveReady
       ? `${firstName} is ready to talk`
-      : undefined;
+      : canChat
+        ? `${firstName} is here — ask anything`
+        : undefined;
+
+  useEffect(() => {
+    setPortraitBroken(false);
+    setProxyPortrait(null);
+  }, [D.portraitSrc, talkCreatorId]);
+
+  useEffect(() => {
+    if (D.portraitSrc || !talkCreatorId || portraitBroken) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    void (async () => {
+      try {
+        const headers = await authHeaders();
+        const res = await fetch(
+          apiUrl(`/api/avatar/portrait?creatorId=${encodeURIComponent(talkCreatorId)}`),
+          { headers },
+        );
+        if (!res.ok || cancelled) return;
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setProxyPortrait(objectUrl);
+      } catch {
+        /* portrait proxy unavailable */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [D.portraitSrc, talkCreatorId, portraitBroken]);
 
   const handleEnd = async () => {
     await live.hangUp()
@@ -1246,7 +1297,7 @@ function PortraitCard({
         >
           Set up avatar in Studio
         </button>
-      ) : liveReady ? (
+      ) : showLiveTalk ? (
         <button
           type="button"
           onClick={onStartLive}
@@ -1254,6 +1305,15 @@ function PortraitCard({
         >
           <span style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,.14)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>▶</span>
           {showCreateAvatar ? `Bring ${firstName} to life` : `Talk with ${firstName}`}
+        </button>
+      ) : showTextTalk ? (
+        <button
+          type="button"
+          onClick={onTextTalk}
+          style={{ width: "100%", marginTop: 12, border: "none", cursor: "pointer", background: C.ink, color: C.paper, fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "12px 16px", borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+        >
+          <span style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,.14)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>▶</span>
+          Talk with {firstName}
         </button>
       ) : null}
     </div>
