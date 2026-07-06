@@ -136,20 +136,351 @@ const INITIAL_COLOR: Record<string, string> = { EB: "#c06a44", TB: "#6b5235", WB
 function useInjectedHead() {
   useEffect(() => {
     const id = "legacy-ai-avatar-head";
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap";
-    document.head.appendChild(link);
-    const style = document.createElement("style");
-    style.id = id;
+    if (!document.getElementById("legacy-ai-avatar-fonts")) {
+      const link = document.createElement("link");
+      link.id = "legacy-ai-avatar-fonts";
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap";
+      document.head.appendChild(link);
+    }
+    let style = document.getElementById(id) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = id;
+      document.head.appendChild(style);
+    }
     style.textContent = `
       @keyframes la-pulse { 0%,100%{transform:scale(1);opacity:.95} 50%{transform:scale(2.1);opacity:.25} }
       .legacy-avatar ::selection { background:#c06a44; color:#fbf6ec }
       .legacy-avatar a { color:inherit }
+      .legacy-timeline-scroll-clip { overflow: hidden; width: 100%; min-width: 0; max-width: 100%; }
+      .legacy-timeline-rail {
+        min-width: 0;
+        max-width: 100%;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+      }
+      .legacy-timeline-rail::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+      }
+      .legacy-timeline-nav {
+        transition: opacity .2s ease, background .2s ease, border-color .2s ease;
+      }
+      .legacy-timeline-nav:hover:not(:disabled) {
+        background: #fbf6ec !important;
+        border-color: #c06a44 !important;
+      }
+      .legacy-timeline-nav:disabled { opacity: 0; pointer-events: none; }
+      .legacy-timeline-thumb {
+        transition: width .15s ease, left .08s linear;
+      }
     `;
-    document.head.appendChild(style);
   }, []);
+}
+
+type ChapterItem = AvatarData["chapters"][number];
+
+function ChapterTimelineSlider({
+  chapters,
+  chapter,
+  accent,
+  onSelect,
+}: {
+  chapters: ChapterItem[];
+  chapter: number;
+  accent: string;
+  onSelect: (index: number) => void;
+}) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ active: boolean; startX: number; startScroll: number } | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [thumb, setThumb] = useState({ left: 0, width: 72 });
+  const [overflows, setOverflows] = useState(false);
+
+  const syncScroll = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const hasOverflow = scrollWidth > clientWidth + 2;
+    setOverflows(hasOverflow);
+    setCanScrollLeft(scrollLeft > 6);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+    if (!hasOverflow) {
+      setThumb({ left: 0, width: clientWidth });
+      return;
+    }
+    const ratio = clientWidth / scrollWidth;
+    const thumbWidth = Math.max(56, Math.round(clientWidth * ratio));
+    const maxThumbLeft = clientWidth - thumbWidth;
+    const scrollRange = scrollWidth - clientWidth;
+    const thumbLeft = scrollRange <= 0 ? 0 : (scrollLeft / scrollRange) * maxThumbLeft;
+    setThumb({ left: thumbLeft, width: thumbWidth });
+  }, []);
+
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    syncScroll();
+    el.addEventListener("scroll", syncScroll, { passive: true });
+    const ro = new ResizeObserver(syncScroll);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", syncScroll);
+      ro.disconnect();
+    };
+  }, [chapters.length, syncScroll]);
+
+  const scrollBy = (dir: number) => {
+    railRef.current?.scrollBy({ left: dir * 118, behavior: "smooth" });
+  };
+
+  const jumpToRatio = (ratio: number) => {
+    const el = railRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    el.scrollLeft = Math.max(0, Math.min(max, ratio * max));
+  };
+
+  const onTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!trackRef.current || !overflows) return;
+    const rect = trackRef.current.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    jumpToRatio(Math.max(0, Math.min(1, ratio)));
+  };
+
+  const onThumbPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!overflows) return;
+    e.stopPropagation();
+    const el = railRef.current;
+    if (!el) return;
+    dragRef.current = { active: true, startX: e.clientX, startScroll: el.scrollLeft };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onThumbPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const el = railRef.current;
+    const track = trackRef.current;
+    if (!drag?.active || !el || !track) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const trackWidth = track.clientWidth - thumb.width;
+    if (trackWidth <= 0) return;
+    const delta = e.clientX - drag.startX;
+    el.scrollLeft = drag.startScroll + (delta / trackWidth) * maxScroll;
+  };
+
+  const endThumbDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current?.active) {
+      dragRef.current = null;
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  const navBtn: React.CSSProperties = {
+    flex: "none",
+    alignSelf: "center",
+    marginTop: 28,
+    zIndex: 3,
+    width: 32,
+    height: 32,
+    borderRadius: "50%",
+    border: `1px solid ${C.line}`,
+    background: "rgba(251,246,236,.92)",
+    color: C.ink2,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 14,
+    boxShadow: "0 4px 14px rgba(43,36,28,.1)",
+    backdropFilter: "blur(6px)",
+  };
+
+  return (
+    <div className="legacy-timeline" style={{ width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "36px minmax(0, 1fr) 36px",
+          alignItems: "start",
+          width: "100%",
+          maxWidth: "100%",
+        }}
+      >
+        <button
+          type="button"
+          className="legacy-timeline-nav"
+          aria-label="Earlier chapters"
+          disabled={!canScrollLeft}
+          onClick={() => scrollBy(-1)}
+          style={navBtn}
+        >
+          ‹
+        </button>
+
+        <div style={{ position: "relative", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+          <div style={{ position: "absolute", left: 0, right: 0, top: 36, height: 1, background: C.line, zIndex: 0 }} />
+
+          {canScrollLeft && (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 28,
+                zIndex: 2,
+                pointerEvents: "none",
+                background: `linear-gradient(90deg, ${C.paper} 75%, transparent 100%)`,
+              }}
+            />
+          )}
+          {canScrollRight && (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: 28,
+                zIndex: 2,
+                pointerEvents: "none",
+                background: `linear-gradient(270deg, ${C.paper} 75%, transparent 100%)`,
+              }}
+            />
+          )}
+
+          <div className="legacy-timeline-scroll-clip">
+            <div
+              ref={railRef}
+              className="legacy-timeline-rail"
+              style={{
+                display: "flex",
+                justifyContent: "flex-start",
+                alignItems: "flex-start",
+                gap: 8,
+                width: "100%",
+                minWidth: 0,
+                maxWidth: "100%",
+                boxSizing: "border-box",
+                overflowX: "auto",
+                overflowY: "hidden",
+                paddingBottom: 8,
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              } as React.CSSProperties}
+            >
+              {chapters.map((ch, i) => (
+              <button
+                key={`${ch.year}-${ch.title}-${i}`}
+                type="button"
+                onClick={() => onSelect(i)}
+                style={{
+                  flex: "0 0 110px",
+                  width: 110,
+                  minWidth: 0,
+                  maxWidth: 110,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  padding: "0 2px",
+                  border: "none",
+                  background: "transparent",
+                  font: "inherit",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: ".05em", color: i === chapter ? C.ink : C.ink3, width: "100%", textAlign: "center" }}>{ch.year}</div>
+                <div style={{ position: "relative", height: 30, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                  <div style={{ position: "absolute", width: 24, height: 24, borderRadius: "50%", background: "rgba(192,106,68,.18)", opacity: i === chapter ? 1 : 0, transition: "opacity .25s ease" }} />
+                  <div style={{ width: 11, height: 11, borderRadius: "50%", background: i === chapter ? accent : "#c8b79a", border: `2px solid ${C.paper}`, position: "relative", transition: "background .2s ease" }} />
+                </div>
+                <div
+                  style={{
+                    fontFamily: serif,
+                    fontSize: 13,
+                    lineHeight: 1.22,
+                    textAlign: "center",
+                    color: i === chapter ? C.ink : C.ink2,
+                    width: "100%",
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {ch.title}
+                </div>
+              </button>
+            ))}
+              <div aria-hidden style={{ flex: "0 0 4px", width: 4, minWidth: 4 }} />
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="legacy-timeline-nav"
+          aria-label="Later chapters"
+          disabled={!canScrollRight}
+          onClick={() => scrollBy(1)}
+          style={navBtn}
+        >
+          ›
+        </button>
+      </div>
+
+      {overflows && (
+        <div style={{ marginTop: 10, marginLeft: 36, marginRight: 36, minWidth: 0 }}>
+          <div
+            ref={trackRef}
+            role="scrollbar"
+            aria-orientation="horizontal"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            onPointerDown={onTrackPointerDown}
+            style={{
+              position: "relative",
+              height: 6,
+              borderRadius: 999,
+              background: C.line,
+              cursor: "pointer",
+            }}
+          >
+            <div
+              className="legacy-timeline-thumb"
+              role="presentation"
+              onPointerDown={onThumbPointerDown}
+              onPointerMove={onThumbPointerMove}
+              onPointerUp={endThumbDrag}
+              onPointerCancel={endThumbDrag}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: thumb.left,
+                width: thumb.width,
+                height: 6,
+                borderRadius: 999,
+                background: `linear-gradient(90deg, ${accent}, ${C.gold})`,
+                boxShadow: "0 1px 4px rgba(192,106,68,.35)",
+                cursor: "grab",
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface LegacyAvatarProps {
@@ -480,6 +811,7 @@ export default function LegacyAvatar({
       minHeight: "100vh", background: C.paper,
       backgroundImage: "radial-gradient(1100px 560px at 82% -8%, rgba(255,251,242,.7), transparent 60%), radial-gradient(900px 520px at -10% 116%, rgba(122,82,54,.07), transparent 60%)",
       fontFamily: sans, color: C.ink, WebkitFontSmoothing: "antialiased",
+      width: "100%", maxWidth: "100vw", overflowX: "clip", boxSizing: "border-box",
     }}>
       {/* NAV */}
       <div style={{ position: "sticky", top: 0, zIndex: 40, backdropFilter: "saturate(1.1) blur(8px)", background: "rgba(236,227,210,.82)", borderBottom: `1px solid ${C.line}` }}>
@@ -621,24 +953,15 @@ export default function LegacyAvatar({
       </div>
 
       {/* TIMELINE */}
-      <div id="timeline" style={wrap}>
+      <div id="timeline" style={{ ...wrap, overflow: "hidden", boxSizing: "border-box" }}>
         <div style={eyebrow}>His life, chapter by chapter</div>
         <h2 style={{ ...h2, margin: "12px 0 34px" }}>The chapters that shaped him</h2>
-        <div style={{ position: "relative", padding: "0 6px" }}>
-          <div style={{ position: "absolute", left: 30, right: 30, top: 36, height: 1, background: C.line }} />
-          <div style={{ position: "relative", display: "flex", justifyContent: "flex-start", alignItems: "flex-start", gap: 8, overflowX: "auto", paddingBottom: 8 }}>
-            {D.chapters.map((ch, i) => (
-              <div key={`${ch.year}-${ch.title}-${i}`} onClick={() => setChapter(i)} style={{ flex: "0 0 118px", display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", padding: "0 6px" }}>
-                <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: ".05em", color: i === chapter ? C.ink : C.ink3 }}>{ch.year}</div>
-                <div style={{ position: "relative", height: 30, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ position: "absolute", width: 24, height: 24, borderRadius: "50%", background: "rgba(192,106,68,.18)", opacity: i === chapter ? 1 : 0 }} />
-                  <div style={{ width: 11, height: 11, borderRadius: "50%", background: i === chapter ? accent : "#c8b79a", border: `2px solid ${C.paper}`, position: "relative" }} />
-                </div>
-                <div style={{ fontFamily: serif, fontSize: 14, lineHeight: 1.22, textAlign: "center", color: C.ink2, maxWidth: 118 }}>{ch.title}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ChapterTimelineSlider
+          chapters={D.chapters}
+          chapter={chapter}
+          accent={accent}
+          onSelect={setChapter}
+        />
         <div style={{ marginTop: 34, background: C.card, border: `1px solid ${C.line}`, borderRadius: 5, padding: "32px 36px", display: "grid", gridTemplateColumns: "120px 1fr", gap: 32, alignItems: "start", boxShadow: "0 14px 36px rgba(43,36,28,.07)" }}>
           <div style={{ fontFamily: serif, fontSize: 46, lineHeight: 1, color: accent }}>{ac.year}</div>
           <div>

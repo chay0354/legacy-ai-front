@@ -68,7 +68,10 @@ export interface InterviewSessionProps {
   onViewAvatar?: () => void;
   onViewLegacy?: () => void;
   onManageAccess?: () => void;
+  onBack?: () => void;
   processing?: boolean;
+  processingError?: string | null;
+  onRetryPreservation?: () => void;
   extractionResult?: {
     session_summary?: string;
     completion_score?: number;
@@ -148,7 +151,10 @@ export default function InterviewSession({
   onViewAvatar,
   onViewLegacy,
   onManageAccess = () => {},
+  onBack,
   processing = false,
+  processingError = null,
+  onRetryPreservation,
   extractionResult = null,
 }: InterviewSessionProps) {
   useInjectedHead();
@@ -173,16 +179,17 @@ export default function InterviewSession({
   const sttStopRef  = useRef<(() => void) | null>(null);
   const simIdxRef   = useRef(0);
   const realtimeRef = useRef<RealtimeVoiceInterview | null>(null);
-  const wasPausedRef = useRef(false);
+  const activeQuestionRef = useRef(initialQuestionIndex);
+  const prevModeRef = useRef<Mode>(mode);
 
   const cur       = QS[q];
   const running   = started && !complete;
   const voiceMode = mode === "voice";
   const aiVoiceMode = voiceMode && aiVoice;
-  const answered  = voiceMode ? transcript.trim().length > 0 : typed.trim().length > 0;
-  const asking    = running && voiceMode && !aiVoiceMode && phase === "asking"    && !paused;
-  const listening = running && voiceMode && !aiVoiceMode && phase === "listening" && !paused;
-  const doneV     = running && voiceMode && !aiVoiceMode && phase === "done";
+
+  useEffect(() => {
+    activeQuestionRef.current = q;
+  }, [q]);
 
   const stopConversation = () => {
     realtimeRef.current?.disconnect();
@@ -240,7 +247,7 @@ export default function InterviewSession({
         setAiError(msg);
         stopConversation();
       },
-      onAdvance: (summary, callId) => handleRealtimeAdvance(questionIndex, summary, callId),
+      onAdvance: (summary, callId) => handleRealtimeAdvance(activeQuestionRef.current, summary, callId),
     });
 
     realtimeRef.current = client;
@@ -254,18 +261,58 @@ export default function InterviewSession({
     }
   };
 
+  /** Reconnect AI voice (or browser ask/listen) when switching Talking ↔ Writing. */
   useEffect(() => {
-    if (!aiVoiceMode) return;
-    if (paused) {
-      wasPausedRef.current = true;
-      stopConversation();
-    } else if (wasPausedRef.current && running && !complete) {
-      wasPausedRef.current = false;
-      void startRealtimeConversation(q);
+    if (!running) {
+      prevModeRef.current = mode;
+      return;
     }
-  }, [paused]); // eslint-disable-line
+
+    const prev = prevModeRef.current;
+    if (mode === "text" && prev === "voice") {
+      if (sttStopRef.current) {
+        sttStopRef.current();
+        sttStopRef.current = null;
+      }
+      stopConversation();
+    }
+
+    if (mode === "voice" && prev === "text") {
+      setTranscript("");
+      setLiveLine("");
+      setAiError(null);
+      setPaused(false);
+      simIdxRef.current = 0;
+      if (aiVoice) {
+        void startRealtimeConversation(q);
+      } else {
+        setPhase("asking");
+      }
+    }
+
+    prevModeRef.current = mode;
+  }, [mode, running, q, aiVoice]); // eslint-disable-line
+
+  const answered  = voiceMode ? transcript.trim().length > 0 : typed.trim().length > 0;
+  const asking    = running && voiceMode && !aiVoiceMode && phase === "asking"    && !paused;
+  const listening = running && voiceMode && !aiVoiceMode && phase === "listening" && !paused;
+  const doneV     = running && voiceMode && !aiVoiceMode && phase === "done";
 
   useEffect(() => () => stopConversation(), []); // eslint-disable-line
+
+  const togglePause = () => {
+    setPaused((p) => {
+      const next = !p;
+      if (aiVoiceMode) {
+        if (next) realtimeRef.current?.pause();
+        else realtimeRef.current?.resume();
+      } else if (next && sttStopRef.current) {
+        sttStopRef.current();
+        sttStopRef.current = null;
+      }
+      return next;
+    });
+  };
 
   const goNextWithAnswer = async (answerOverride?: string) => {
     const answer = answerOverride ?? (voiceMode ? transcript : typed);
@@ -379,13 +426,10 @@ export default function InterviewSession({
   };
   const startText   = () => { stopConversation(); setStarted(true); setMode("text");  setQ(initialQuestionIndex); setSecs(0); setComplete(false); setPhase("asking"); setTyped(""); };
   const switchVoice = () => {
-    setMode("voice"); setTranscript(""); simIdxRef.current = 0; setAiError(null);
-    if (aiVoice) void startRealtimeConversation(q);
-    else setPhase("asking");
+    setTyped("");
+    setMode("voice");
   };
-  const switchText  = () => {
-    if (sttStopRef.current) { sttStopRef.current(); sttStopRef.current = null; }
-    stopConversation();
+  const switchText = () => {
     setMode("text");
   };
   const toggleListen = () => {
@@ -417,7 +461,7 @@ export default function InterviewSession({
   const reassurance  = paused ? "Paused. Nothing is lost — take your time."
     : voiceMode
       ? aiVoiceMode
-        ? "Just talk — OpenAI handles listening and speaking in real time, like ChatGPT voice."
+        ? "Just talk — I'll listen and guide us to the next question when you're ready."
         : asking    ? "Listen for the question, then answer in your own words."
         : listening ? "I'll move us along when you're done — or tap the circle to finish sooner."
         : "One moment — the next question is coming up."
@@ -459,9 +503,18 @@ export default function InterviewSession({
               </>
             ) : <span>{stageLabel} · {sessionLabel}</span>}
           </div>
-          <div style={{ minWidth: 78, display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ minWidth: 78, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
             {running && (
-              <button onClick={() => setPaused((p) => !p)} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 999 }}>{paused ? "Resume" : "Pause"}</button>
+              <button onClick={togglePause} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 999 }}>{paused ? "Resume" : "Pause"}</button>
+            )}
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                style={{ cursor: "pointer", background: C.card, border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 999, boxShadow: "0 2px 8px rgba(43,36,28,.06)", whiteSpace: "nowrap" }}
+              >
+                Back to home
+              </button>
             )}
           </div>
         </div>
@@ -492,7 +545,7 @@ export default function InterviewSession({
             </h1>
             <p style={{ fontSize: 17, lineHeight: 1.6, color: C.ink2, margin: "20px 0 0", maxWidth: 460 }}>
               {aiVoice
-                ? "OpenAI Realtime voice — press start and talk naturally, like ChatGPT. One flowing conversation."
+                ? "I'll ask gentle questions about your life. Press start and talk naturally — one flowing conversation, at your pace."
                 : stageLabel === "Foundation"
                   ? "I'll ask gentle questions about your life — identity, family, chapters, and what makes you you. Just talk; I'll listen and move us along when you're ready."
                   : stageLabel === "Enriched"
@@ -532,8 +585,14 @@ export default function InterviewSession({
             </div>
 
             {/* question / interviewer */}
-            {aiVoiceMode && liveLine ? (
-              <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 28, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink, textWrap: "pretty", maxWidth: 560 }}>{liveLine}</p>
+            {aiVoiceMode ? (
+              liveLine ? (
+                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 28, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink, textWrap: "pretty", maxWidth: 560 }}>{liveLine}</p>
+              ) : (
+                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 22, lineHeight: 1.4, margin: 0, color: C.ink2, textWrap: "pretty", maxWidth: 560 }}>
+                  {convLive ? "I'm listening…" : "Connecting to your interviewer…"}
+                </p>
+              )
             ) : (
               <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 40, lineHeight: 1.16, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
             )}
@@ -596,6 +655,24 @@ export default function InterviewSession({
                     </button>
                   )}
                   <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: statusColor, marginTop: 18 }}>{statusLabel}</div>
+                  <button
+                    type="button"
+                    onClick={togglePause}
+                    style={{
+                      cursor: "pointer",
+                      marginTop: 16,
+                      background: paused ? C.ink : "transparent",
+                      color: paused ? C.paper : C.ink2,
+                      border: `1px solid ${paused ? C.ink : C.line}`,
+                      fontFamily: sans,
+                      fontWeight: 600,
+                      fontSize: 14,
+                      padding: "10px 22px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    {paused ? "Resume interview" : "Pause interview"}
+                  </button>
                   {aiError && (
                     <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{aiError}</p>
                   )}
@@ -650,10 +727,21 @@ export default function InterviewSession({
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.sage, color: "#fbf6ec", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 26 }}>✓</div>
                 <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h1>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 20, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
-                  {extractionResult
-                    ? "We've extracted your stories, relationships, and wisdom. Your legacy dashboard is updated."
-                    : "This is your legacy. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
+                  {processingError
+                    ? processingError
+                    : extractionResult
+                      ? "We've extracted your stories, relationships, and wisdom. Your legacy dashboard is updated."
+                      : "This is your legacy. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
                 </p>
+                {processingError && onRetryPreservation && (
+                  <button
+                    onClick={onRetryPreservation}
+                    disabled={processing}
+                    style={{ cursor: "pointer", marginTop: 22, background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 999, opacity: processing ? 0.6 : 1 }}
+                  >
+                    {processing ? "Preserving…" : "Try preserving again"}
+                  </button>
+                )}
                 {extractionResult && (
                   <div style={{ marginTop: 28, padding: "24px 28px", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, textAlign: "left", width: "100%", boxSizing: "border-box" }}>
                     {extractionResult.session_summary && (

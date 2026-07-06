@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { blobToWav, pickMime, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
 
 const C = {
   card: '#fbf6ec',
@@ -71,14 +71,13 @@ export default function VoiceRecordModal({
     setRecordedSeconds(0)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mime = pickMime(['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'])
-      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
+      const { recorder: rec, mimeType } = createMediaRecorder(stream)
       chunksRef.current = []
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
         const duration = secondsRef.current
-        const b = new Blob(chunksRef.current, { type: mime || 'audio/webm' })
+        const b = new Blob(chunksRef.current, { type: mimeType })
         if (!b.size) {
           setLocalError('No audio was captured — try recording again.')
           setRecordedSeconds(0)

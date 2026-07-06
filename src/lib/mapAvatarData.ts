@@ -174,6 +174,7 @@ export function resolveYearFromContent(explicit?: string | null, ...texts: (stri
 }
 
 type TimelineEntry = {
+  memoryId?: string
   year: string
   title: string
   body: string
@@ -182,86 +183,43 @@ type TimelineEntry = {
   priority: number
 }
 
-/** Build chronological timeline from all interview-extracted content with a year. */
+function normalizeTitle(title: string) {
+  return title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+}
+
+/** Timeline chapters come ONLY from saved memories that have a year. */
 export function buildTimelineChapters(profile: LegacyProfile, max = 16): AvatarData['chapters'] {
   const items: TimelineEntry[] = []
+  const seenIds = new Set<string>()
+  const seenKeys = new Set<string>()
 
   for (const m of profile.memories || []) {
-    const resolved = resolveYearFromContent(m.year, m.title, m.summary, m.full_transcript)
+    const resolved = resolveYearFromContent(m.year, m.summary, m.full_transcript, m.title)
     if (!resolved) continue
+
+    if (m.id) {
+      if (seenIds.has(m.id)) continue
+      seenIds.add(m.id)
+    }
+
+    const dedupeKey = `${resolved.sortYear}|${normalizeTitle(m.title || '')}`
+    if (seenKeys.has(dedupeKey)) continue
+    seenKeys.add(dedupeKey)
+
     items.push({
+      memoryId: m.id,
       year: resolved.year,
       title: m.title || 'A moment',
       body: m.summary || m.full_transcript?.slice(0, 280) || '',
-      appears: m.title || 'Interview memory',
+      appears: m.title || 'Memory',
       sortYear: resolved.sortYear,
       priority: importancePriority(m.importance) + 2,
     })
   }
 
-  for (const r of profile.relationships || []) {
-    const resolved = resolveYearFromContent(null, r.relationship_summary, r.description)
-    if (!resolved) continue
-    items.push({
-      year: resolved.year,
-      title: r.name || 'Someone important',
-      body: r.relationship_summary || r.description || '',
-      appears: `People — ${r.name || 'relationship'}`,
-      sortYear: resolved.sortYear,
-      priority: 2,
-    })
-  }
+  items.sort((a, b) => a.sortYear - b.sortYear || b.priority - a.priority)
 
-  for (const v of profile.values || []) {
-    const resolved = resolveYearFromContent(null, v.origin_story, v.description)
-    if (!resolved) continue
-    items.push({
-      year: resolved.year,
-      title: v.value_name || 'A value takes root',
-      body: v.origin_story || v.description || '',
-      appears: `Values — ${v.value_name || 'core value'}`,
-      sortYear: resolved.sortYear,
-      priority: v.is_core ? 3 : 2,
-    })
-  }
-
-  for (const w of profile.wisdom || []) {
-    const resolved = resolveYearFromContent(null, w.supporting_story, w.advice_statement)
-    if (!resolved) continue
-    items.push({
-      year: resolved.year,
-      title: w.title || w.life_category || 'Lesson learned',
-      body: w.supporting_story || w.advice_statement || '',
-      appears: w.title || 'Wisdom from interviews',
-      sortYear: resolved.sortYear,
-      priority: 2,
-    })
-  }
-
-  for (const t of profile.openThreads || []) {
-    const resolved = resolveYearFromContent(null, t.origin_statement, t.title)
-    if (!resolved) continue
-    items.push({
-      year: resolved.year,
-      title: t.title || 'A thread from conversation',
-      body: t.origin_statement || '',
-      appears: t.title || 'Interview thread',
-      sortYear: resolved.sortYear,
-      priority: 1,
-    })
-  }
-
-  const seen = new Set<string>()
-  const deduped = items.filter((item) => {
-    const key = `${item.sortYear}|${item.title.toLowerCase().trim()}|${item.body.slice(0, 80).toLowerCase().trim()}`
-    if (seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-
-  deduped.sort((a, b) => a.sortYear - b.sortYear || b.priority - a.priority)
-
-  const chapters = deduped.slice(0, max).map(({ year, title, body, appears }) => ({
+  const chapters = items.slice(0, max).map(({ year, title, body, appears }) => ({
     year, title, body, appears,
   }))
 

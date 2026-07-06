@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { clearAuthTokenCache } from './api';
 import { apiUrl } from './apiUrl';
 
 interface AuthSessionResponse {
@@ -29,11 +30,13 @@ async function postAuth(path: string, body: Record<string, string>) {
 export async function signInWithPassword(email: string, password: string) {
   const data = await postAuth('/api/auth/sign-in', { email, password });
   if (!data.session) throw new Error('Sign in succeeded but no session was returned');
+  clearAuthTokenCache();
   const { error } = await supabase.auth.setSession({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
   });
   if (error) throw error;
+  clearAuthTokenCache();
   return data;
 }
 
@@ -41,11 +44,13 @@ export async function signInWithPassword(email: string, password: string) {
 export async function signUpWithPassword(name: string, email: string, password: string) {
   const data = await postAuth('/api/auth/sign-up', { name, email, password });
   if (data.session) {
+    clearAuthTokenCache();
     const { error } = await supabase.auth.setSession({
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token,
     });
     if (error) throw error;
+    clearAuthTokenCache();
   }
   return data;
 }

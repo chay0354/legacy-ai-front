@@ -6,6 +6,7 @@ import { requestPasswordReset, signInWithPassword, signUpWithPassword } from './
 import {
   accessApi,
   avatarApi,
+  clearAuthTokenCache,
   interviewApi,
   uploadMedia,
   type AccessMe,
@@ -86,24 +87,49 @@ function LegacyCreatorNav({
 function resolveLegacyDestination(me: AccessMe): string {
   const owned = me.memberships.filter((m) => m.isOwner)
   const shared = me.memberships.filter((m) => !m.isOwner)
-  if (owned.length > 0) return `/legacy?c=${owned[0].creatorId}`
+  if (owned.length > 0) {
+    const m = owned[0]
+    // Brand-new creators should start the Foundation interview immediately.
+    if ((m.avatarLevel ?? 0) === 0) return '/interview'
+    return `/legacy?c=${m.creatorId}`
+  }
   if (shared.length > 0) return `/legacy?c=${shared[0].creatorId}`
   if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
   return '/interview'
+}
+
+function pickCreatorId(me: AccessMe, preferred?: string | null): string | null {
+  const ids = new Set(me.memberships.map((m) => m.creatorId))
+  if (preferred && ids.has(preferred)) return preferred
+  const owned = me.memberships.find((m) => m.isOwner)
+  if (owned) return owned.creatorId
+  return me.memberships[0]?.creatorId ?? null
 }
 
 /* ─────────────────────────────── Welcome ─────────────────────────────── */
 function WelcomePage({ session }: { session: Session | null }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const next = params.get('next') || '/legacy'
+  const explicitNext = params.get('next')
+  const startSignIn = params.get('signin') === '1'
   const [authBusy, setAuthBusy] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [authNotice, setAuthNotice] = useState<string | null>(null)
+  const [authMode, setAuthMode] = useState<'signup' | 'signin' | undefined>(startSignIn ? 'signin' : undefined)
 
   useEffect(() => {
-    if (session) navigate(next, { replace: true })
-  }, [session, navigate, next])
+    if (!session) return
+    let active = true
+    const explicitNext = params.get('next')
+    if (explicitNext) {
+      navigate(explicitNext, { replace: true })
+      return
+    }
+    accessApi.me()
+      .then((me) => { if (active) navigate(resolveLegacyDestination(me), { replace: true }) })
+      .catch(() => { if (active) navigate('/interview', { replace: true }) })
+    return () => { active = false }
+  }, [session, navigate, explicitNext])
 
   const handleSignUp = async ({ name, email, password }: SignUpValues) => {
     setAuthBusy(true)
@@ -113,11 +139,18 @@ function WelcomePage({ session }: { session: Session | null }) {
       const result = await signUpWithPassword(name, email, password)
       if (result.needsEmailConfirmation) {
         setAuthNotice('Account created. Check your email to confirm, then sign in.')
+        setAuthMode('signin')
         return
       }
       // onAuthStateChange → useEffect navigates once session is set
     } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Sign up failed')
+      const msg = e instanceof Error ? e.message : 'Sign up failed'
+      if (msg.toLowerCase().includes('already exists')) {
+        setAuthMode('signin')
+        setAuthNotice('You already have an account with this email. Enter your password below to sign in.')
+        return
+      }
+      setAuthError(msg)
     } finally {
       setAuthBusy(false)
     }
@@ -131,28 +164,44 @@ function WelcomePage({ session }: { session: Session | null }) {
       await signInWithPassword(email, password)
       // onAuthStateChange → useEffect navigates once session is set
     } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Sign in failed')
+      const msg = e instanceof Error ? e.message : 'Sign in failed'
+      if (msg.toLowerCase().includes('wrong email') || msg.toLowerCase().includes('invalid')) {
+        setAuthError('Wrong email or password. Use “Forgot password?” if you need to reset it.')
+        return
+      }
+      setAuthError(msg)
     } finally {
       setAuthBusy(false)
     }
   }
 
-  const handleGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}${next}` },
-    })
-    if (error) setAuthError(error.message)
+  const handleForgotPassword = async (email: string) => {
+    if (!email) {
+      setAuthError('Enter your email above, then click Forgot password.')
+      return
+    }
+    setAuthBusy(true)
+    setAuthError(null)
+    setAuthNotice(null)
+    try {
+      await requestPasswordReset(email, window.location.origin)
+      setAuthNotice(`Password reset link sent to ${email}. Check your inbox, then sign in here.`)
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : 'Could not send reset email')
+    } finally {
+      setAuthBusy(false)
+    }
   }
 
   return (
     <LegacyWelcome
       onSignUp={handleSignUp}
       onSignIn={handleSignIn}
-      onGoogle={handleGoogle}
+      onForgotPassword={handleForgotPassword}
       authBusy={authBusy}
       authError={authError}
       authNotice={authNotice}
+      authMode={authMode}
       onClearAuthFeedback={() => { setAuthError(null); setAuthNotice(null) }}
     />
   )
@@ -192,15 +241,26 @@ function LegacyHomePage({ session }: { session: Session | null }) {
 
   useEffect(() => {
     if (!session || creatorIdParam) return
-    const cached = localStorage.getItem(LAST_CREATOR_KEY)
-    if (cached) {
-      navigate(`/legacy?c=${cached}`, { replace: true })
-      return
-    }
+    let active = true
     accessApi.me()
-      .then((me) => navigate(resolveLegacyDestination(me), { replace: true }))
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load your account'))
-  }, [session, creatorIdParam, navigate])
+      .then((me) => {
+        if (!active) return
+        const cached = localStorage.getItem(LAST_CREATOR_KEY)
+        const creatorId = pickCreatorId(me, cached)
+        if (cached && cached !== creatorId) localStorage.removeItem(LAST_CREATOR_KEY)
+        if (creatorId && (me.memberships.find((m) => m.creatorId === creatorId)?.avatarLevel ?? 0) > 0) {
+          navigate(`/legacy?c=${creatorId}`, { replace: true })
+          return
+        }
+        navigate(resolveLegacyDestination(me), { replace: true })
+      })
+      .catch((e) => {
+        if (!active) return
+        setError(e instanceof Error ? e.message : 'Failed to load your account')
+        navigate('/interview', { replace: true })
+      })
+    return () => { active = false }
+  }, [session?.user?.id, creatorIdParam, navigate])
 
   useEffect(() => {
     if (!session || !creatorIdParam) return
@@ -240,8 +300,13 @@ function LegacyHomePage({ session }: { session: Session | null }) {
       })
       .catch((e) => {
         if (!active) return
-        if (e instanceof Error && (e.message.includes('403') || e.message.includes('access'))) {
+        const denied = e instanceof Error && (e.message.includes('403') || e.message.includes('access'))
+        if (denied) {
           localStorage.removeItem(LAST_CREATOR_KEY)
+          accessApi.me()
+            .then((me) => navigate(resolveLegacyDestination(me), { replace: true }))
+            .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load your account'))
+          return
         }
         setError(e instanceof Error ? e.message : 'Failed to load this legacy')
       })
@@ -256,7 +321,18 @@ function LegacyHomePage({ session }: { session: Session | null }) {
   }, [justCompletedStage, location.pathname, location.search, navigate])
 
   if (!session) return <Navigate to="/" replace />
-  if (!creatorIdParam) return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Opening your legacy…</span></Centered>
+  if (!creatorIdParam) {
+    if (error) {
+      return (
+        <Centered>
+          <p style={{ fontWeight: 600 }}>Could not open your legacy</p>
+          <p style={{ fontSize: 14, color: C.ink2, textAlign: 'center', maxWidth: 460 }}>{error}</p>
+          <button onClick={() => navigate('/interview')} style={primaryBtn}>Start Foundation interview</button>
+        </Centered>
+      )
+    }
+    return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Opening your legacy…</span></Centered>
+  }
   if (loading) return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Opening this legacy…</span></Centered>
 
   if (error || !data) {
@@ -484,21 +560,30 @@ function InterviewPage({ session }: { session: Session | null }) {
   const [error, setError] = useState<string | null>(null)
   const [sessionData, setSessionData] = useState<InterviewSessionData | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [processingError, setProcessingError] = useState<string | null>(null)
   const [extractionResult, setExtractionResult] = useState<CompleteResult | null>(null)
+  const lastAnswersRef = useRef<Answer[]>([])
   const [aiVoice, setAiVoice] = useState(false)
   const [aiVoiceReady, setAiVoiceReady] = useState(false)
 
   useEffect(() => {
+    if (!session?.user?.id) return
     let active = true
+    setAiVoiceReady(false)
     checkAiVoiceAvailable()
       .then((ok) => {
         if (!active) return
         setAiVoice(ok)
         setAiVoiceReady(true)
       })
-      .catch(() => { if (active) setAiVoiceReady(true) })
+      .catch(() => {
+        if (active) {
+          setAiVoice(false)
+          setAiVoiceReady(true)
+        }
+      })
     return () => { active = false }
-  }, [])
+  }, [session?.user?.id])
 
   const goToUpdatedLegacy = () => {
     if (!sessionData?.creator.id) return
@@ -542,7 +627,9 @@ function InterviewPage({ session }: { session: Session | null }) {
 
   const handleComplete = async (answers: Answer[]) => {
     if (!sessionData) return
+    lastAnswersRef.current = answers
     setProcessing(true)
+    setProcessingError(null)
     setExtractionResult(null)
     try {
       const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
@@ -557,10 +644,14 @@ function InterviewPage({ session }: { session: Session | null }) {
       }) as CompleteResult
       setExtractionResult(result)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to process interview')
+      setProcessingError(e instanceof Error ? e.message : 'Failed to process interview')
     } finally {
       setProcessing(false)
     }
+  }
+
+  const retryPreservation = () => {
+    if (lastAnswersRef.current.length) void handleComplete(lastAnswersRef.current)
   }
 
   if (loading || !aiVoiceReady) {
@@ -594,32 +685,30 @@ function InterviewPage({ session }: { session: Session | null }) {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
-      <button onClick={() => navigate('/legacy')} style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 100, ...floatBtn }}>
-        ← Legacy
-      </button>
-      <InterviewSession
-        subjectName={displayName}
-        sessionLabel={sessionData.session.label}
-        stageLabel={sessionData.stageLabel}
-        stageGoal={sessionData.stageGoal}
-        stages={sessionData.stages?.map(({ label, done, current }) => ({ label, done, current }))}
-        questions={sessionData.questions}
-        initialQuestionIndex={sessionData.resumeIndex ?? 0}
-        autoStart={(sessionData.savedAnswers?.length ?? 0) > 0}
-        interviewStage={sessionData.stage}
-        aiVoice={aiVoice}
-        tts={aiVoice ? null : browserTts}
-        stt={aiVoice ? null : browserStt}
-        onAnswerCommit={handleAnswerCommit}
-        onComplete={handleComplete}
-        onViewAvatar={() => navigate(`/avatar?c=${sessionData.creator.id}`)}
-        onViewLegacy={goToUpdatedLegacy}
-        onManageAccess={() => navigate('/manage')}
-        processing={processing}
-        extractionResult={extractionResult}
-      />
-    </div>
+    <InterviewSession
+      subjectName={displayName}
+      sessionLabel={sessionData.session.label}
+      stageLabel={sessionData.stageLabel}
+      stageGoal={sessionData.stageGoal}
+      stages={sessionData.stages?.map(({ label, done, current }) => ({ label, done, current }))}
+      questions={sessionData.questions}
+      initialQuestionIndex={sessionData.resumeIndex ?? 0}
+      autoStart={(sessionData.savedAnswers?.length ?? 0) > 0}
+      interviewStage={sessionData.stage}
+      aiVoice={aiVoice}
+      tts={aiVoice ? null : browserTts}
+      stt={aiVoice ? null : browserStt}
+      onAnswerCommit={handleAnswerCommit}
+      onComplete={handleComplete}
+      onViewAvatar={() => navigate(`/avatar?c=${sessionData.creator.id}`)}
+      onViewLegacy={goToUpdatedLegacy}
+      onManageAccess={() => navigate('/manage')}
+      onBack={() => navigate(`/legacy?c=${sessionData.creator.id}`)}
+      processing={processing}
+      processingError={processingError}
+      onRetryPreservation={retryPreservation}
+      extractionResult={extractionResult}
+    />
   )
 }
 
@@ -913,6 +1002,17 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       if (event === 'TOKEN_REFRESHED') return
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') clearAuthTokenCache()
+      if (event === 'SIGNED_IN' && s?.user?.id) {
+        accessApi.me()
+          .then((me) => {
+            const cached = localStorage.getItem(LAST_CREATOR_KEY)
+            if (cached && !me.memberships.some((m) => m.creatorId === cached)) {
+              localStorage.removeItem(LAST_CREATOR_KEY)
+            }
+          })
+          .catch(() => { /* ignore */ })
+      }
       setSession(s)
     })
 

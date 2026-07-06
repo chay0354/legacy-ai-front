@@ -25,11 +25,13 @@ export interface LegacyWelcomeProps {
   portraitSrc?: string;
   onSignIn?: (values: SignInValues) => void;
   onSignUp?: (values: SignUpValues) => void;
-  onGoogle?: (mode: AuthMode) => void;
   authBusy?: boolean;
   authError?: string | null;
   authNotice?: string | null;
   onClearAuthFeedback?: () => void;
+  /** When set, switches the auth modal to this mode (e.g. after "already exists" on sign-up). */
+  authMode?: AuthMode;
+  onForgotPassword?: (email: string) => void | Promise<void>;
 }
 
 const C = {
@@ -92,15 +94,23 @@ export default function LegacyWelcome({
   portraitSrc,
   onSignIn = (v) => console.log("sign in", v),
   onSignUp = (v) => console.log("sign up", v),
-  onGoogle = (mode) => console.log("google", mode),
   authBusy = false,
   authError = null,
   authNotice = null,
   onClearAuthFeedback,
+  authMode,
+  onForgotPassword,
 }: LegacyWelcomeProps) {
   useInjectedHead();
   const [authOpen, setAuthOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>("signup");
+
+  useEffect(() => {
+    if (authMode) {
+      setMode(authMode);
+      setAuthOpen(true);
+    }
+  }, [authMode]);
 
   const openSignup = () => { onClearAuthFeedback?.(); setMode("signup"); setAuthOpen(true); };
   const openSignin = () => { onClearAuthFeedback?.(); setMode("signin"); setAuthOpen(true); };
@@ -271,7 +281,7 @@ export default function LegacyWelcome({
         onToggle={() => { onClearAuthFeedback?.(); setMode((m) => (m === "signup" ? "signin" : "signup")); }}
         onSignIn={onSignIn}
         onSignUp={onSignUp}
-        onGoogle={onGoogle}
+        onForgotPassword={onForgotPassword}
       />
     </div>
   );
@@ -290,10 +300,10 @@ interface AuthModalProps {
   onToggle: () => void;
   onSignIn: (values: SignInValues) => void;
   onSignUp: (values: SignUpValues) => void;
-  onGoogle: (mode: AuthMode) => void;
+  onForgotPassword?: (email: string) => void | Promise<void>;
 }
 
-function AuthModal({ open, mode, accent, busy = false, error = null, notice = null, onClose, onToggle, onSignIn, onSignUp, onGoogle }: AuthModalProps) {
+function AuthModal({ open, mode, accent, busy = false, error = null, notice = null, onClose, onToggle, onSignIn, onSignUp, onForgotPassword }: AuthModalProps) {
   const isSignup = mode === "signup";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -389,16 +399,19 @@ function AuthModal({ open, mode, accent, busy = false, error = null, notice = nu
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
             </div>
 
-            <button type="submit" disabled={busy} style={{ textAlign: "center", background: accent, color: "#fbf6ec", border: "none", cursor: busy ? "wait" : "pointer", fontFamily: sans, fontWeight: 600, fontSize: 15, padding: 15, borderRadius: 999, boxShadow: "0 10px 24px rgba(192,106,68,.28)", opacity: busy ? 0.7 : 1 }}>{busy ? "Please wait…" : copy.cta}</button>
+            {!isSignup && onForgotPassword && (
+              <div style={{ marginTop: -12, marginBottom: 16, textAlign: "right" }}>
+                <button
+                  type="button"
+                  onClick={() => onForgotPassword(email.trim())}
+                  style={{ cursor: "pointer", background: "transparent", border: "none", color: C.ink2, fontFamily: sans, fontSize: 13, textDecoration: "underline" }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "20px 0" }}>
-              <span style={{ flex: 1, height: 1, background: C.line }} />
-              <span style={{ fontSize: 11.5, color: C.ink3 }}>or</span>
-              <span style={{ flex: 1, height: 1, background: C.line }} />
-            </div>
-            <button type="button" onClick={() => onGoogle(mode)} style={{ cursor: "pointer", background: C.paper, border: `1px solid ${C.line}`, color: C.ink, fontFamily: sans, fontWeight: 500, fontSize: 14.5, padding: 13, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              <span style={{ fontFamily: serif, fontWeight: 600 }}>G</span>Continue with Google
-            </button>
+            <button type="submit" disabled={busy} style={{ textAlign: "center", background: accent, color: "#fbf6ec", border: "none", cursor: busy ? "wait" : "pointer", fontFamily: sans, fontWeight: 600, fontSize: 15, padding: 15, borderRadius: 999, boxShadow: "0 10px 24px rgba(192,106,68,.28)", opacity: busy ? 0.7 : 1 }}>{busy ? "Please wait…" : copy.cta}</button>
 
             <div style={{ textAlign: "center", marginTop: 24, fontSize: 14, color: C.ink2 }}>
               {copy.switchText}{" "}

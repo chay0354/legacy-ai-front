@@ -4,7 +4,12 @@ import { apiUrl } from './apiUrl';
 
 let cachedAuth: { token: string; expiresAtMs: number } | null = null;
 
-async function authHeaders() {
+/** Call after sign-in / sign-out so API requests use the current session token. */
+export function clearAuthTokenCache() {
+  cachedAuth = null;
+}
+
+export async function authHeaders() {
   const now = Date.now();
   if (cachedAuth && cachedAuth.expiresAtMs > now + 60_000) {
     return {
@@ -27,12 +32,16 @@ async function authHeaders() {
   };
 }
 
-async function apiFetch(path: string, options: RequestInit = {}) {
+async function apiFetch(path: string, options: RequestInit = {}, retried = false) {
   const headers = await authHeaders();
   const res = await fetch(apiUrl(path), {
     ...options,
     headers: { ...headers, ...options.headers },
   });
+  if (res.status === 401 && !retried) {
+    clearAuthTokenCache();
+    return apiFetch(path, options, true);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error((data as { error?: string }).error || `API error ${res.status}`) as Error & {
@@ -258,7 +267,7 @@ export const avatarApi = {
 
   cloneVoice: (voiceSamplePath: string) =>
     apiFetch('/api/avatar/voice', { method: 'POST', body: JSON.stringify({ voiceSamplePath }) }) as Promise<{
-      success: boolean; voiceId: string; cloned: boolean; warning: string | null; assets: AvatarAssets;
+      success: boolean; voiceId: string; cloned: boolean; voiceProvider?: string; message?: string; assets: AvatarAssets;
     }>,
 
   /** Save a voice recording for family to hear on the avatar page (no live-avatar cloning). */

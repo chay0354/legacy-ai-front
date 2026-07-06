@@ -9,12 +9,27 @@ export function pickMime(candidates: string[]): string | undefined {
   return candidates.find((t) => MediaRecorder.isTypeSupported(t))
 }
 
+export function createMediaRecorder(stream: MediaStream): { recorder: MediaRecorder; mimeType: string } {
+  const mime = pickMime(['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'])
+  try {
+    if (mime) return { recorder: new MediaRecorder(stream, { mimeType: mime }), mimeType: mime }
+  } catch {
+    /* fall back to browser default */
+  }
+  return { recorder: new MediaRecorder(stream), mimeType: 'audio/webm' }
+}
+
 /** Encode a browser recording as 16-bit PCM mono WAV for reliable playback + storage. */
 export async function blobToWav(blob: Blob, targetRate = 16000): Promise<Blob> {
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
   const ctx = new AudioCtx()
   try {
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer())
+    let decoded: AudioBuffer
+    try {
+      decoded = await ctx.decodeAudioData(await blob.arrayBuffer())
+    } catch {
+      throw new Error('Could not process the recording — try re-recording in Chrome or Edge.')
+    }
     const rate = Math.min(targetRate, decoded.sampleRate)
     const length = Math.ceil(decoded.duration * rate)
     const offline = new OfflineAudioContext(1, length, rate)

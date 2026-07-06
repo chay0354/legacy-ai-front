@@ -34,7 +34,7 @@ function isNetworkError(e: unknown): boolean {
 function friendlyAnamError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)
   if (isConcurrentLimitError(e)) {
-    return 'Previous session still closing (Free plan allows 1 at a time). Wait a few seconds — Try again will reconnect automatically.'
+    return 'Previous session still closing. Wait a few seconds — Try again will reconnect automatically.'
   }
   if (isBadRequestError(e)) {
     return 'Could not start the live session. Restart the backend server and try again.'
@@ -46,7 +46,10 @@ function friendlyAnamError(e: unknown): string {
     return `${msg}. Tap Try again.`
   }
   if (/402|plan|usage limit|Spend cap/i.test(msg)) {
-    return 'Anam usage limit reached. Check your plan at anam.ai or wait for the monthly reset.'
+    return 'Live session limit reached. Wait a moment and try again.'
+  }
+  if (/Anam|HeyGen|OpenAI|ElevenLabs/i.test(msg)) {
+    return 'Could not start the live call. Please try again in a moment.'
   }
   return msg || 'Could not start the live call'
 }

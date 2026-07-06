@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { avatarApi, uploadMedia, type AvatarAssets } from '../lib/api'
+import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
 
 const C = {
   paper: '#ece3d2', card: '#fbf6ec', ink: '#2b241c', ink2: '#6e6253', ink3: '#9a8d79',
@@ -13,73 +14,12 @@ const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, bor
 const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 999, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
 const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: '26px 28px' }
 
-const VOICE_SCRIPT = [
-  'Hello. My name is here, and these are the stories I want to leave behind.',
-  'I grew up in a place I loved, with people who shaped who I became.',
-  'If there is one thing I would want you to remember, it is to be kind, and to be brave.',
-]
-
 type StepId = 'intro' | 'voice' | 'photo' | 'generate'
 const STEPS: { id: StepId; label: string }[] = [
   { id: 'voice', label: 'Voice' },
   { id: 'photo', label: 'Photo' },
   { id: 'generate', label: 'Avatar video' },
 ]
-
-function pickMime(candidates: string[]): string | undefined {
-  if (typeof MediaRecorder === 'undefined') return undefined
-  return candidates.find((t) => MediaRecorder.isTypeSupported(t))
-}
-
-/**
- * HeyGen voice cloning only accepts WAV/MP3 — a browser .webm recording is sniffed
- * as video/webm and rejected. Decode the recording and re-encode it as 16-bit PCM
- * mono WAV (16 kHz, plenty for voice) so the upload is unambiguously audio.
- */
-async function blobToWav(blob: Blob, targetRate = 16000): Promise<Blob> {
-  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-  const ctx = new AudioCtx()
-  try {
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer())
-    const rate = Math.min(targetRate, decoded.sampleRate)
-    const length = Math.ceil(decoded.duration * rate)
-    const offline = new OfflineAudioContext(1, length, rate)
-    const src = offline.createBufferSource()
-    src.buffer = decoded
-    src.connect(offline.destination)
-    src.start()
-    const rendered = await offline.startRendering()
-    return encodeWav(rendered.getChannelData(0), rate)
-  } finally {
-    ctx.close()
-  }
-}
-
-function encodeWav(samples: Float32Array, sampleRate: number): Blob {
-  const buffer = new ArrayBuffer(44 + samples.length * 2)
-  const view = new DataView(buffer)
-  const writeStr = (offset: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)) }
-  writeStr(0, 'RIFF')
-  view.setUint32(4, 36 + samples.length * 2, true)
-  writeStr(8, 'WAVE')
-  writeStr(12, 'fmt ')
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)
-  view.setUint16(22, 1, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, sampleRate * 2, true)
-  view.setUint16(32, 2, true)
-  view.setUint16(34, 16, true)
-  writeStr(36, 'data')
-  view.setUint32(40, samples.length * 2, true)
-  let offset = 44
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]))
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
-    offset += 2
-  }
-  return new Blob([buffer], { type: 'audio/wav' })
-}
 
 interface Props {
   onExit: () => void
@@ -199,55 +139,99 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
   const [blob, setBlob] = useState<Blob | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [seconds, setSeconds] = useState(0)
+  const [recordedSeconds, setRecordedSeconds] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const recRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const secondsRef = useRef(0)
 
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url); if (timerRef.current) clearInterval(timerRef.current) }, [url])
+  useEffect(() => () => {
+    if (url) URL.revokeObjectURL(url)
+    if (timerRef.current) clearInterval(timerRef.current)
+    recRef.current?.stop()
+  }, [url])
 
   const start = async () => {
     setError(null)
+    setBlob(null)
+    setRecordedSeconds(0)
+    if (url) {
+      URL.revokeObjectURL(url)
+      setUrl(null)
+    }
     try {
+      if (typeof MediaRecorder === 'undefined') {
+        setError('Voice recording is not supported in this browser. Try Chrome or Edge on desktop.')
+        return
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mime = pickMime(['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'])
-      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined)
+      const { recorder: rec, mimeType } = createMediaRecorder(stream)
       chunksRef.current = []
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
       rec.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
-        const b = new Blob(chunksRef.current, { type: mime || 'audio/webm' })
+        const duration = secondsRef.current
+        const b = new Blob(chunksRef.current, { type: mimeType })
+        if (!b.size) {
+          setError('No audio was captured — try again and speak while the timer runs.')
+          setRecordedSeconds(0)
+          return
+        }
         setBlob(b)
+        setRecordedSeconds(duration)
         setUrl(URL.createObjectURL(b))
       }
       recRef.current = rec
-      rec.start()
+      rec.start(250)
       setRecording(true)
       setSeconds(0)
-      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000)
-    } catch {
-      setError('Microphone permission is needed to record your voice.')
+      secondsRef.current = 0
+      timerRef.current = setInterval(() => {
+        setSeconds((s) => {
+          const next = s + 1
+          secondsRef.current = next
+          return next
+        })
+      }, 1000)
+    } catch (e) {
+      const name = e instanceof DOMException ? e.name : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError('Microphone permission is needed. Allow the mic in your browser, then try again.')
+      } else if (name === 'NotFoundError') {
+        setError('No microphone found. Plug one in or check your system sound settings.')
+      } else {
+        setError('Could not start recording. Try refreshing the page.')
+      }
     }
   }
 
   const stop = () => {
-    recRef.current?.stop()
+    const rec = recRef.current
+    if (rec && rec.state === 'recording') {
+      try { rec.requestData() } catch { /* optional */ }
+      rec.stop()
+    }
     setRecording(false)
     if (timerRef.current) clearInterval(timerRef.current)
   }
 
   const submit = async () => {
-    if (!blob) return
+    if (!blob || busy) return
+    if (recordedSeconds < 5) {
+      setError('Record at least 5 seconds — aim for 30–90 seconds for best voice cloning.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
       const wav = await blobToWav(blob)
       const path = await uploadMedia(creatorId, 'voice-sample', wav, 'wav', 'audio/wav')
       const result = await avatarApi.cloneVoice(path)
-      if (result.warning) setError(result.warning)
-      else if (!result.cloned) {
+      if (!result.cloned) {
         setError('Voice cloning did not succeed. Try again with a longer recording (30+ seconds) in a quiet room.')
+        return
       }
       onDone()
     } catch (e) {
@@ -257,7 +241,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
     }
   }
 
-  const enough = seconds >= 20 || (blob && !recording)
+  const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= 5
 
   return (
     <div style={card}>
@@ -289,8 +273,19 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
       )}
       {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
+      {blob && !recording && recordedSeconds < 5 && (
+        <p style={{ fontFamily: sans, fontSize: 12, color: C.ink3, marginTop: 12 }}>
+          Record at least 5 seconds to continue (30+ seconds recommended for voice cloning).
+        </p>
+      )}
+
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-        <button style={{ ...primaryBtn, opacity: enough && !busy ? 1 : 0.5, pointerEvents: enough && !busy ? 'auto' : 'none' }} onClick={submit}>
+        <button
+          type="button"
+          style={{ ...primaryBtn, opacity: canSubmit && !busy ? 1 : 0.5 }}
+          disabled={!canSubmit || busy}
+          onClick={() => void submit()}
+        >
           {busy ? 'Cloning your voice…' : 'Use this & continue'}
         </button>
       </div>
@@ -458,7 +453,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
       const prov = await avatarApi.provision()
       if (prov.liveReady) {
         setAudioOnlyNotice(
-          'Your live avatar is ready — use Call on your legacy page for real-time face + voice. HeyGen pre-recorded video needs separate credits.',
+          'Your live avatar is ready. Go to your legacy page to talk face to face in real time.',
         )
         setStatus('done')
         return
@@ -502,7 +497,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
-        HeyGen is turning your photo into a talking avatar that speaks in your voice. The first render takes a minute or two —
+        We're turning your photo into a talking avatar that speaks in your voice. The first render takes a minute or two —
         after this, your avatar replies on its own whenever someone talks with it.
       </p>
 
@@ -529,7 +524,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Live avatar ready</div>
           <p style={{ fontSize: 14, color: C.ink2, margin: 0, lineHeight: 1.5 }}>
-            {audioOnlyNotice || 'Your face and voice are set up for Live Call. HeyGen pre-recorded video needs credits — use Call on your legacy page for real-time face + voice.'}
+            {audioOnlyNotice || 'Your face and voice are set up. Use Call on your legacy page for a real-time conversation.'}
           </p>
         </div>
       )}

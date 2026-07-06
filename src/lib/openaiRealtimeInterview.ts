@@ -1,26 +1,20 @@
 import type { ConductorContext } from '../components/InterviewSession';
 
 import { apiUrl } from './apiUrl';
+import { authHeaders, clearAuthTokenCache } from './api';
 
-let cachedAuth: { token: string; expiresAtMs: number } | null = null;
-
-async function authHeaders() {
-  const now = Date.now();
-  if (!cachedAuth || cachedAuth.expiresAtMs <= now + 60_000) {
-    const { supabase } = await import('./supabase');
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error('Not authenticated');
-    cachedAuth = {
-      token: session.access_token,
-      expiresAtMs: (session.expires_at ?? 0) * 1000,
-    };
+async function fetchWithAuth(path: string, options: RequestInit = {}, retried = false): Promise<Response> {
+  const headers = await authHeaders();
+  const res = await fetch(apiUrl(path), {
+    ...options,
+    headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
+  });
+  if (res.status === 401 && !retried) {
+    clearAuthTokenCache();
+    return fetchWithAuth(path, options, true);
   }
-  return {
-    Authorization: `Bearer ${cachedAuth.token}`,
-    'Content-Type': 'application/json',
-  };
+  return res;
 }
-
 export function unlockAudioPlayback() {
   try {
     const ctx = new AudioContext();
@@ -38,14 +32,15 @@ export type RealtimeHandlers = {
 export type RealtimeVoiceInterview = {
   connect: (ctx: ConductorContext) => Promise<void>;
   disconnect: () => void;
+  pause: () => void;
+  resume: () => void;
   updateInstructions: (instructions: string) => void;
   completeFunctionCall: (callId: string, output: unknown) => void;
 };
 
 export async function checkAiVoiceAvailable(): Promise<boolean> {
   try {
-    const headers = await authHeaders();
-    const res = await fetch(apiUrl('/api/interview/voice/status'), { headers });
+    const res = await fetchWithAuth('/api/interview/voice/status');
     if (!res.ok) return false;
     const data = await res.json();
     return Boolean(data.realtime || data.available);
@@ -53,7 +48,6 @@ export async function checkAiVoiceAvailable(): Promise<boolean> {
     return false;
   }
 }
-
 async function waitForIceGatheringComplete(pc: RTCPeerConnection, timeoutMs = 8000) {
   if (pc.iceGatheringState === 'complete') return;
 
@@ -80,17 +74,14 @@ async function waitForIceGatheringComplete(pc: RTCPeerConnection, timeoutMs = 80
 }
 
 export async function fetchRealtimeInstructions(ctx: ConductorContext): Promise<string> {
-  const headers = await authHeaders();
-  const res = await fetch(apiUrl('/api/interview/voice/realtime/instructions'), {
+  const res = await fetchWithAuth('/api/interview/voice/realtime/instructions', {
     method: 'POST',
-    headers,
     body: JSON.stringify(ctx),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to load instructions');
   return data.instructions as string;
 }
-
 export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): RealtimeVoiceInterview {
   let pc: RTCPeerConnection | null = null;
   let dc: RTCDataChannel | null = null;
@@ -98,6 +89,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   let localStream: MediaStream | null = null;
   let connected = false;
   let connectGeneration = 0;
+  let softPaused = false;
 
   const isActiveConnect = (generation: number) =>
     generation === connectGeneration && pc !== null;
@@ -109,6 +101,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   const cleanup = () => {
     connectGeneration += 1;
     connected = false;
+    softPaused = false;
     dc?.close();
     dc = null;
     pc?.close();
@@ -234,12 +227,8 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
         throw new Error('Incomplete SDP offer — check microphone permissions and try again');
       }
 
-      const headers = await authHeaders();
-      if (!isActiveConnect(generation)) return;
-
-      const tokenRes = await fetch(apiUrl('/api/interview/voice/realtime/token'), {
+      const tokenRes = await fetchWithAuth('/api/interview/voice/realtime/token', {
         method: 'POST',
-        headers,
         body: JSON.stringify(ctx),
       });
       if (!isActiveConnect(generation)) return;
@@ -289,6 +278,18 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
 
     disconnect() {
       cleanup();
+    },
+
+    pause() {
+      softPaused = true;
+      localStream?.getAudioTracks().forEach((t) => { t.enabled = false; });
+      if (audioEl) audioEl.pause();
+    },
+
+    resume() {
+      softPaused = false;
+      localStream?.getAudioTracks().forEach((t) => { t.enabled = true; });
+      if (audioEl) void audioEl.play().catch(() => {});
     },
 
     updateInstructions(instructions) {
