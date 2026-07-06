@@ -151,7 +151,7 @@ function injectHead() {
 const cardBox: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 10 }
 const eyebrow: React.CSSProperties = { fontFamily: mono, fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', color: C.ink3 }
 const greeting: React.CSSProperties = { fontFamily: serif, fontWeight: 400, fontSize: 38, letterSpacing: '-.015em', margin: '8px 0 0', color: C.ink }
-const pill = (x: React.CSSProperties): React.CSSProperties => ({ cursor: 'pointer', fontFamily: sans, fontWeight: 600, borderRadius: 999, ...x })
+const pill = (x: React.CSSProperties): React.CSSProperties => ({ cursor: 'pointer', fontFamily: sans, fontWeight: 600, borderRadius: 999, whiteSpace: 'nowrap', ...x })
 
 function Avatar({ initials, color, size = 34 }: { initials: string; color: string; size?: number }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', background: color, color: '#fbf6ec', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: serif, fontSize: 14, flex: 'none' }}>{initials}</div>
@@ -202,7 +202,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
       <div style={eyebrow}>Good afternoon</div>
       <h2 style={greeting}>Let’s keep building your legacy, {D.subjectName}.</h2>
 
-      <div style={{ marginTop: 24, background: C.ink, borderRadius: 10, padding: '26px 28px', display: 'grid', gridTemplateColumns: '1fr 200px', gap: 28, alignItems: 'center' }}>
+      <div style={{ marginTop: 24, background: C.ink, borderRadius: 10, padding: '26px 28px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.terra }} />
@@ -211,7 +211,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
           <StageProgressTrack stages={D.stages} variant="dark" margin="18px 0 4px" maxWidth={380} />
           <p style={{ fontSize: 13.5, lineHeight: 1.5, color: 'rgba(245,241,234,.7)', margin: '14px 0 0', maxWidth: 430 }}>{D.avatarNote}</p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
           {can(role, ACTIONS.CHAT_WITH_AVATAR) && (
             liveReady ? (
               <button onClick={on.talk} style={pill({ border: 'none', background: C.terra, color: '#fbf6ec', fontSize: 14, padding: 13, boxShadow: '0 10px 24px rgba(192,106,68,.3)' })}>Have a live talk with {D.subjectName} →</button>
@@ -256,7 +256,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
             {D.memories.length === 0 && <div style={{ fontSize: 13.5, color: C.ink3 }}>No memories yet — your interview answers will appear here.</div>}
             {D.memories.map((m) => (
               <div key={m.id || m.title} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 14px', border: `1px solid ${C.rowLine}`, borderRadius: 8 }}>
@@ -318,7 +318,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
       />
 
       {can(role, ACTIONS.RECORD_VOICE) && (
-        <div style={{ marginTop: 24, background: C.ink, borderRadius: 12, padding: '28px 30px', display: 'grid', gridTemplateColumns: '1fr 220px', gap: 24, alignItems: 'center' }}>
+        <div style={{ marginTop: 24, background: C.ink, borderRadius: 12, padding: '28px 30px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: C.terra }}>
               {liveReady ? 'Avatar active' : 'The heart of your legacy'}
@@ -341,7 +341,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
             </p>
           </div>
           {liveReady ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
               {can(role, ACTIONS.CHAT_WITH_AVATAR) && (
                 <button onClick={on.talk} style={pill({ border: 'none', background: C.terra, color: '#fbf6ec', fontSize: 15, padding: '15px 22px', boxShadow: '0 10px 24px rgba(192,106,68,.3)' })}>
                   Have a live talk →
