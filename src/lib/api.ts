@@ -9,31 +9,49 @@ export function clearAuthTokenCache() {
   cachedAuth = null;
 }
 
-export async function authHeaders() {
+export function isAuthError(message: string) {
+  return /invalid or expired token|not authenticated|missing authorization|401/i.test(message);
+}
+
+async function resolveAccessToken(forceRefresh = false): Promise<string> {
   const now = Date.now();
-  if (cachedAuth && cachedAuth.expiresAtMs > now + 60_000) {
-    return {
-      Authorization: `Bearer ${cachedAuth.token}`,
-      'Content-Type': 'application/json',
-    };
+  if (!forceRefresh && cachedAuth && cachedAuth.expiresAtMs > now + 60_000) {
+    return cachedAuth.token;
   }
+
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    cachedAuth = null;
-    throw new Error('Not authenticated');
+  const expiresAtMs = (session?.expires_at ?? 0) * 1000;
+  const stillValid = session?.access_token && expiresAtMs > now + 60_000;
+
+  if (!forceRefresh && stillValid && session?.access_token) {
+    cachedAuth = { token: session.access_token, expiresAtMs };
+    return session.access_token;
   }
+
+  const { data: refreshed, error } = await supabase.auth.refreshSession();
+  const next = refreshed.session;
+  if (error || !next?.access_token) {
+    cachedAuth = null;
+    throw new Error('Invalid or expired token');
+  }
+
   cachedAuth = {
-    token: session.access_token,
-    expiresAtMs: (session.expires_at ?? 0) * 1000,
+    token: next.access_token,
+    expiresAtMs: (next.expires_at ?? 0) * 1000,
   };
+  return next.access_token;
+}
+
+export async function authHeaders(forceRefresh = false) {
+  const token = await resolveAccessToken(forceRefresh);
   return {
-    Authorization: `Bearer ${session.access_token}`,
+    Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 }
 
 async function apiFetch(path: string, options: RequestInit = {}, retried = false) {
-  const headers = await authHeaders();
+  const headers = await authHeaders(retried);
   const res = await fetch(apiUrl(path), {
     ...options,
     headers: { ...headers, ...options.headers },

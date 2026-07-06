@@ -8,6 +8,7 @@ import {
   avatarApi,
   clearAuthTokenCache,
   interviewApi,
+  isAuthError,
   uploadMedia,
   type AccessMe,
   type InterviewSessionData,
@@ -87,8 +88,22 @@ function membershipHasProgress(m: AccessMe['memberships'][number]) {
   return (m.avatarLevel ?? 0) > 0 || (m.completionScore ?? 0) > 0
 }
 
+async function signOutAndClear() {
+  clearAuthTokenCache()
+  await supabase.auth.signOut()
+}
+
 /** Pick where a signed-in user should land — active legacy first, then shared, then interview. */
 function resolveLegacyDestination(me: AccessMe): string {
+  const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_CREATOR_KEY) : null
+  const picked = pickCreatorId(me, cached)
+  if (picked) {
+    const m = me.memberships.find((x) => x.creatorId === picked)
+    if (m && (!m.isOwner || membershipHasProgress(m))) {
+      return `/legacy?c=${picked}`
+    }
+  }
+
   const owned = me.memberships.filter((m) => m.isOwner)
   const shared = me.memberships.filter((m) => !m.isOwner)
 
@@ -97,9 +112,14 @@ function resolveLegacyDestination(me: AccessMe): string {
 
   if (shared.length > 0) return `/legacy?c=${shared[0].creatorId}`
 
-  if (owned.length > 0) return '/interview'
+  if (owned.length > 0 && can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)) {
+    return '/interview'
+  }
 
   if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
+
+  if (me.memberships.length > 0) return `/legacy?c=${me.memberships[0].creatorId}`
+
   return '/interview'
 }
 
@@ -138,7 +158,17 @@ function WelcomePage({ session }: { session: Session | null }) {
     }
     accessApi.me()
       .then((me) => { if (active) navigate(resolveLegacyDestination(me), { replace: true }) })
-      .catch(() => { if (active) navigate('/legacy', { replace: true }) })
+      .catch(async (err) => {
+        if (!active) return
+        const msg = err instanceof Error ? err.message : ''
+        if (isAuthError(msg)) {
+          await signOutAndClear()
+          return
+        }
+        const cached = localStorage.getItem(LAST_CREATOR_KEY)
+        if (cached) navigate(`/legacy?c=${cached}`, { replace: true })
+        else navigate('/legacy', { replace: true })
+      })
     return () => { active = false }
   }, [session, navigate, explicitNext])
 
@@ -266,9 +296,14 @@ function LegacyHomePage({ session }: { session: Session | null }) {
         }
         navigate(resolveLegacyDestination(me), { replace: true })
       })
-      .catch((e) => {
+      .catch(async (e) => {
         if (!active) return
-        setError(e instanceof Error ? e.message : 'Failed to load your account')
+        const msg = e instanceof Error ? e.message : 'Failed to load your account'
+        if (isAuthError(msg)) {
+          await signOutAndClear()
+          return
+        }
+        setError(msg)
       })
     return () => { active = false }
   }, [session?.user?.id, creatorIdParam, navigate])
@@ -334,11 +369,26 @@ function LegacyHomePage({ session }: { session: Session | null }) {
   if (!session) return <Navigate to="/" replace />
   if (!creatorIdParam) {
     if (error) {
+      const authFailed = isAuthError(error)
       return (
         <Centered>
           <p style={{ fontWeight: 600 }}>Could not open your legacy</p>
           <p style={{ fontSize: 14, color: C.ink2, textAlign: 'center', maxWidth: 460 }}>{error}</p>
-          <button onClick={() => navigate('/interview')} style={primaryBtn}>Start Foundation interview</button>
+          {authFailed ? (
+            <button type="button" onClick={() => void signOutAndClear()} style={primaryBtn}>Sign in again</button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const cached = localStorage.getItem(LAST_CREATOR_KEY)
+                if (cached) navigate(`/legacy?c=${cached}`, { replace: true })
+                else reloadLegacyHome()
+              }}
+              style={primaryBtn}
+            >
+              Try again
+            </button>
+          )}
         </Centered>
       )
     }
@@ -612,7 +662,15 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
     let active = true
     interviewApi.getSession()
       .then((data) => { if (active) setSessionData(data) })
-      .catch((e) => { if (active) setError(e.message) })
+      .catch(async (e) => {
+        if (!active) return
+        const msg = e instanceof Error ? e.message : 'Could not load interview session.'
+        if (isAuthError(msg)) {
+          await signOutAndClear()
+          return
+        }
+        setError(msg)
+      })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [session?.user?.id])
@@ -683,6 +741,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
   }
 
   if (error || !sessionData) {
+    const authFailed = Boolean(error && isAuthError(error))
     return (
       <Centered>
         <p style={{ fontWeight: 600 }}>Could not start interview</p>
@@ -693,7 +752,25 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
             <pre style={{ background: C.paper, padding: 12, borderRadius: 6, overflow: 'auto', fontSize: 13 }}>{`cd back\nnpm run setup-db\nnpm run dev`}</pre>
           </div>
         )}
-        <button onClick={() => navigate('/legacy')} style={ghostBtn}>Back</button>
+        {authFailed ? (
+          <button type="button" onClick={() => void signOutAndClear()} style={primaryBtn}>Sign in again</button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              void accessApi.me()
+                .then((me) => navigate(resolveLegacyDestination(me), { replace: true }))
+                .catch(async () => {
+                  const cached = localStorage.getItem(LAST_CREATOR_KEY)
+                  if (cached) navigate(`/legacy?c=${cached}`, { replace: true })
+                  else await signOutAndClear()
+                })
+            }}
+            style={ghostBtn}
+          >
+            Back to legacy
+          </button>
+        )}
       </Centered>
     )
   }

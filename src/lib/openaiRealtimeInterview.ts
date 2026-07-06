@@ -4,7 +4,7 @@ import { apiUrl } from './apiUrl';
 import { authHeaders, clearAuthTokenCache } from './api';
 
 async function fetchWithAuth(path: string, options: RequestInit = {}, retried = false): Promise<Response> {
-  const headers = await authHeaders();
+  const headers = await authHeaders(retried);
   const res = await fetch(apiUrl(path), {
     ...options,
     headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
