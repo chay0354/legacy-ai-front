@@ -83,27 +83,38 @@ function LegacyCreatorNav({
   )
 }
 
-/** Pick where a signed-in user should land — owned legacy first, then shared, then invite or interview. */
+function membershipHasProgress(m: AccessMe['memberships'][number]) {
+  return (m.avatarLevel ?? 0) > 0 || (m.completionScore ?? 0) > 0
+}
+
+/** Pick where a signed-in user should land — active legacy first, then shared, then interview. */
 function resolveLegacyDestination(me: AccessMe): string {
   const owned = me.memberships.filter((m) => m.isOwner)
   const shared = me.memberships.filter((m) => !m.isOwner)
-  if (owned.length > 0) {
-    const m = owned[0]
-    // Brand-new creators should start the Foundation interview immediately.
-    if ((m.avatarLevel ?? 0) === 0) return '/interview'
-    return `/legacy?c=${m.creatorId}`
-  }
+
+  const activeOwned = owned.find(membershipHasProgress)
+  if (activeOwned) return `/legacy?c=${activeOwned.creatorId}`
+
   if (shared.length > 0) return `/legacy?c=${shared[0].creatorId}`
+
+  if (owned.length > 0) return '/interview'
+
   if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
   return '/interview'
 }
 
 function pickCreatorId(me: AccessMe, preferred?: string | null): string | null {
-  const ids = new Set(me.memberships.map((m) => m.creatorId))
-  if (preferred && ids.has(preferred)) return preferred
+  const byId = (id: string) => me.memberships.find((m) => m.creatorId === id)
+  if (preferred) {
+    const pref = byId(preferred)
+    if (pref && (!pref.isOwner || membershipHasProgress(pref))) return preferred
+  }
+  const activeOwned = me.memberships.find((m) => m.isOwner && membershipHasProgress(m))
+  if (activeOwned) return activeOwned.creatorId
+  const shared = me.memberships.find((m) => !m.isOwner)
+  if (shared) return shared.creatorId
   const owned = me.memberships.find((m) => m.isOwner)
-  if (owned) return owned.creatorId
-  return me.memberships[0]?.creatorId ?? null
+  return owned?.creatorId ?? me.memberships[0]?.creatorId ?? null
 }
 
 /* ─────────────────────────────── Welcome ─────────────────────────────── */
@@ -127,7 +138,7 @@ function WelcomePage({ session }: { session: Session | null }) {
     }
     accessApi.me()
       .then((me) => { if (active) navigate(resolveLegacyDestination(me), { replace: true }) })
-      .catch(() => { if (active) navigate('/interview', { replace: true }) })
+      .catch(() => { if (active) navigate('/legacy', { replace: true }) })
     return () => { active = false }
   }, [session, navigate, explicitNext])
 
@@ -248,7 +259,8 @@ function LegacyHomePage({ session }: { session: Session | null }) {
         const cached = localStorage.getItem(LAST_CREATOR_KEY)
         const creatorId = pickCreatorId(me, cached)
         if (cached && cached !== creatorId) localStorage.removeItem(LAST_CREATOR_KEY)
-        if (creatorId && (me.memberships.find((m) => m.creatorId === creatorId)?.avatarLevel ?? 0) > 0) {
+        const membership = creatorId ? me.memberships.find((m) => m.creatorId === creatorId) : null
+        if (membership && (!membership.isOwner || membershipHasProgress(membership))) {
           navigate(`/legacy?c=${creatorId}`, { replace: true })
           return
         }
@@ -257,7 +269,6 @@ function LegacyHomePage({ session }: { session: Session | null }) {
       .catch((e) => {
         if (!active) return
         setError(e instanceof Error ? e.message : 'Failed to load your account')
-        navigate('/interview', { replace: true })
       })
     return () => { active = false }
   }, [session?.user?.id, creatorIdParam, navigate])
@@ -552,7 +563,7 @@ function LegacyHomePage({ session }: { session: Session | null }) {
 }
 
 /* ─────────────────────────────── Interview ───────────────────────────── */
-function InterviewPage({ session }: { session: Session | null }) {
+function InterviewPage({ session, authReady }: { session: Session | null; authReady: boolean }) {
   const navigate = useNavigate()
   const startTimeRef = useRef<number>(Date.now())
 
@@ -606,6 +617,9 @@ function InterviewPage({ session }: { session: Session | null }) {
     return () => { active = false }
   }, [session?.user?.id])
 
+  if (!authReady) {
+    return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Loading…</span></Centered>
+  }
   if (!session) return <Navigate to="/" replace />
 
   const displayName =
@@ -996,12 +1010,12 @@ const joinInput: React.CSSProperties = {
 /* ──────────────────────────────── App ────────────────────────────────── */
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      setLoading(false)
+      setAuthReady(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
@@ -1018,12 +1032,13 @@ export default function App() {
           .catch(() => { /* ignore */ })
       }
       setSession(s)
+      setAuthReady(true)
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  if (loading) return null
+  if (!authReady) return null
 
   return (
     <BrowserRouter>
@@ -1031,7 +1046,7 @@ export default function App() {
         <Route path="/" element={<WelcomePage session={session} />} />
         <Route path="/home" element={<Navigate to="/legacy" replace />} />
         <Route path="/legacy" element={<LegacyHomePage session={session} />} />
-        <Route path="/interview" element={<InterviewPage session={session} />} />
+        <Route path="/interview" element={<InterviewPage session={session} authReady={authReady} />} />
         <Route path="/avatar" element={<AvatarPage session={session} />} />
         <Route path="/studio" element={<StudioPage session={session} />} />
         <Route path="/manage" element={<ManagePage session={session} />} />
