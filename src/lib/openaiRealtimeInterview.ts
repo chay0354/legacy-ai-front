@@ -89,7 +89,6 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   let localStream: MediaStream | null = null;
   let connected = false;
   let connectGeneration = 0;
-  let softPaused = false;
 
   const isActiveConnect = (generation: number) =>
     generation === connectGeneration && pc !== null;
@@ -101,7 +100,6 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   const cleanup = () => {
     connectGeneration += 1;
     connected = false;
-    softPaused = false;
     dc?.close();
     dc = null;
     pc?.close();
@@ -281,13 +279,11 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
     },
 
     pause() {
-      softPaused = true;
       localStream?.getAudioTracks().forEach((t) => { t.enabled = false; });
       if (audioEl) audioEl.pause();
     },
 
     resume() {
-      softPaused = false;
       localStream?.getAudioTracks().forEach((t) => { t.enabled = true; });
       if (audioEl) void audioEl.play().catch(() => {});
     },
