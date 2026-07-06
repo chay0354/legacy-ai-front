@@ -93,11 +93,10 @@ function LegacyBottomNav({
           {navBtn('Edit my legacy', `/legacy${cQuery}`, active === 'legacy')}
           {navBtn('View my legacy', `/avatar${cQuery}`, active === 'avatar')}
         </>
+      ) : normalized === 'administrator' ? (
+        navBtn('Legacy', `/avatar${cQuery}`, active === 'avatar')
       ) : (
-        <>
-          {navBtn('Home', `/legacy${cQuery}`, active === 'legacy')}
-          {navBtn('View legacy', `/avatar${cQuery}`, active === 'avatar')}
-        </>
+        navBtn('View legacy', `/avatar${cQuery}`, active === 'avatar')
       )}
       {canInvite && (
         <button
@@ -122,6 +121,11 @@ async function signOutAndClear() {
   await supabase.auth.signOut()
 }
 
+function primaryLegacyScreen(creatorId: string, role: Role | string) {
+  if (normalizeRole(role) === 'administrator') return `/avatar?c=${creatorId}`
+  return `/legacy?c=${creatorId}`
+}
+
 /** Pick where a signed-in user should land — active legacy first, then shared, then interview. */
 function resolveLegacyDestination(me: AccessMe): string {
   const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_CREATOR_KEY) : null
@@ -129,7 +133,7 @@ function resolveLegacyDestination(me: AccessMe): string {
   if (picked) {
     const m = me.memberships.find((x) => x.creatorId === picked)
     if (m && (!m.isOwner || membershipHasProgress(m))) {
-      return `/legacy?c=${picked}`
+      return primaryLegacyScreen(picked, m.role)
     }
   }
 
@@ -137,9 +141,9 @@ function resolveLegacyDestination(me: AccessMe): string {
   const shared = me.memberships.filter((m) => !m.isOwner)
 
   const activeOwned = owned.find(membershipHasProgress)
-  if (activeOwned) return `/legacy?c=${activeOwned.creatorId}`
+  if (activeOwned) return primaryLegacyScreen(activeOwned.creatorId, activeOwned.role)
 
-  if (shared.length > 0) return `/legacy?c=${shared[0].creatorId}`
+  if (shared.length > 0) return primaryLegacyScreen(shared[0].creatorId, shared[0].role)
 
   if (owned.length > 0 && can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)) {
     return '/interview'
@@ -147,7 +151,10 @@ function resolveLegacyDestination(me: AccessMe): string {
 
   if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
 
-  if (me.memberships.length > 0) return `/legacy?c=${me.memberships[0].creatorId}`
+  if (me.memberships.length > 0) {
+    const m = me.memberships[0]
+    return primaryLegacyScreen(m.creatorId, m.role)
+  }
 
   return '/interview'
 }
@@ -320,7 +327,7 @@ function LegacyHomePage({ session }: { session: Session | null }) {
         if (cached && cached !== creatorId) localStorage.removeItem(LAST_CREATOR_KEY)
         const membership = creatorId ? me.memberships.find((m) => m.creatorId === creatorId) : null
         if (membership && (!membership.isOwner || membershipHasProgress(membership))) {
-          navigate(`/legacy?c=${creatorId}`, { replace: true })
+          navigate(primaryLegacyScreen(creatorId!, membership.role), { replace: true })
           return
         }
         navigate(resolveLegacyDestination(me), { replace: true })
@@ -356,6 +363,11 @@ function LegacyHomePage({ session }: { session: Session | null }) {
         if (!active) return
         const resolvedRole = normalizeRole(profile.role) || 'member'
         const resolvedCreatorId = profile.creator?.id || creatorIdParam
+
+        if (resolvedRole === 'administrator') {
+          navigate(`/avatar?c=${resolvedCreatorId}`, { replace: true })
+          return
+        }
 
         setRole(resolvedRole)
         setCreatorId(resolvedCreatorId)
@@ -564,7 +576,7 @@ function LegacyHomePage({ session }: { session: Session | null }) {
 
   return (
     <>
-      {(role === 'creator' || can(role, ACTIONS.INVITE_USER)) && (
+      {role === 'creator' && (
         <LegacyBottomNav creatorId={creatorId} role={role} active="legacy" />
       )}
       <GalleryUploadModal
@@ -911,7 +923,7 @@ function AvatarPage({ session }: { session: Session | null }) {
 
   return (
     <div style={{ position: 'relative' }}>
-      {(isOwner || can(viewerRole, ACTIONS.INVITE_USER)) && (
+      {(isOwner || viewerRole === 'administrator') && (
         <LegacyBottomNav creatorId={talkCreatorId} role={viewerRole} active="avatar" />
       )}
       <LegacyAvatar
@@ -960,7 +972,14 @@ function ManagePage({ session }: { session: Session | null }) {
   return (
     <>
       <LegacyBottomNav creatorId={resolvedCreatorId} role={callerRole} active="manage" />
-      <ManageAccess creatorId={creatorIdParam} onBack={() => navigate(`/legacy${resolvedCreatorId ? `?c=${resolvedCreatorId}` : ''}`)} />
+      <ManageAccess
+        creatorId={creatorIdParam}
+        onBack={() => navigate(
+          callerRole === 'administrator'
+            ? `/avatar${resolvedCreatorId ? `?c=${resolvedCreatorId}` : ''}`
+            : `/legacy${resolvedCreatorId ? `?c=${resolvedCreatorId}` : ''}`,
+        )}
+      />
     </>
   )
 }
@@ -994,7 +1013,7 @@ function JoinPage({ session }: { session: Session | null }) {
     if (!session || !token) return
     setStatus('working')
     accessApi.acceptInvitation(token)
-      .then((res) => navigate(`/legacy?c=${res.creatorId}`, { replace: true }))
+      .then((res) => navigate(primaryLegacyScreen(res.creatorId, res.role), { replace: true }))
       .catch((e) => {
         setStatus('error')
         setMessage(e instanceof Error ? e.message : 'Could not accept invitation')
