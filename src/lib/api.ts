@@ -130,8 +130,10 @@ export interface InvitationRow {
 
 export interface InvitePreview {
   role: Role;
+  creatorId: string;
   creatorDisplayName: string | null;
   expiresAt: string;
+  alreadyAccepted?: boolean;
 }
 
 // Derived entirely from the canonical matrix in ./permissions so the three

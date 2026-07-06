@@ -38,6 +38,22 @@ const serif = "'Newsreader', Georgia, serif"
 const sans = "'Hanken Grotesk', system-ui, sans-serif"
 const mono = "'Spline Sans Mono', ui-monospace, monospace"
 const LAST_CREATOR_KEY = 'legacy-ai:last-creator-id'
+const PENDING_JOIN_TOKEN_KEY = 'legacy-ai:pending-join-token'
+
+function pendingJoinToken() {
+  if (typeof window === 'undefined') return null
+  return sessionStorage.getItem(PENDING_JOIN_TOKEN_KEY) || localStorage.getItem(PENDING_JOIN_TOKEN_KEY)
+}
+
+function savePendingJoinToken(token: string) {
+  sessionStorage.setItem(PENDING_JOIN_TOKEN_KEY, token)
+  localStorage.setItem(PENDING_JOIN_TOKEN_KEY, token)
+}
+
+function clearPendingJoinToken() {
+  sessionStorage.removeItem(PENDING_JOIN_TOKEN_KEY)
+  localStorage.removeItem(PENDING_JOIN_TOKEN_KEY)
+}
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -62,6 +78,7 @@ function LegacyBottomNav({
 }) {
   const navigate = useNavigate()
   const normalized = normalizeRole(role) || 'member'
+  if (normalized === 'member') return null
   const cQuery = creatorId ? `?c=${creatorId}` : ''
   const activeBtn: React.CSSProperties = { ...floatBtn, background: C.ink, color: C.paper, border: `1px solid ${C.ink}`, fontWeight: 600, cursor: 'default' }
   const inviteBtn: React.CSSProperties = {
@@ -95,9 +112,7 @@ function LegacyBottomNav({
         </>
       ) : normalized === 'administrator' ? (
         navBtn('Legacy', `/avatar${cQuery}`, active === 'avatar')
-      ) : (
-        navBtn('View legacy', `/avatar${cQuery}`, active === 'avatar')
-      )}
+      ) : null}
       {canInvite && (
         <button
           type="button"
@@ -121,12 +136,57 @@ async function signOutAndClear() {
   await supabase.auth.signOut()
 }
 
+function legacyViewerOnly(role: Role | string) {
+  const normalized = normalizeRole(role)
+  return normalized === 'administrator' || normalized === 'member'
+}
+
 function primaryLegacyScreen(creatorId: string, role: Role | string) {
-  if (normalizeRole(role) === 'administrator') return `/avatar?c=${creatorId}`
+  if (legacyViewerOnly(role)) return `/avatar?c=${creatorId}`
   return `/legacy?c=${creatorId}`
 }
 
-/** Pick where a signed-in user should land — active legacy first, then shared, then interview. */
+function openJoinedLegacy(
+  navigate: ReturnType<typeof useNavigate>,
+  creatorId: string,
+  role: Role | string,
+  token?: string | null,
+) {
+  localStorage.setItem(LAST_CREATOR_KEY, creatorId)
+  if (token) clearPendingJoinToken()
+  navigate(primaryLegacyScreen(creatorId, role), { replace: true })
+}
+
+function preferredSharedMembership(me: AccessMe, cached?: string | null) {
+  const shared = me.memberships.filter((m) => !m.isOwner)
+  if (shared.length === 0) return null
+  if (cached) {
+    const match = shared.find((m) => m.creatorId === cached)
+    if (match) return match
+  }
+  return shared[0]
+}
+
+/** Interview is only for creators building their own legacy — never family invitees. */
+function shouldStartInterview(me: AccessMe): boolean {
+  if (pendingJoinToken()) return false
+
+  const shared = me.memberships.filter((m) => !m.isOwner)
+  const owned = me.memberships.filter((m) => m.isOwner)
+  const activeOwned = owned.find(membershipHasProgress)
+
+  if (activeOwned) return false
+  if (shared.length > 0) return false
+  if (me.memberships.some((m) => legacyViewerOnly(m.role))) return false
+
+  if (owned.length > 0) {
+    return can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)
+  }
+
+  return true
+}
+
+/** Pick where a signed-in user should land — shared legacy first, then interview for creators only. */
 function resolveLegacyDestination(me: AccessMe): string {
   const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_CREATOR_KEY) : null
   const picked = pickCreatorId(me, cached)
@@ -138,18 +198,18 @@ function resolveLegacyDestination(me: AccessMe): string {
   }
 
   const owned = me.memberships.filter((m) => m.isOwner)
-  const shared = me.memberships.filter((m) => !m.isOwner)
-
   const activeOwned = owned.find(membershipHasProgress)
   if (activeOwned) return primaryLegacyScreen(activeOwned.creatorId, activeOwned.role)
 
-  if (shared.length > 0) return primaryLegacyScreen(shared[0].creatorId, shared[0].role)
+  const shared = preferredSharedMembership(me, cached)
+  if (shared) return primaryLegacyScreen(shared.creatorId, shared.role)
 
-  if (owned.length > 0 && can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)) {
-    return '/interview'
-  }
+  const pendingJoin = pendingJoinToken()
+  if (pendingJoin) return `/join?token=${pendingJoin}`
 
   if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
+
+  if (shouldStartInterview(me)) return '/interview'
 
   if (me.memberships.length > 0) {
     const m = me.memberships[0]
@@ -188,6 +248,11 @@ function WelcomePage({ session }: { session: Session | null }) {
     if (!session) return
     let active = true
     const explicitNext = params.get('next')
+    const pendingJoin = pendingJoinToken()
+    if (pendingJoin) {
+      navigate(`/join?token=${pendingJoin}`, { replace: true })
+      return
+    }
     if (explicitNext) {
       navigate(explicitNext, { replace: true })
       return
@@ -202,8 +267,13 @@ function WelcomePage({ session }: { session: Session | null }) {
           return
         }
         const cached = localStorage.getItem(LAST_CREATOR_KEY)
-        if (cached) navigate(`/legacy?c=${cached}`, { replace: true })
-        else navigate('/legacy', { replace: true })
+        if (cached) {
+          accessApi.me()
+            .then((me) => { if (active) navigate(resolveLegacyDestination(me), { replace: true }) })
+            .catch(() => { if (active) navigate('/legacy', { replace: true }) })
+        } else {
+          navigate('/legacy', { replace: true })
+        }
       })
     return () => { active = false }
   }, [session, navigate, explicitNext])
@@ -364,7 +434,7 @@ function LegacyHomePage({ session }: { session: Session | null }) {
         const resolvedRole = normalizeRole(profile.role) || 'member'
         const resolvedCreatorId = profile.creator?.id || creatorIdParam
 
-        if (resolvedRole === 'administrator') {
+        if (legacyViewerOnly(resolvedRole)) {
           navigate(`/avatar?c=${resolvedCreatorId}`, { replace: true })
           return
         }
@@ -661,6 +731,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
   const startTimeRef = useRef<number>(Date.now())
 
   const [loading, setLoading] = useState(true)
+  const [redirecting, setRedirecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionData, setSessionData] = useState<InterviewSessionData | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -703,8 +774,28 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
   useEffect(() => {
     if (!session) return
     let active = true
-    interviewApi.getSession()
-      .then((data) => { if (active) setSessionData(data) })
+    setLoading(true)
+    setRedirecting(false)
+
+    accessApi.me()
+      .then((me) => {
+        if (!active) return null
+        if (pendingJoinToken()) {
+          setRedirecting(true)
+          navigate(`/join?token=${pendingJoinToken()}`, { replace: true })
+          return null
+        }
+        if (!shouldStartInterview(me)) {
+          setRedirecting(true)
+          navigate(resolveLegacyDestination(me), { replace: true })
+          return null
+        }
+        return interviewApi.getSession()
+      })
+      .then((data) => {
+        if (!active || data == null) return
+        setSessionData(data)
+      })
       .catch(async (e) => {
         if (!active) return
         const msg = e instanceof Error ? e.message : 'Could not load interview session.'
@@ -716,7 +807,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [session?.user?.id])
+  }, [session?.user?.id, navigate])
 
   if (!authReady) {
     return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Loading…</span></Centered>
@@ -767,6 +858,10 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
 
   const retryPreservation = () => {
     if (lastAnswersRef.current.length) void handleComplete(lastAnswersRef.current)
+  }
+
+  if (redirecting) {
+    return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Opening your legacy…</span></Centered>
   }
 
   if (loading || !aiVoiceReady) {
@@ -891,6 +986,7 @@ function AvatarPage({ session }: { session: Session | null }) {
         setTalkCreatorId(resolvedCreatorId || undefined)
         setIsOwner(resolvedRole === 'creator')
         setViewerRole(resolvedRole)
+        if (resolvedCreatorId) localStorage.setItem(LAST_CREATOR_KEY, resolvedCreatorId)
         setVoiceSampleUrl(assetsRes?.urls?.voiceSample || null)
         setLiveReady(assetsRes?.liveReady === true)
         const live = assetsRes?.liveReady === true
@@ -902,11 +998,27 @@ function AvatarPage({ session }: { session: Session | null }) {
           && assetsRes?.voiceCloned === true,
         ))
       })
-      .catch((e) => { if (active) setError(e instanceof Error ? e.message : 'Failed to load profile') })
+      .catch(async (e) => {
+        if (!active) return
+        const msg = e instanceof Error ? e.message : 'Failed to load profile'
+        if (msg.includes('403') || /do not have access/i.test(msg)) {
+          const pendingJoin = pendingJoinToken()
+          if (pendingJoin) {
+            navigate(`/join?token=${pendingJoin}`, { replace: true })
+            return
+          }
+          try {
+            const me = await accessApi.me()
+            navigate(resolveLegacyDestination(me), { replace: true })
+            return
+          } catch { /* fall through */ }
+        }
+        setError(msg)
+      })
       .finally(() => { if (active) setLoading(false) })
 
     return () => { active = false }
-  }, [session?.user?.id, creatorIdParam, profileRefresh])
+  }, [session?.user?.id, creatorIdParam, profileRefresh, navigate])
 
   if (!session) return <Navigate to="/" replace />
   if (loading) return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Loading your legacy…</span></Centered>
@@ -955,19 +1067,27 @@ function ManagePage({ session }: { session: Session | null }) {
   const creatorIdParam = params.get('c') || undefined
 
   const [resolvedCreatorId, setResolvedCreatorId] = useState<string | undefined>(creatorIdParam)
-  const [callerRole, setCallerRole] = useState<Role>('member')
+  const [callerRole, setCallerRole] = useState<Role | null>(null)
 
   useEffect(() => {
     if (!session) return
     accessApi.members(creatorIdParam)
       .then((m) => {
+        const role = normalizeRole(m.role) || 'member'
         setResolvedCreatorId(m.creatorId)
-        setCallerRole(normalizeRole(m.role) || 'member')
+        if (role === 'member') {
+          navigate(`/avatar?c=${m.creatorId}`, { replace: true })
+          return
+        }
+        setCallerRole(role)
       })
       .catch(() => { /* nav falls back to member permissions */ })
-  }, [session?.user?.id, creatorIdParam])
+  }, [session?.user?.id, creatorIdParam, navigate])
 
   if (!session) return <Navigate to="/" replace />
+  if (!callerRole) {
+    return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Opening access settings…</span></Centered>
+  }
 
   return (
     <>
@@ -991,10 +1111,16 @@ function JoinPage({ session }: { session: Session | null }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const token = params.get('token')
-  const [preview, setPreview] = useState<{ role: Role; creatorDisplayName: string | null } | null>(null)
+  const [preview, setPreview] = useState<{
+    role: Role
+    creatorDisplayName: string | null
+    creatorId: string
+    alreadyAccepted?: boolean
+  } | null>(null)
+  const previewRef = useRef(preview)
+  previewRef.current = preview
   const [status, setStatus] = useState<'idle' | 'working' | 'error'>('idle')
   const [message, setMessage] = useState<string | null>(null)
-  const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signin')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -1004,20 +1130,86 @@ function JoinPage({ session }: { session: Session | null }) {
 
   useEffect(() => {
     if (!token) return
+    savePendingJoinToken(token)
     accessApi.previewInvite(token)
-      .then((p) => setPreview({ role: p.role, creatorDisplayName: p.creatorDisplayName }))
-      .catch(() => { /* preview optional — sign-up still works */ })
+      .then((p) => setPreview({
+        role: p.role,
+        creatorDisplayName: p.creatorDisplayName,
+        creatorId: p.creatorId,
+        alreadyAccepted: p.alreadyAccepted,
+      }))
+      .catch(() => { /* preview optional — accept still works for pending invites */ })
   }, [token])
 
   useEffect(() => {
     if (!session || !token) return
+    let active = true
     setStatus('working')
-    accessApi.acceptInvitation(token)
-      .then((res) => navigate(primaryLegacyScreen(res.creatorId, res.role), { replace: true }))
-      .catch((e) => {
+
+    const finishFromMembership = (me: AccessMe, creatorId: string) => {
+      const membership = me.memberships.find((m) => m.creatorId === creatorId)
+      if (!membership) return false
+      openJoinedLegacy(navigate, membership.creatorId, membership.role, token)
+      return true
+    }
+
+    void (async () => {
+      let invitePreview = previewRef.current
+      if (!invitePreview) {
+        try {
+          const p = await accessApi.previewInvite(token)
+          invitePreview = {
+            role: p.role,
+            creatorDisplayName: p.creatorDisplayName,
+            creatorId: p.creatorId,
+            alreadyAccepted: p.alreadyAccepted,
+          }
+          setPreview(invitePreview)
+        } catch { /* accept may still work */ }
+      }
+
+      try {
+        const me = await accessApi.me()
+        if (invitePreview?.creatorId && finishFromMembership(me, invitePreview.creatorId)) {
+          return
+        }
+
+        if (invitePreview?.alreadyAccepted && invitePreview.creatorId) {
+          if (finishFromMembership(me, invitePreview.creatorId)) return
+          setStatus('error')
+          setMessage('This invite was already used. Sign in with the account that joined this legacy.')
+          return
+        }
+
+        const res = await accessApi.acceptInvitation(token)
+        openJoinedLegacy(navigate, res.creatorId, res.role, token)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Could not accept invitation'
+        try {
+          const me = await accessApi.me()
+          const creatorId = invitePreview?.creatorId
+          if (creatorId && finishFromMembership(me, creatorId)) {
+            return
+          }
+          if (/no longer valid|already|duplicate|conflict/i.test(msg)) {
+            const shared = me.memberships.filter((m) => !m.isOwner)
+            const match =
+              (creatorId && shared.find((m) => m.creatorId === creatorId)) ||
+              (invitePreview?.creatorDisplayName && shared.find((m) => m.displayName === invitePreview.creatorDisplayName)) ||
+              shared[0]
+            if (match) {
+              openJoinedLegacy(navigate, match.creatorId, match.role, token)
+              return
+            }
+          }
+        } catch { /* fall through to error UI */ }
+        if (!active) return
         setStatus('error')
-        setMessage(e instanceof Error ? e.message : 'Could not accept invitation')
-      })
+        setMessage(msg)
+      }
+    })()
+
+    return () => { active = false }
   }, [session, token, navigate])
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -1026,28 +1218,26 @@ function JoinPage({ session }: { session: Session | null }) {
     setAuthError(null)
     setAuthNotice(null)
     try {
-      if (authMode === 'signup') {
-        const result = await signUpWithPassword(name, email.trim(), password)
-        if (result.needsEmailConfirmation) {
-          setAuthNotice('Account created. If email confirmation is enabled, check your inbox — then return to this link and sign in.')
-          setAuthMode('signin')
-          return
-        }
-        if (result.session) return // onAuthStateChange → accept invitation
-        setAuthNotice('Account created. If email confirmation is enabled, check your inbox — then return to this link and sign in.')
-        setAuthMode('signin')
-      } else {
-        await signInWithPassword(email.trim(), password)
+      const result = await signUpWithPassword(name, email.trim(), password)
+      if (result.needsEmailConfirmation) {
+        setAuthNotice('Account created. If email confirmation is enabled, check your inbox — then return to this link to finish joining.')
+        return
       }
+      if (result.session) return // onAuthStateChange → accept invitation
+      setAuthNotice('Account created. If email confirmation is enabled, check your inbox — then return to this link to finish joining.')
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Authentication failed'
       if (msg.toLowerCase().includes('already exists')) {
-        setAuthMode('signin')
-        setAuthNotice('An account with this email already exists. Sign in below with your password.')
-        return
+        try {
+          await signInWithPassword(email.trim(), password)
+          return
+        } catch {
+          setAuthError('An account with this email already exists. Enter your existing password, or use forgot password below.')
+          return
+        }
       }
       if (msg.toLowerCase().includes('wrong email')) {
-        setAuthError('Wrong email or password. If you already have an account, use the password you created earlier.')
+        setAuthError('Wrong password for this email. Try again or use forgot password below.')
         return
       }
       setAuthError(msg)
@@ -1065,7 +1255,7 @@ function JoinPage({ session }: { session: Session | null }) {
     setAuthError(null)
     try {
       await requestPasswordReset(email.trim(), `${window.location.origin}/join?token=${token}`)
-      setAuthNotice('Password reset email sent. Check your inbox, then sign in here.')
+      setAuthNotice('Password reset email sent. Check your inbox, then return to this link and create your account.')
     } catch (e) {
       setAuthError(e instanceof Error ? e.message : 'Could not send reset email')
     } finally {
@@ -1085,28 +1275,20 @@ function JoinPage({ session }: { session: Session | null }) {
           <p style={{ fontFamily: serif, fontSize: 26, margin: '10px 0 8px', textAlign: 'center' }}>Join {legacyName}</p>
           <p style={{ fontSize: 14, color: C.ink2, textAlign: 'center', margin: '0 0 28px' }}>
             {preview
-              ? <>You’ve been invited as <strong>{roleLabel}</strong>. Create an account or sign in — we’ll add you automatically.</>
-              : <>Create an account or sign in with this invite link — we’ll add you automatically.</>}
+              ? <>You’ve been invited as <strong>{roleLabel}</strong>. Create an account below — we’ll add you automatically.</>
+              : <>Create an account with this invite link — we’ll add you automatically.</>}
           </p>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20, justifyContent: 'center' }}>
-            <button type="button" onClick={() => { setAuthMode('signin'); setAuthError(null); setAuthNotice(null) }} style={{ ...ghostBtn, borderColor: authMode === 'signin' ? C.terra : C.line, color: authMode === 'signin' ? C.ink : C.ink2 }}>Sign in</button>
-            <button type="button" onClick={() => { setAuthMode('signup'); setAuthError(null); setAuthNotice(null) }} style={{ ...ghostBtn, borderColor: authMode === 'signup' ? C.terra : C.line, color: authMode === 'signup' ? C.ink : C.ink2 }}>Create account</button>
-          </div>
           {authNotice && <p style={{ fontSize: 13, color: C.sage, textAlign: 'center', margin: '0 0 16px' }}>{authNotice}</p>}
           {authError && <p style={{ fontSize: 13, color: '#a8503a', textAlign: 'center', margin: '0 0 16px' }}>{authError}</p>}
           <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {authMode === 'signup' && (
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required style={joinInput} />
-            )}
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required style={joinInput} />
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required style={joinInput} />
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={6} style={joinInput} />
-            {authMode === 'signin' && (
-              <button type="button" onClick={handleForgotPassword} disabled={authBusy} style={{ background: 'none', border: 'none', color: C.ink3, fontSize: 13, cursor: 'pointer', textAlign: 'left', padding: 0 }}>
-                Forgot password?
-              </button>
-            )}
+            <button type="button" onClick={handleForgotPassword} disabled={authBusy} style={{ background: 'none', border: 'none', color: C.ink3, fontSize: 13, cursor: 'pointer', textAlign: 'left', padding: 0 }}>
+              Forgot password?
+            </button>
             <button type="submit" disabled={authBusy} style={{ ...primaryBtn, width: '100%', marginTop: 4 }}>
-              {authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account & join' : 'Sign in & join'}
+              {authBusy ? 'Please wait…' : 'Create account & join'}
             </button>
           </form>
         </div>
@@ -1120,7 +1302,17 @@ function JoinPage({ session }: { session: Session | null }) {
         <>
           <p style={{ fontWeight: 600 }}>Couldn’t join this legacy</p>
           <p style={{ fontSize: 14, color: C.ink2, textAlign: 'center', maxWidth: 440 }}>{message}</p>
-          <button onClick={() => navigate('/legacy')} style={primaryBtn}>Continue</button>
+          <button
+            type="button"
+            onClick={() => {
+              void accessApi.me()
+                .then((me) => navigate(resolveLegacyDestination(me), { replace: true }))
+                .catch(() => navigate('/'))
+            }}
+            style={primaryBtn}
+          >
+            Continue
+          </button>
         </>
       ) : (
         <span style={{ fontFamily: serif, color: C.ink2 }}>Joining…</span>
