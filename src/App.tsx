@@ -51,35 +51,64 @@ const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, bor
 const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 999, padding: '11px 20px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
 const floatBtn: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 999, padding: '9px 16px', fontFamily: sans, fontSize: 13, fontWeight: 500, cursor: 'pointer', boxShadow: '0 4px 14px rgba(43,36,28,.12)' }
 
-function LegacyCreatorNav({
+function LegacyBottomNav({
   creatorId,
+  role,
   active,
 }: {
   creatorId?: string
-  active?: 'legacy' | 'avatar'
+  role: Role
+  active?: 'legacy' | 'avatar' | 'manage'
 }) {
   const navigate = useNavigate()
+  const normalized = normalizeRole(role) || 'member'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
   const activeBtn: React.CSSProperties = { ...floatBtn, background: C.ink, color: C.paper, border: `1px solid ${C.ink}`, fontWeight: 600, cursor: 'default' }
+  const inviteBtn: React.CSSProperties = {
+    ...floatBtn,
+    background: C.sage,
+    color: '#fbf6ec',
+    border: `1px solid ${C.sage}`,
+    fontWeight: 600,
+  }
+  const inviteActiveBtn: React.CSSProperties = { ...inviteBtn, opacity: 0.85, cursor: 'default' }
+  const isCreator = normalized === 'creator'
+  const canInvite = can(normalized, ACTIONS.INVITE_USER)
+
+  const navBtn = (label: string, path: string, isActive: boolean) => (
+    <button
+      type="button"
+      onClick={() => !isActive && navigate(path)}
+      style={isActive ? activeBtn : floatBtn}
+      disabled={isActive}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 100, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      <button
-        type="button"
-        onClick={() => active !== 'legacy' && navigate(`/legacy${cQuery}`)}
-        style={active === 'legacy' ? activeBtn : floatBtn}
-        disabled={active === 'legacy'}
-      >
-        Edit my legacy
-      </button>
-      <button
-        type="button"
-        onClick={() => active !== 'avatar' && navigate(`/avatar${cQuery}`)}
-        style={active === 'avatar' ? activeBtn : floatBtn}
-        disabled={active === 'avatar'}
-      >
-        View my legacy
-      </button>
+      {isCreator ? (
+        <>
+          {navBtn('Edit my legacy', `/legacy${cQuery}`, active === 'legacy')}
+          {navBtn('View my legacy', `/avatar${cQuery}`, active === 'avatar')}
+        </>
+      ) : (
+        <>
+          {navBtn('Home', `/legacy${cQuery}`, active === 'legacy')}
+          {navBtn('View legacy', `/avatar${cQuery}`, active === 'avatar')}
+        </>
+      )}
+      {canInvite && (
+        <button
+          type="button"
+          onClick={() => active !== 'manage' && navigate(`/manage${cQuery}`)}
+          style={active === 'manage' ? inviteActiveBtn : inviteBtn}
+          disabled={active === 'manage'}
+        >
+          Invite members
+        </button>
+      )}
     </div>
   )
 }
@@ -535,7 +564,9 @@ function LegacyHomePage({ session }: { session: Session | null }) {
 
   return (
     <>
-      <LegacyCreatorNav creatorId={creatorId} active="legacy" />
+      {(role === 'creator' || can(role, ACTIONS.INVITE_USER)) && (
+        <LegacyBottomNav creatorId={creatorId} role={role} active="legacy" />
+      )}
       <GalleryUploadModal
         open={galleryOpen}
         saving={gallerySaving}
@@ -819,7 +850,6 @@ function AvatarPage({ session }: { session: Session | null }) {
   const [liveReady, setLiveReady] = useState(false)
   const [voiceSampleUrl, setVoiceSampleUrl] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
-  const [ownerCreatorId, setOwnerCreatorId] = useState<string | undefined>()
   const [viewerRole, setViewerRole] = useState<Role>('member')
 
   useEffect(() => {
@@ -848,7 +878,6 @@ function AvatarPage({ session }: { session: Session | null }) {
         setAvatarData(data)
         setTalkCreatorId(resolvedCreatorId || undefined)
         setIsOwner(resolvedRole === 'creator')
-        setOwnerCreatorId(resolvedCreatorId || undefined)
         setViewerRole(resolvedRole)
         setVoiceSampleUrl(assetsRes?.urls?.voiceSample || null)
         setLiveReady(assetsRes?.liveReady === true)
@@ -882,8 +911,8 @@ function AvatarPage({ session }: { session: Session | null }) {
 
   return (
     <div style={{ position: 'relative' }}>
-      {isOwner && (
-        <LegacyCreatorNav creatorId={ownerCreatorId} active="avatar" />
+      {(isOwner || can(viewerRole, ACTIONS.INVITE_USER)) && (
+        <LegacyBottomNav creatorId={talkCreatorId} role={viewerRole} active="avatar" />
       )}
       <LegacyAvatar
         data={avatarData}
@@ -914,12 +943,14 @@ function ManagePage({ session }: { session: Session | null }) {
   const creatorIdParam = params.get('c') || undefined
 
   const [resolvedCreatorId, setResolvedCreatorId] = useState<string | undefined>(creatorIdParam)
+  const [callerRole, setCallerRole] = useState<Role>('member')
 
   useEffect(() => {
     if (!session) return
     accessApi.members(creatorIdParam)
       .then((m) => {
         setResolvedCreatorId(m.creatorId)
+        setCallerRole(normalizeRole(m.role) || 'member')
       })
       .catch(() => { /* nav falls back to member permissions */ })
   }, [session?.user?.id, creatorIdParam])
@@ -928,7 +959,7 @@ function ManagePage({ session }: { session: Session | null }) {
 
   return (
     <>
-      <LegacyCreatorNav creatorId={resolvedCreatorId} />
+      <LegacyBottomNav creatorId={resolvedCreatorId} role={callerRole} active="manage" />
       <ManageAccess creatorId={creatorIdParam} onBack={() => navigate(`/legacy${resolvedCreatorId ? `?c=${resolvedCreatorId}` : ''}`)} />
     </>
   )
