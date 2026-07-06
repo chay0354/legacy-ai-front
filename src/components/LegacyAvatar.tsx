@@ -184,6 +184,21 @@ function useInjectedHead() {
 
 type ChapterItem = AvatarData["chapters"][number];
 
+function portraitInitials(name: string) {
+  return name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+}
+
+function PortraitPlaceholder({ name, hint }: { name: string; hint?: string }) {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, background: "linear-gradient(165deg, #ebe0cc 0%, #d8c8ae 100%)" }}>
+      <div style={{ width: 88, height: 88, borderRadius: "50%", background: "rgba(43,36,28,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 34, color: C.umber }}>
+        {portraitInitials(name)}
+      </div>
+      {hint ? <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: 14, color: C.ink3, textAlign: "center", padding: "0 16px" }}>{hint}</span> : null}
+    </div>
+  );
+}
+
 function ChapterTimelineSlider({
   chapters,
   chapter,
@@ -1129,6 +1144,13 @@ function PortraitCard({
   const firstName = D.name.split(" ")[0];
   const live = useAnamLiveCall(talkCreatorId, PORTRAIT_LIVE_VIDEO_ID, portraitConnectKey);
   const videoLive = live.videoReady;
+  const [portraitBroken, setPortraitBroken] = useState(false);
+  const portraitSrc = portraitBroken ? null : (D.portraitSrc || null);
+  const portraitHint = showCreateAvatar && !liveReady
+    ? "Add a portrait"
+    : liveReady
+      ? `${firstName} is ready to talk`
+      : undefined;
 
   const handleEnd = async () => {
     await live.hangUp()
@@ -1138,10 +1160,11 @@ function PortraitCard({
   return (
     <div id="portrait-live" style={{ background: C.card, border: `1px solid ${C.line}`, padding: 12, boxShadow: "0 22px 50px rgba(43,36,28,.14)", borderRadius: 3 }}>
       <div style={{ width: "100%", aspectRatio: "4 / 5", background: "#e4d8c2", position: "relative", overflow: "hidden" }}>
-        {D.portraitSrc ? (
+        {portraitSrc ? (
           <img
-            src={D.portraitSrc}
-            alt=""
+            src={portraitSrc}
+            alt={`Portrait of ${D.name}`}
+            onError={() => setPortraitBroken(true)}
             style={{
               width: "100%",
               height: "100%",
@@ -1152,9 +1175,7 @@ function PortraitCard({
             }}
           />
         ) : !portraitLive ? (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontFamily: serif, fontStyle: "italic", fontSize: 15, color: C.ink3 }}>Add a portrait</span>
-          </div>
+          <PortraitPlaceholder name={D.name} hint={portraitHint} />
         ) : null}
 
         {portraitLive && (
@@ -1232,7 +1253,7 @@ function PortraitCard({
           style={{ width: "100%", marginTop: 12, border: "none", cursor: "pointer", background: C.ink, color: C.paper, fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "12px 16px", borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
         >
           <span style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,.14)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>▶</span>
-          Bring {firstName} to life
+          {showCreateAvatar ? `Bring ${firstName} to life` : `Talk with ${firstName}`}
         </button>
       ) : null}
     </div>

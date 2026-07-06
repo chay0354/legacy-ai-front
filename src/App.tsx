@@ -748,7 +748,11 @@ function AvatarPage({ session }: { session: Session | null }) {
         const resolvedRole = normalizeRole(profile.role) || 'member'
         const resolvedCreatorId = creatorIdParam || profile.creator?.id || assetsRes?.creatorId
         const data = mapProfileToAvatarData(profile, { name: viewerName, relation: 'family' })
-        const portrait = assetsRes?.urls?.portrait || null
+        const portrait =
+          assetsRes?.urls?.portrait ||
+          assetsRes?.previewUrl ||
+          assetsRes?.assets?.metadata?.heygen_avatar_preview_url ||
+          null
         if (portrait) data.portraitSrc = portrait
         setAvatarData(data)
         setTalkCreatorId(resolvedCreatorId || undefined)

@@ -238,6 +238,7 @@ export interface AvatarAssetsResponse {
   voiceCloned?: boolean;
   avatarReady?: boolean;
   liveReady?: boolean;
+  previewUrl?: string | null;
   urls?: { portrait?: string | null; idle?: string | null; speaking?: string | null; voiceSample?: string | null };
 }
 
