@@ -18,7 +18,7 @@ type StepId = 'intro' | 'voice' | 'photo' | 'generate'
 const STEPS: { id: StepId; label: string }[] = [
   { id: 'voice', label: 'Voice' },
   { id: 'photo', label: 'Photo' },
-  { id: 'generate', label: 'Avatar video' },
+  { id: 'generate', label: 'Live avatar' },
 ]
 
 interface Props {
@@ -133,8 +133,20 @@ function Intro({ assets, voiceCloned, onStart }: { assets: AvatarAssets | null; 
   )
 }
 
+function StudioProgress({ label }: { label: string }) {
+  return (
+    <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
+      <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: C.terra }}>{label}</div>
+      <div style={{ marginTop: 12, height: 4, borderRadius: 2, background: C.line, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: '40%', background: C.terra, animation: 'legacyPulse 1.4s ease-in-out infinite alternate' }} />
+      </div>
+      <style>{`@keyframes legacyPulse { from { margin-left: 0; width: 20%; } to { margin-left: 60%; width: 35%; } }`}</style>
+    </div>
+  )
+}
+
 /* ------------------------------- Voice step ------------------------------ */
-function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: AvatarAssets | null; onDone: () => void }) {
+function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: AvatarAssets | null; onDone: () => void | Promise<void> }) {
   const [recording, setRecording] = useState(false)
   const [blob, setBlob] = useState<Blob | null>(null)
   const [url, setUrl] = useState<string | null>(null)
@@ -231,12 +243,12 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
       const result = await avatarApi.cloneVoice(path)
       if (!result.cloned) {
         setError('Voice cloning did not succeed. Try again with a longer recording (30+ seconds) in a quiet room.')
+        setBusy(false)
         return
       }
-      onDone()
+      await onDone()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not clone your voice')
-    } finally {
       setBusy(false)
     }
   }
@@ -271,23 +283,27 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
             : '✓ Your cloned voice is saved. Re-recording replaces it.'}
         </p>
       )}
-      {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+      {error && !busy && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
-      {blob && !recording && recordedSeconds < 5 && (
+      {busy && <StudioProgress label="Cloning your voice…" />}
+
+      {blob && !recording && recordedSeconds < 5 && !busy && (
         <p style={{ fontFamily: sans, fontSize: 12, color: C.ink3, marginTop: 12 }}>
           Record at least 5 seconds to continue (30+ seconds recommended for voice cloning).
         </p>
       )}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-        <button
-          type="button"
-          style={{ ...primaryBtn, opacity: canSubmit && !busy ? 1 : 0.5 }}
-          disabled={!canSubmit || busy}
-          onClick={() => void submit()}
-        >
-          {busy ? 'Cloning your voice…' : 'Use this & continue'}
-        </button>
+        {!busy && (
+          <button
+            type="button"
+            style={{ ...primaryBtn, opacity: canSubmit ? 1 : 0.5 }}
+            disabled={!canSubmit}
+            onClick={() => void submit()}
+          >
+            Use this & continue
+          </button>
+        )}
       </div>
     </div>
   )
@@ -297,7 +313,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 const PORTRAIT_MIN_PX = 1024
 const PORTRAIT_TARGET_PX = 1536
 
-function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: () => void; onBack: () => void }) {
+function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: () => void | Promise<void>; onBack: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [live, setLive] = useState(false)
@@ -383,16 +399,16 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   }
 
   const submit = async () => {
-    if (!shot) return
-    setBusy(true); setError(null)
+    if (!shot || busy) return
+    setBusy(true)
+    setError(null)
     try {
       const ext = shot.type.includes('png') ? 'png' : 'jpg'
       const path = await uploadMedia(creatorId, 'portrait', shot, ext)
       await avatarApi.saveAssets({ portraitPath: path })
-      onDone()
+      await onDone()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save your photo')
-    } finally {
       setBusy(false)
     }
   }
@@ -423,13 +439,20 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
         </label>
       </div>
 
-      {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+      {error && !busy && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+
+      {busy && <StudioProgress label="Saving your photo…" />}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
         <button style={ghostBtn} onClick={onBack} disabled={busy}>← Back</button>
-        <button style={{ ...primaryBtn, opacity: shot && !busy ? 1 : 0.5, pointerEvents: shot && !busy ? 'auto' : 'none' }} onClick={submit}>
-          {busy ? 'Saving…' : 'Use this & continue'}
-        </button>
+        {!busy && (
+          <button
+            style={{ ...primaryBtn, opacity: shot ? 1 : 0.5, pointerEvents: shot ? 'auto' : 'none' }}
+            onClick={() => void submit()}
+          >
+            Use this & continue
+          </button>
+        )}
       </div>
     </div>
   )
@@ -481,15 +504,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         then family can talk with you face to face in real time.
       </p>
 
-      {status === 'generating' && (
-        <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
-          <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: C.terra }}>{phase}</div>
-          <div style={{ marginTop: 12, height: 4, borderRadius: 2, background: C.line, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: '40%', background: C.terra, animation: 'legacyPulse 1.4s ease-in-out infinite alternate' }} />
-          </div>
-          <style>{`@keyframes legacyPulse { from { margin-left: 0; width: 20%; } to { margin-left: 60%; width: 35%; } }`}</style>
-        </div>
-      )}
+      {status === 'generating' && <StudioProgress label={phase} />}
 
       {status === 'done' && (
         <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
