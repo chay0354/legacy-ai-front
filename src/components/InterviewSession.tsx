@@ -488,12 +488,12 @@ export default function InterviewSession({
     }}>
       {/* TOP BAR */}
       <div style={{ flex: "none", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="legacy-interview-top" style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Mark border={C.umber} color={C.umber} />
-            <div style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
+            <div className="legacy-interview-brand" style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
           </div>
-          <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
+          <div className="legacy-interview-status" style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
             {running ? (
               <>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.terra, animation: ambient && !paused ? "la-rec 1.4s ease-in-out infinite" : "none" }} />
@@ -524,7 +524,7 @@ export default function InterviewSession({
       </div>
 
       {/* MAIN */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 28px 56px", boxSizing: "border-box" }}>
+      <div className="legacy-interview-main" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 28px 56px", boxSizing: "border-box" }}>
 
         {/* INTRO */}
         {!started && !complete && (
@@ -536,7 +536,7 @@ export default function InterviewSession({
               </div>
             </div>
             <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3, marginBottom: 14 }}>{stageLabel} · {stageGoal}</div>
-            <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
+            <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
               {stageLabel === "Foundation"
                 ? `Let's spend a little time together, ${subjectName}.`
                 : stageLabel === "Enriched"
@@ -594,7 +594,7 @@ export default function InterviewSession({
                 </p>
               )
             ) : (
-              <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 40, lineHeight: 1.16, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
+              <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 40, lineHeight: 1.16, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
             )}
             {aiVoiceMode && (
               <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, marginTop: 14 }}>

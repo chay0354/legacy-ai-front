@@ -59,6 +59,7 @@ export default function GalleryUploadModal({
       role="dialog"
       aria-modal="true"
       onClick={onClose}
+      className="legacy-modal-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -71,6 +72,7 @@ export default function GalleryUploadModal({
       }}
     >
       <div
+        className="legacy-modal-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',

@@ -135,12 +135,12 @@ export default function LegacyWelcome({
     >
       {/* NAV */}
       <div style={{ position: "sticky", top: 0, zIndex: 30, backdropFilter: "saturate(1.1) blur(8px)", background: "rgba(236,227,210,.82)", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1140, margin: "0 auto", padding: "0 36px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="legacy-top-nav-inner" style={{ maxWidth: 1140, margin: "0 auto", padding: "0 36px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
             <Mark size={27} border={C.umber} color={C.umber} />
             <div style={{ fontFamily: serif, fontSize: 22, color: C.ink }}>Legacy AI</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 30, fontSize: 14, color: C.ink2 }}>
+          <div className="legacy-nav-links" style={{ display: "flex", alignItems: "center", gap: 30, fontSize: 14, color: C.ink2 }}>
             <a href="#how" style={{ textDecoration: "none" }}>How it works</a>
             <a href="#preserve" style={{ textDecoration: "none" }}>What we preserve</a>
             <a href="#why" style={{ textDecoration: "none" }}>The legacy</a>
@@ -153,17 +153,17 @@ export default function LegacyWelcome({
       </div>
 
       {/* HERO */}
-      <div style={{ maxWidth: 1140, margin: "0 auto", padding: "84px 36px 70px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 384px", gap: 64, alignItems: "center" }}>
+      <div className="legacy-hero-pad" style={{ maxWidth: 1140, margin: "0 auto", padding: "84px 36px 70px" }}>
+        <div className="legacy-grid-hero-side" style={{ display: "grid", gridTemplateColumns: "1fr 384px", gap: 64, alignItems: "center" }}>
           <div>
             <div style={{ fontFamily: mono, fontSize: 11.5, letterSpacing: ".24em", textTransform: "uppercase", color: C.ink3, marginBottom: 22 }}>A living legacy · preserved through conversation</div>
-            <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 74, lineHeight: 1.0, letterSpacing: "-.022em", margin: 0, color: C.ink, textWrap: "balance" }}>
+            <h1 className="legacy-hero-title" style={{ fontFamily: serif, fontWeight: 400, fontSize: 74, lineHeight: 1.0, letterSpacing: "-.022em", margin: 0, color: C.ink, textWrap: "balance" }}>
               A legacy you can<br /><span style={{ fontStyle: "italic", color: C.umber }}>actually talk to.</span>
             </h1>
-            <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 24, lineHeight: 1.45, color: C.ink2, maxWidth: 560, margin: "26px 0 0" }}>
+            <p className="legacy-hero-sub" style={{ fontFamily: serif, fontWeight: 300, fontSize: 24, lineHeight: 1.45, color: C.ink2, maxWidth: 560, margin: "26px 0 0" }}>
               Legacy AI interviews the people you love — their stories, their voice, the way they see the world — and preserves their legacy, so every generation that follows can sit down and truly know them.
             </p>
-            <div style={{ display: "flex", gap: 14, marginTop: 36 }}>
+            <div className="legacy-hero-ctas" style={{ display: "flex", gap: 14, marginTop: 36 }}>
               <button onClick={openSignup} style={pill({ background: accent, color: "#fbf6ec", fontSize: 16, padding: "16px 30px", boxShadow: "0 12px 28px rgba(192,106,68,.30)" })}>Begin a legacy</button>
               <a href="#how" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 10, background: "transparent", border: `1px solid ${C.ink}`, color: C.ink, fontFamily: sans, fontWeight: 500, fontSize: 16, padding: "16px 26px", borderRadius: 999 }}>See how it works</a>
             </div>
@@ -194,10 +194,10 @@ export default function LegacyWelcome({
       </div>
 
       {/* HOW IT WORKS */}
-      <div id="how" style={{ maxWidth: 1140, margin: "0 auto", padding: "64px 36px" }}>
+      <div id="how" className="legacy-section-pad" style={{ maxWidth: 1140, margin: "0 auto", padding: "64px 36px" }}>
         <Eyebrow>How it works</Eyebrow>
-        <h2 style={{ fontFamily: serif, fontWeight: 500, fontSize: 40, letterSpacing: "-.01em", margin: "12px 0 44px", color: C.ink }}>Three quiet steps</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 26 }}>
+        <h2 className="legacy-section-h2" style={{ fontFamily: serif, fontWeight: 500, fontSize: 40, letterSpacing: "-.01em", margin: "12px 0 44px", color: C.ink }}>Three quiet steps</h2>
+        <div className="legacy-grid-3col" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 26 }}>
           {STEPS.map((s) => (
             <div key={s.num} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: "32px 30px", boxShadow: "0 14px 34px rgba(43,36,28,.06)" }}>
               <div style={{ fontFamily: serif, fontSize: 30, color: accent }}>{s.num}</div>
@@ -209,16 +209,16 @@ export default function LegacyWelcome({
       </div>
 
       {/* WHAT WE PRESERVE */}
-      <div id="preserve" style={{ maxWidth: 1140, margin: "0 auto", padding: "64px 36px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 56, alignItems: "start" }}>
+      <div id="preserve" className="legacy-section-pad" style={{ maxWidth: 1140, margin: "0 auto", padding: "64px 36px" }}>
+        <div className="legacy-grid-2-1" style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 56, alignItems: "start" }}>
           <div>
             <Eyebrow>What we preserve</Eyebrow>
-            <h2 style={{ fontFamily: serif, fontWeight: 500, fontSize: 40, lineHeight: 1.05, letterSpacing: "-.01em", margin: "12px 0 0", color: C.ink }}>Not a database. A person.</h2>
+            <h2 className="legacy-section-h2" style={{ fontFamily: serif, fontWeight: 500, fontSize: 40, lineHeight: 1.05, letterSpacing: "-.01em", margin: "12px 0 0", color: C.ink }}>Not a database. A person.</h2>
             <p style={{ fontSize: 16, lineHeight: 1.6, color: C.ink2, margin: "18px 0 0" }}>
               A database remembers when someone was born. Legacy AI remembers <em>what kind of person they are</em> — across six layers, from the plain facts to the warmth that makes them unmistakably themselves.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="legacy-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {LAYERS.map((l) => (
               <div key={l.name} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: "20px 22px", display: "flex", gap: 14, alignItems: "flex-start" }}>
                 <span style={{ width: 11, height: 11, borderRadius: 3, marginTop: 5, flex: "none", background: l.swatch }} />
@@ -235,7 +235,7 @@ export default function LegacyWelcome({
       {/* QUOTE */}
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "54px 36px", textAlign: "center" }}>
         <div style={{ fontFamily: serif, fontSize: 48, color: C.gold, lineHeight: 1 }}>“</div>
-        <p style={{ fontFamily: serif, fontWeight: 300, fontStyle: "italic", fontSize: 30, lineHeight: 1.4, color: C.ink, margin: "8px 0 0", textWrap: "pretty" }}>
+        <p className="legacy-quote" style={{ fontFamily: serif, fontWeight: 300, fontStyle: "italic", fontSize: 30, lineHeight: 1.4, color: C.ink, margin: "8px 0 0", textWrap: "pretty" }}>
           My daughter asked her grandfather what he was most proud of — and he answered, in his own words and his own voice. That’s a legacy no photo album could ever hold.
         </p>
         <div style={{ fontSize: 14, color: C.ink3, marginTop: 24, fontFamily: mono, letterSpacing: ".06em" }}>CAROL B. · DAUGHTER &amp; KEEPER</div>
@@ -245,7 +245,7 @@ export default function LegacyWelcome({
       <div id="why" style={{ background: C.ink, marginTop: 30 }}>
         <div style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 36px", textAlign: "center" }}>
           <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".24em", textTransform: "uppercase", color: "rgba(245,241,234,.5)" }}>The legacy</div>
-          <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 52, lineHeight: 1.06, letterSpacing: "-.015em", margin: "16px 0 0", color: C.paper, textWrap: "balance" }}>
+          <h2 className="legacy-closing-h2" style={{ fontFamily: serif, fontWeight: 400, fontSize: 52, lineHeight: 1.06, letterSpacing: "-.015em", margin: "16px 0 0", color: C.paper, textWrap: "balance" }}>
             Every life is a legacy.<br />Start telling it today.
           </h2>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: "rgba(245,241,234,.7)", maxWidth: 520, margin: "22px auto 0" }}>
@@ -349,6 +349,7 @@ function AuthModal({ open, mode, accent, busy = false, error = null, notice = nu
       <div
         role="dialog"
         aria-modal="true"
+        className={`legacy-auth-dialog${open ? ' open' : ''}`}
         style={{
           position: "fixed", top: "50%", left: "50%", width: 760, maxWidth: "94vw", zIndex: 51,
           borderRadius: 16, overflow: "hidden", boxShadow: "0 40px 100px rgba(43,36,28,.4)",
@@ -358,9 +359,9 @@ function AuthModal({ open, mode, accent, busy = false, error = null, notice = nu
           transform: `translate(-50%,-50%) scale(${open ? 1 : 0.96})`,
         }}
       >
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 540 }}>
+        <div className="legacy-auth-panels" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 540 }}>
           {/* left panel */}
-          <div style={{ background: C.ink, padding: "40px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          <div className="legacy-auth-quote-panel" style={{ background: C.ink, padding: "40px 36px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
               <Mark size={27} border="rgba(245,241,234,.5)" color={C.paper} font={14} />
               <div style={{ fontFamily: serif, fontSize: 21, color: C.paper }}>Legacy AI</div>
@@ -376,7 +377,7 @@ function AuthModal({ open, mode, accent, busy = false, error = null, notice = nu
           </div>
 
           {/* form */}
-          <form onSubmit={submit} style={{ background: C.card, padding: "40px 38px", position: "relative", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <form onSubmit={submit} className="legacy-auth-form-panel" style={{ background: C.card, padding: "40px 38px", position: "relative", display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <button type="button" onClick={onClose} style={{ position: "absolute", top: 20, right: 22, border: "none", background: "transparent", cursor: "pointer", fontSize: 24, color: C.ink3, lineHeight: 1 }}>×</button>
             <h2 style={{ fontFamily: serif, fontWeight: 500, fontSize: 32, margin: 0, color: C.ink }}>{copy.title}</h2>
             <p style={{ fontSize: 14.5, color: C.ink2, margin: "8px 0 26px" }}>{copy.sub}</p>

@@ -138,6 +138,7 @@ export default function VoiceRecordModal({
       role="dialog"
       aria-modal="true"
       onClick={() => { if (!saving) onClose() }}
+      className="legacy-modal-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -150,6 +151,7 @@ export default function VoiceRecordModal({
       }}
     >
       <div
+        className="legacy-modal-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',

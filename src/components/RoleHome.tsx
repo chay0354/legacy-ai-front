@@ -165,7 +165,7 @@ function Nav({ role, on }: { role: Role; on: InternalHandlers }) {
         <div style={{ width: 24, height: 24, borderRadius: '50%', border: `1px solid ${C.umber}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: serif, fontSize: 13, color: C.umber }}>H</div>
         <div style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 26, fontSize: 13.5, color: C.ink2 }}>
+      <div className="legacy-rolehome-nav-labels" style={{ display: 'flex', alignItems: 'center', gap: 26, fontSize: 13.5, color: C.ink2 }}>
         {NAV[role].map((it, i) => <span key={it} style={{ color: i === 0 ? C.ink : C.ink2, fontWeight: i === 0 ? 600 : 400 }}>{it}</span>)}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
@@ -180,7 +180,7 @@ function Shell({ role, on, children }: { role: Role; on: InternalHandlers; child
   return (
     <div style={{ ...cardBox, background: C.paper, backgroundImage: 'radial-gradient(900px 460px at 88% -10%, rgba(255,251,242,.7), transparent 60%)', overflow: 'hidden', boxShadow: '0 18px 50px rgba(43,36,28,.14)', border: `1px solid ${C.cardLine}` }}>
       <Nav role={role} on={on} />
-      <div style={{ padding: '34px 30px 36px' }}>{children}</div>
+      <div className="legacy-shell-pad" style={{ padding: '34px 30px 36px' }}>{children}</div>
     </div>
   )
 }
@@ -200,9 +200,9 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
         </div>
       )}
       <div style={eyebrow}>Good afternoon</div>
-      <h2 style={greeting}>Let’s keep building your legacy, {D.subjectName}.</h2>
+      <h2 className="legacy-greeting" style={greeting}>Let’s keep building your legacy, {D.subjectName}.</h2>
 
-      <div style={{ marginTop: 24, background: C.ink, borderRadius: 10, padding: '26px 28px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
+      <div className="legacy-grid-cta" style={{ marginTop: 24, background: C.ink, borderRadius: 10, padding: '26px 28px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.terra }} />
@@ -211,7 +211,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
           <StageProgressTrack stages={D.stages} variant="dark" margin="18px 0 4px" maxWidth={380} />
           <p style={{ fontSize: 13.5, lineHeight: 1.5, color: 'rgba(245,241,234,.7)', margin: '14px 0 0', maxWidth: 430 }}>{D.avatarNote}</p>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
+        <div className="legacy-cta-col" style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-start' }}>
           {can(role, ACTIONS.CHAT_WITH_AVATAR) && (
             liveReady ? (
               <button onClick={on.talk} style={pill({ border: 'none', background: C.terra, color: '#fbf6ec', fontSize: 14, padding: 13, boxShadow: '0 10px 24px rgba(192,106,68,.3)' })}>Have a live talk with {D.subjectName} →</button>
@@ -230,7 +230,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 18 }}>
+      <div className="legacy-grid-4col" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 18 }}>
         {D.creatorActions.filter((a) => can(role, a.action as never)).map((a) => (
           <div key={a.title} onClick={() => on.action?.(a.action)} style={{ ...cardBox, borderRadius: 9, padding: '18px 16px', cursor: 'pointer' }}>
             <div style={{ fontFamily: serif, fontSize: 24, color: a.color }}>{a.glyph}</div>
@@ -240,7 +240,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginTop: 24 }}>
+      <div className="legacy-grid-sidebar-right" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginTop: 24 }}>
         <div style={{ ...cardBox, padding: '22px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ fontFamily: serif, fontSize: 20, color: C.ink }}>Your memories</div>
@@ -318,7 +318,7 @@ function CreatorHome({ role, data: D, on, liveReady, justCompletedStage }: { rol
       />
 
       {can(role, ACTIONS.RECORD_VOICE) && (
-        <div style={{ marginTop: 24, background: C.ink, borderRadius: 12, padding: '28px 30px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
+        <div className="legacy-grid-cta" style={{ marginTop: 24, background: C.ink, borderRadius: 12, padding: '28px 30px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: C.terra }}>
               {liveReady ? 'Avatar active' : 'The heart of your legacy'}
@@ -367,9 +367,9 @@ function AdministratorHome({ role, data: D, on }: { role: Role; data: RoleHomeDa
   return (
     <Shell role={role} on={on}>
       <div style={eyebrow}>Welcome back</div>
-      <h2 style={greeting}>You’re looking after {D.subjectName}’s legacy, {D.viewerName}.</h2>
+      <h2 className="legacy-greeting" style={greeting}>You’re looking after {D.subjectName}’s legacy, {D.viewerName}.</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, marginTop: 24 }}>
+      <div className="legacy-grid-sidebar-right" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20, marginTop: 24 }}>
         <div style={{ ...cardBox, padding: '24px 26px', display: 'flex', alignItems: 'center', gap: 22 }}>
           <div style={{ width: 84, height: 104, borderRadius: 5, background: '#e4d8c2', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: serif, fontStyle: 'italic', fontSize: 11, color: C.ink3, textAlign: 'center', padding: 6 }}>{D.subjectName}’s portrait</div>
           <div style={{ flex: 1 }}>
@@ -421,7 +421,7 @@ function AdministratorHome({ role, data: D, on }: { role: Role; data: RoleHomeDa
 function MemberHome({ role, data: D, on }: { role: Role; data: RoleHomeData; on: InternalHandlers }) {
   return (
     <Shell role={role} on={on}>
-      <div style={{ background: C.ink, borderRadius: 12, padding: '34px 34px', display: 'grid', gridTemplateColumns: '1fr 240px', gap: 26, alignItems: 'center' }}>
+      <div className="legacy-member-hero" style={{ background: C.ink, borderRadius: 12, padding: '34px 34px', display: 'grid', gridTemplateColumns: '1fr 240px', gap: 26, alignItems: 'center' }}>
         <div>
           <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.18em', textTransform: 'uppercase', color: 'rgba(245,241,234,.55)' }}>Welcome, {D.viewerName}</div>
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 36, lineHeight: 1.08, letterSpacing: '-.015em', margin: '12px 0 0', color: '#fbf6ec' }}>{D.subjectName} is here whenever you’d like to talk.</h2>
@@ -444,7 +444,7 @@ function MemberHome({ role, data: D, on }: { role: Role; data: RoleHomeData; on:
         <div style={{ fontFamily: serif, fontSize: 22, color: C.ink }}>Wander through their life</div>
         <span style={{ fontSize: 13, color: C.ink3 }}>View only · nothing to manage</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 16 }}>
+      <div className="legacy-grid-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 16 }}>
         {D.browse.map((b) => (
           <div key={b.title} onClick={() => on.browse?.(b.title)} style={{ ...cardBox, padding: '22px 22px', cursor: 'pointer' }}>
             <div style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: b.color }}>{b.kicker}</div>
@@ -455,7 +455,7 @@ function MemberHome({ role, data: D, on }: { role: Role; data: RoleHomeData; on:
         ))}
       </div>
 
-      <div style={{ marginTop: 16, ...cardBox, padding: '24px 26px', display: 'flex', alignItems: 'center', gap: 22 }}>
+      <div className="legacy-story-row" style={{ marginTop: 16, ...cardBox, padding: '24px 26px', display: 'flex', alignItems: 'center', gap: 22 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: C.terra }}>Story of the day · {D.storyOfDay.year}</div>
           <div style={{ fontFamily: serif, fontSize: 23, color: C.ink, marginTop: 8 }}>{D.storyOfDay.title}</div>
@@ -498,7 +498,7 @@ export default function RoleHome({ role: rawRole = ROLES.CREATOR, data = sampleL
     signOut: handlers.onSignOut,
   }
   return (
-    <div className="legacy-rolehome" style={{ minHeight: '100vh', padding: 40, boxSizing: 'border-box', background: '#e3dccd', fontFamily: sans, WebkitFontSmoothing: 'antialiased', display: 'flex', justifyContent: 'center' }}>
+    <div className="legacy-rolehome legacy-page-with-nav" style={{ minHeight: '100dvh', padding: 40, boxSizing: 'border-box', background: '#e3dccd', fontFamily: sans, WebkitFontSmoothing: 'antialiased', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 1040 }}>
         <Screen role={role} data={data} on={on} liveReady={liveReady} justCompletedStage={justCompletedStage} />
       </div>

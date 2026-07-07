@@ -294,7 +294,7 @@ export default function LiveAvatarCall({ creatorId, name = 'your legacy', onClos
         )}
 
         {live.phase === 'live' && live.caption && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
+          <div className="legacy-live-call-captions" style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
             <div style={{ background: 'rgba(0,0,0,.55)', color: '#fff', padding: '10px 18px', borderRadius: 12, fontSize: 16, maxWidth: 720, textAlign: 'center', backdropFilter: 'blur(4px)' }}>
               {live.caption}
             </div>
@@ -322,7 +322,7 @@ export function LiveCallControls({
 }) {
   const size = compact ? 44 : 52
   return (
-    <div style={{
+    <div className="legacy-live-call-controls" style={{
       display: 'flex',
       justifyContent: 'center',
       padding: compact ? '12px 0 0' : '18px',

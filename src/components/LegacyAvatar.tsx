@@ -803,20 +803,20 @@ export default function LegacyAvatar({
   const h2 = { fontFamily: serif, fontWeight: 500, fontSize: 36, letterSpacing: "-.01em", color: C.ink };
 
   return (
-    <div className="legacy-avatar" style={{
-      minHeight: "100vh", background: C.paper,
+    <div className="legacy-avatar legacy-page-with-nav" style={{
+      minHeight: "100dvh", background: C.paper,
       backgroundImage: "radial-gradient(1100px 560px at 82% -8%, rgba(255,251,242,.7), transparent 60%), radial-gradient(900px 520px at -10% 116%, rgba(122,82,54,.07), transparent 60%)",
       fontFamily: sans, color: C.ink, WebkitFontSmoothing: "antialiased",
       width: "100%", maxWidth: "100vw", overflowX: "clip", boxSizing: "border-box",
     }}>
       {/* NAV */}
       <div style={{ position: "sticky", top: 0, zIndex: 40, backdropFilter: "saturate(1.1) blur(8px)", background: "rgba(236,227,210,.82)", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 40px", height: 66, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="legacy-top-nav-inner" style={{ maxWidth: 1180, margin: "0 auto", padding: "0 40px", height: 66, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
             <Mark border={C.umber} color={C.umber} />
             <div style={{ fontFamily: serif, fontSize: 21, letterSpacing: ".01em", color: C.ink }}>Legacy AI</div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 30, fontSize: 13.5, color: C.ink2 }}>
+          <div className="legacy-nav-links" style={{ display: "flex", alignItems: "center", gap: 30, fontSize: 13.5, color: C.ink2 }}>
             <a href="#layers" style={{ textDecoration: "none" }}>Who he was</a>
             <a href="#timeline" style={{ textDecoration: "none" }}>His life</a>
             <a href="#stories" style={{ textDecoration: "none" }}>Stories</a>
@@ -824,7 +824,7 @@ export default function LegacyAvatar({
             <a href="#people" style={{ textDecoration: "none" }}>People</a>
             <a href="#wisdom" style={{ textDecoration: "none" }}>Wisdom</a>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div className="legacy-nav-user-meta" style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
               <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.sage, color: "#fbf6ec", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: 14 }}>{D.viewer.initial}</div>
               <div style={{ fontSize: 12.5, lineHeight: 1.2 }}><div style={{ color: C.ink }}>{D.viewer.name}</div><div style={{ color: C.ink3, fontSize: 11 }}>{D.viewer.relation}</div></div>
@@ -844,8 +844,8 @@ export default function LegacyAvatar({
       </div>
 
       {/* HERO */}
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 40px 40px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 60, alignItems: "center" }}>
+      <div className="legacy-section-wrap" style={{ maxWidth: 1180, margin: "0 auto", padding: "64px 40px 40px" }}>
+        <div className="legacy-grid-hero-side" style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 60, alignItems: "center" }}>
           <div>
             <PortraitCard
               D={D}
@@ -868,14 +868,14 @@ export default function LegacyAvatar({
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: accent, animation: ambient ? "la-pulse 2.6s ease-in-out infinite" : "none" }} />
               <div style={{ ...eyebrow, letterSpacing: ".24em" }}>Legacy Avatar · alive · {D.preservedPct}% preserved</div>
             </div>
-            <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 72, lineHeight: 0.96, letterSpacing: "-.02em", margin: 0, color: C.ink }}>{D.name}</h1>
+            <h1 className="legacy-hero-h1" style={{ fontFamily: serif, fontWeight: 400, fontSize: 72, lineHeight: 0.96, letterSpacing: "-.02em", margin: 0, color: C.ink }}>{D.name}</h1>
             <div style={{ fontFamily: mono, fontSize: 12.5, letterSpacing: ".1em", color: C.ink3, marginTop: 14 }}>{D.meta}</div>
             <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 25, lineHeight: 1.4, color: C.ink2, maxWidth: 600, margin: "22px 0 0" }}>{D.tagline}</p>
 
             {/* stages */}
             <StageProgressTrack stages={D.stages} />
 
-            <div style={{ display: "flex", gap: 40, marginBottom: 30 }}>
+            <div className="legacy-hero-stats" style={{ display: "flex", gap: 40, marginBottom: 30 }}>
               {D.heroStats.map((s) => (
                 <div key={s.label}><div style={{ fontFamily: serif, fontSize: 30, color: C.ink }}>{s.n}</div><div style={{ fontSize: 11.5, color: C.ink3, letterSpacing: ".04em" }}>{s.label}</div></div>
               ))}
@@ -914,11 +914,11 @@ export default function LegacyAvatar({
       </div>
 
       {/* LAYERS */}
-      <div id="layers" style={wrap}>
+      <div id="layers" className="legacy-section-wrap" style={wrap}>
         <div style={eyebrow}>The six layers of who he was</div>
         <h2 style={{ ...h2, fontSize: 36, lineHeight: 1.06, margin: "12px 0 0" }}>A life read like sediment</h2>
         <p style={{ fontSize: 15, color: C.ink2, lineHeight: 1.55, maxWidth: 600, margin: "12px 0 0" }}>From the plain facts at bedrock up to the warmth at the surface. Each layer is filled in story by story — choose one to see what’s been preserved.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 384px", gap: 30, marginTop: 36, alignItems: "start" }}>
+        <div className="legacy-grid-sidebar-right" style={{ display: "grid", gridTemplateColumns: "1fr 384px", gap: 30, marginTop: 36, alignItems: "start" }}>
           <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 5, overflow: "hidden", boxShadow: "0 14px 36px rgba(43,36,28,.07)" }}>
             {D.layers.map((l, i) => (
               <div key={l.name} onClick={() => setLayer(i)} style={{ position: "relative", display: "flex", alignItems: "center", gap: 20, padding: "19px 24px 19px 26px", borderBottom: `1px solid ${C.line}`, cursor: "pointer" }}>
@@ -955,7 +955,7 @@ export default function LegacyAvatar({
       </div>
 
       {/* TIMELINE */}
-      <div id="timeline" style={{ ...wrap, overflow: "hidden", boxSizing: "border-box" }}>
+      <div id="timeline" className="legacy-section-wrap" style={{ ...wrap, overflow: "hidden", boxSizing: "border-box" }}>
         <div style={eyebrow}>His life, chapter by chapter</div>
         <h2 style={{ ...h2, margin: "12px 0 34px" }}>The chapters that shaped him</h2>
         <ChapterTimelineSlider
@@ -964,7 +964,7 @@ export default function LegacyAvatar({
           accent={accent}
           onSelect={setChapter}
         />
-        <div style={{ marginTop: 34, background: C.card, border: `1px solid ${C.line}`, borderRadius: 5, padding: "32px 36px", display: "grid", gridTemplateColumns: "120px 1fr", gap: 32, alignItems: "start", boxShadow: "0 14px 36px rgba(43,36,28,.07)" }}>
+        <div className="legacy-grid-timeline-detail" style={{ marginTop: 34, background: C.card, border: `1px solid ${C.line}`, borderRadius: 5, padding: "32px 36px", display: "grid", gridTemplateColumns: "120px 1fr", gap: 32, alignItems: "start", boxShadow: "0 14px 36px rgba(43,36,28,.07)" }}>
           <div style={{ fontFamily: serif, fontSize: 46, lineHeight: 1, color: accent }}>{ac.year}</div>
           <div>
             <h3 style={{ fontFamily: serif, fontWeight: 500, fontSize: 25, margin: "0 0 10px", color: C.ink }}>{ac.title}</h3>
@@ -975,10 +975,10 @@ export default function LegacyAvatar({
       </div>
 
       {/* STORIES */}
-      <div id="stories" style={wrap}>
+      <div id="stories" className="legacy-section-wrap" style={wrap}>
         <div style={eyebrow}>The stories he kept coming back to</div>
         <h2 style={{ ...h2, margin: "12px 0 34px" }}>Anchor stories</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 26 }}>
+        <div className="legacy-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 26 }}>
           {D.stories.map((s) => (
             <div key={s.title} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 5, padding: "30px 32px", boxShadow: "0 14px 36px rgba(43,36,28,.07)", display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -998,7 +998,7 @@ export default function LegacyAvatar({
       </div>
 
       {/* GALLERY */}
-      <div id="gallery" style={wrap}>
+      <div id="gallery" className="legacy-section-wrap" style={wrap}>
         <div style={eyebrow}>Faces, places, and letters</div>
         <h2 style={{ ...h2, margin: "12px 0 34px" }}>Photo gallery</h2>
         <GallerySection
@@ -1010,11 +1010,11 @@ export default function LegacyAvatar({
       </div>
 
       {/* PEOPLE */}
-      <div id="people" style={wrap}>
+      <div id="people" className="legacy-section-wrap" style={wrap}>
         <div style={eyebrow}>The people who made him</div>
         <h2 style={{ ...h2, margin: "12px 0 8px" }}>Whoever you ask about, he remembers</h2>
         <p style={{ fontSize: 15, color: C.ink2, margin: "0 0 32px" }}>The people who shaped {D.name.split(" ")[0]}&apos;s life.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22 }}>
+        <div className="legacy-grid-people" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22 }}>
           {D.people.map((p) => (
             <div key={p.name} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 5, padding: "26px 26px 22px", boxShadow: "0 12px 30px rgba(43,36,28,.06)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
@@ -1039,7 +1039,7 @@ export default function LegacyAvatar({
         <div style={{ maxWidth: 1180, margin: "0 auto", padding: "74px 40px" }}>
           <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".24em", textTransform: "uppercase", color: "rgba(245,241,234,.5)" }}>What he wanted you to carry forward</div>
           <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, letterSpacing: "-.01em", margin: "14px 0 44px", color: C.paper }}>Earned the slow way</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "46px 60px" }}>
+          <div className="legacy-grid-2col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "46px 60px" }}>
             {D.wisdom.map((w, i) => (
               <div key={i} style={{ position: "relative", paddingLeft: 30 }}>
                 <div style={{ position: "absolute", left: 0, top: -6, fontFamily: serif, fontSize: 46, lineHeight: 1, color: C.gold }}>“</div>

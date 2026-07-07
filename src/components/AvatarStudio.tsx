@@ -62,8 +62,8 @@ export default function AvatarStudio({ onExit }: Props) {
   const currentIndex = STEPS.findIndex((s) => s.id === step)
 
   return (
-    <div style={{ minHeight: '100vh', background: C.paper, fontFamily: sans, color: C.ink }}>
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 96px' }}>
+    <div className="legacy-studio" style={{ minHeight: '100dvh', background: C.paper, fontFamily: sans, color: C.ink }}>
+      <div className="legacy-studio-inner" style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 96px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: C.ink3 }}>Avatar Studio</div>
           <button style={ghostBtn} onClick={onExit}>Exit</button>
@@ -265,7 +265,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 18 }}>
+      <div className="legacy-voice-controls" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 18, flexWrap: 'wrap' }}>
         {!recording && (
           <button style={primaryBtn} onClick={start}>{blob ? 'Re-record' : 'Start recording'}</button>
         )}
@@ -420,7 +420,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
         Face the light, center your face, and look at the camera. For the sharpest live avatar, upload a high-resolution photo from your phone (1024px+).
       </p>
 
-      <div style={{ width: 280, height: 280, borderRadius: 14, overflow: 'hidden', background: '#e4d8c2', margin: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="legacy-photo-preview" style={{ width: 280, height: 280, borderRadius: 14, overflow: 'hidden', background: '#e4d8c2', margin: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {url ? (
           <img src={url} alt="portrait" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (

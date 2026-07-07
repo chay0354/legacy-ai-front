@@ -117,15 +117,15 @@ export default function ManageAccess({ creatorId, onBack }: ManageAccessProps) {
   const pending = invitations.filter((i) => i.status === 'pending')
 
   return (
-    <div style={{ minHeight: '100vh', background: C.paper, fontFamily: sans, color: C.ink, padding: '0 0 80px' }}>
+    <div className="legacy-manage legacy-page-with-nav" style={{ minHeight: '100dvh', background: C.paper, fontFamily: sans, color: C.ink, padding: '0 0 80px' }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(236,227,210,.9)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 28px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="legacy-top-nav-inner" style={{ maxWidth: 860, margin: '0 auto', padding: '0 28px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontFamily: serif, fontSize: 20 }}>Manage access</div>
           <button onClick={onBack} style={ghostBtn}>← Back</button>
         </div>
       </div>
 
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '36px 28px' }}>
+      <div className="legacy-manage-pad" style={{ maxWidth: 860, margin: '0 auto', padding: '36px 28px' }}>
         {loading && <p style={{ color: C.ink2 }}>Loading…</p>}
         {error && (
           <div style={errorBox}>
@@ -173,7 +173,7 @@ export default function ManageAccess({ creatorId, onBack }: ManageAccessProps) {
               <section style={card}>
                 <h2 style={sectionTitle}>Active invite links</h2>
                 {pending.map((i) => (
-                  <div key={i.id} style={row}>
+                  <div key={i.id} className="legacy-manage-row" style={row}>
                     <div>
                       <div style={{ fontSize: 15 }}>{ROLE_LABEL[i.role]} link</div>
                       <div style={{ fontSize: 12, color: C.ink3 }}>Created {new Date(i.created_at).toLocaleDateString()} · expires {new Date(i.expires_at).toLocaleDateString()}</div>
@@ -190,7 +190,7 @@ export default function ManageAccess({ creatorId, onBack }: ManageAccessProps) {
             <section style={card}>
               <h2 style={sectionTitle}>People with access</h2>
               {members.map((m) => (
-                <div key={m.user_id} style={row}>
+                <div key={m.user_id} className="legacy-manage-row" style={row}>
                   <div>
                     <div style={{ fontSize: 15 }}>{m.name || m.email || 'Family member'}</div>
                     <div style={{ fontSize: 12, color: C.ink3 }}>

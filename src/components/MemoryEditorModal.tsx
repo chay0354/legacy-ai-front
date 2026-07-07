@@ -63,6 +63,7 @@ export default function MemoryEditorModal({
       role="dialog"
       aria-modal="true"
       onClick={onClose}
+      className="legacy-modal-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -75,6 +76,7 @@ export default function MemoryEditorModal({
       }}
     >
       <div
+        className="legacy-modal-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
@@ -139,7 +141,7 @@ export default function MemoryEditorModal({
           />
         </label>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+        <div className="legacy-modal-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
           <label>
             <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: C.ink2 }}>Year (optional)</span>
             <input

@@ -57,7 +57,7 @@ function clearPendingJoinToken() {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.paper, fontFamily: sans, color: C.ink, gap: 12, padding: '0 24px' }}>
+    <div className="legacy-centered" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.paper, fontFamily: sans, color: C.ink, gap: 12, padding: '0 24px' }}>
       {children}
     </div>
   )
@@ -104,7 +104,7 @@ function LegacyBottomNav({
   )
 
   return (
-    <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 100, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className="legacy-bottom-nav">
       {isCreator ? (
         <>
           {navBtn('Edit my legacy', `/legacy${cQuery}`, active === 'legacy')}
