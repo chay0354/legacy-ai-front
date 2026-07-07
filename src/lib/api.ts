@@ -245,6 +245,8 @@ export interface AvatarAssets {
   metadata?: {
     cloned?: boolean;
     avatar_status?: 'none' | 'processing' | 'ready' | 'failed';
+    anam_status?: 'none' | 'processing' | 'ready' | 'failed';
+    anam_error?: string | null;
     heygen_photo_avatar_id?: string | null;
     heygen_avatar_preview_url?: string | null;
     [key: string]: unknown;
