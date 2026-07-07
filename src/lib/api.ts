@@ -366,6 +366,18 @@ export const avatarApi = {
       status: 'pending' | 'processing' | 'completed' | 'failed'; url: string | null; error: string | null;
     }>,
 
+  /** Fetch a completed HeyGen video through our API (avoids CDN connection errors in <video>). */
+  fetchTalkingVideoSrc: async (videoId: string) => {
+    const headers = await authHeaders();
+    const res = await fetch(apiUrl(`/api/avatar/video/${encodeURIComponent(videoId)}/stream`), { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error || `Could not load video (${res.status})`);
+    }
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
+
   greetingText: () => apiFetch('/api/avatar/greeting-text') as Promise<{ text: string }>,
 
   /** Start a real-time Anam live call with the legacy's own face + voice; returns a session token. */
@@ -414,8 +426,8 @@ export const avatarApi = {
 
     for (let i = 0; i < 100; i++) {
       await new Promise((r) => setTimeout(r, 5000));
-      const { status, url, error } = await avatarApi.pollVideo(videoId);
-      if (status === 'completed' && url) return url;
+      const { status, error } = await avatarApi.pollVideo(videoId);
+      if (status === 'completed') return avatarApi.fetchTalkingVideoSrc(videoId);
       if (status === 'failed') throw new Error(error || 'Talking video failed to render');
       opts?.onProgress?.(status === 'pending' ? 'pending' : 'processing');
     }
