@@ -303,16 +303,47 @@ export const avatarApi = {
   saveAssets: (payload: { portraitPath?: string; idleVideoPath?: string; speakingVideoPath?: string }) =>
     apiFetch('/api/avatar/assets', { method: 'PUT', body: JSON.stringify(payload) }) as Promise<AvatarAssetsResponse>,
 
-  /** Register the creator's portrait + cloned voice as a HeyGen photo avatar (automatic face). */
-  provision: () =>
-    apiFetch('/api/avatar/provision', { method: 'POST' }) as Promise<{
+  /** Register portrait + voice as live (Anam) and talking (HeyGen) avatars. Polls until liveReady on Vercel. */
+  provision: async (opts?: { onProgress?: (phase: string) => void }) => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    type ProvisionResult = {
       success: boolean;
+      status?: string;
       avatarReady: boolean;
       liveReady?: boolean;
       heygenPhotoAvatarId: string | null;
       previewUrl: string | null;
       assets: AvatarAssets;
-    }>,
+      message?: string;
+    };
+
+    const initial = (await apiFetch('/api/avatar/provision', { method: 'POST' })) as ProvisionResult;
+    if (initial.liveReady) return initial;
+    if (initial.status !== 'processing') return initial;
+
+    opts?.onProgress?.('Creating your live avatar…');
+    for (let i = 0; i < 90; i++) {
+      await sleep(3000);
+      const polled = await avatarApi.getAssets({ light: true });
+      if (polled.liveReady && polled.assets) {
+        return {
+          success: true,
+          status: 'ready',
+          avatarReady: polled.avatarReady,
+          liveReady: true,
+          heygenPhotoAvatarId: polled.assets.metadata?.heygen_photo_avatar_id ?? null,
+          previewUrl: polled.previewUrl ?? null,
+          assets: polled.assets,
+        };
+      }
+      const anamStatus = polled.assets?.metadata?.anam_status;
+      if (anamStatus === 'failed') {
+        throw new Error(polled.assets?.metadata?.anam_error || 'Live avatar setup failed');
+      }
+      opts?.onProgress?.(i < 20 ? 'Creating your live avatar…' : 'Almost there…');
+    }
+    throw new Error('Live avatar setup is taking longer than expected. Refresh and try again.');
+  },
 
   /** Ask the avatar a question; resolves to the answer text (in the person's own voice). */
   ask: (question: string, creatorId?: string) =>
@@ -412,7 +443,10 @@ export const avatarApi = {
 };
 
 export const interviewApi = {
-  getSession: () => apiFetch('/api/interview/session') as Promise<InterviewSessionData>,
+  getSession: (opts?: { stage?: string }) => {
+    const q = opts?.stage ? `?stage=${encodeURIComponent(opts.stage)}` : ''
+    return apiFetch(`/api/interview/session${q}`) as Promise<InterviewSessionData>
+  },
 
   saveAnswer: (sessionId: string, payload: {
     questionIndex: number;

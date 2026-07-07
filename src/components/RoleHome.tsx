@@ -29,7 +29,7 @@ export interface RoleHomeData {
   viewerName: string
   preservedPct: number
   stage: string
-  stages: { label: string; done?: boolean; current?: boolean }[]
+  stages: { id: string; label: string; done?: boolean; current?: boolean }[]
   avatarNote: string
   lastSession: string
   creatorActions: { glyph: string; color: string; title: string; note: string; action: string }[]
@@ -91,9 +91,9 @@ export const sampleLegacy: RoleHomeData = {
   preservedPct: 94,
   stage: 'Legacy',
   stages: [
-    { label: 'Foundation', done: true },
-    { label: 'Enriched', done: true },
-    { label: 'Legacy', current: true },
+    { id: 'foundation', label: 'Foundation', done: true },
+    { id: 'enriched', label: 'Enriched', done: true },
+    { id: 'legacy', label: 'Legacy', current: true },
   ],
   avatarNote: 'You’ve recorded 11 sessions. One more on “the people who shaped you” will complete your Relationships layer.',
   lastSession: 'Last session · Aug 2018 · 47 stories preserved',

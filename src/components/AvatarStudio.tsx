@@ -450,7 +450,9 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
     setAudioOnlyNotice(null)
     setPhase('Registering your face and voice…')
     try {
-      const prov = await avatarApi.provision()
+      const prov = await avatarApi.provision({
+        onProgress: (p) => setPhase(p),
+      })
       if (prov.liveReady) {
         setAudioOnlyNotice(
           'Your live avatar is ready. Go to your legacy page to talk face to face in real time.',

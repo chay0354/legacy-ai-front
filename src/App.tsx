@@ -186,6 +186,25 @@ function shouldStartInterview(me: AccessMe): boolean {
   return true
 }
 
+/** Creators can open /interview anytime to continue Foundation → Enriched → Legacy. */
+function canAccessInterview(me: AccessMe): boolean {
+  if (pendingJoinToken()) return false
+
+  const owned = me.memberships.filter((m) => m.isOwner)
+  if (owned.length === 0) {
+    const shared = me.memberships.filter((m) => !m.isOwner)
+    if (shared.length > 0) return false
+    return true
+  }
+
+  return can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)
+}
+
+function interviewHref(data: RoleHomeData): string {
+  const stage = data.stages.find((s) => s.current)?.id
+  return stage ? `/interview?stage=${stage}` : '/interview'
+}
+
 /** Pick where a signed-in user should land — shared legacy first, then interview for creators only. */
 function resolveLegacyDestination(me: AccessMe): string {
   const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_CREATOR_KEY) : null
@@ -686,7 +705,7 @@ function LegacyHomePage({ session }: { session: Session | null }) {
       justCompletedStage={justCompletedStage}
       onBack={() => navigate(`/legacy${cQuery}`)}
       onSignOut={() => supabase.auth.signOut()}
-      onContinueInterview={() => navigate('/interview')}
+      onContinueInterview={() => navigate(interviewHref(data))}
       onPreviewAvatar={() => navigate(`/avatar${cQuery}`)}
       onCreateAvatar={() => navigate('/studio')}
       onTalk={() => navigate(`/avatar${cQuery}`)}
@@ -706,7 +725,7 @@ function LegacyHomePage({ session }: { session: Session | null }) {
         }
       }}
       onAction={(action) => {
-        if (action === ACTIONS.COMPLETE_INTERVIEW) navigate('/interview')
+        if (action === ACTIONS.COMPLETE_INTERVIEW) navigate(interviewHref(data))
         else if (action === ACTIONS.ADD_MEMORY) openAddMemory()
         else if (action === ACTIONS.UPLOAD_MEDIA) openUploadPhoto()
         else if (action === ACTIONS.RECORD_VOICE) openVoiceRecord()
@@ -728,6 +747,8 @@ function LegacyHomePage({ session }: { session: Session | null }) {
 /* ─────────────────────────────── Interview ───────────────────────────── */
 function InterviewPage({ session, authReady }: { session: Session | null; authReady: boolean }) {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const requestedStage = params.get('stage') || undefined
   const startTimeRef = useRef<number>(Date.now())
 
   const [loading, setLoading] = useState(true)
@@ -785,12 +806,12 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
           navigate(`/join?token=${pendingJoinToken()}`, { replace: true })
           return null
         }
-        if (!shouldStartInterview(me)) {
+        if (!canAccessInterview(me)) {
           setRedirecting(true)
           navigate(resolveLegacyDestination(me), { replace: true })
           return null
         }
-        return interviewApi.getSession()
+        return interviewApi.getSession(requestedStage ? { stage: requestedStage } : undefined)
       })
       .then((data) => {
         if (!active || data == null) return
@@ -807,7 +828,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [session?.user?.id, navigate])
+  }, [session?.user?.id, navigate, requestedStage])
 
   if (!authReady) {
     return <Centered><span style={{ fontFamily: serif, color: C.ink2 }}>Loading…</span></Centered>
