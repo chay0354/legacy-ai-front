@@ -997,11 +997,7 @@ function AvatarPage({ session }: { session: Session | null }) {
         const resolvedRole = normalizeRole(profile.role) || 'member'
         const resolvedCreatorId = creatorIdParam || profile.creator?.id || assetsRes?.creatorId
         const data = mapProfileToAvatarData(profile, { name: viewerName, relation: 'family' })
-        const portrait =
-          assetsRes?.urls?.portrait ||
-          assetsRes?.previewUrl ||
-          assetsRes?.assets?.metadata?.heygen_avatar_preview_url ||
-          null
+        const portrait = assetsRes?.urls?.portrait || assetsRes?.previewUrl || null
         if (portrait) data.portraitSrc = portrait
         setAvatarData(data)
         setTalkCreatorId(resolvedCreatorId || undefined)
@@ -1010,11 +1006,8 @@ function AvatarPage({ session }: { session: Session | null }) {
         if (resolvedCreatorId) localStorage.setItem(LAST_CREATOR_KEY, resolvedCreatorId)
         setVoiceSampleUrl(assetsRes?.urls?.voiceSample || null)
         setLiveReady(assetsRes?.liveReady === true)
-        const live = assetsRes?.liveReady === true
-        // Async HeyGen video is optional; when Live Call is ready, skip it (HeyGen credits often exhausted in dev).
         setCanRenderVideo(Boolean(
-          !live
-          && resolvedCreatorId
+          resolvedCreatorId
           && assetsRes?.assets?.portrait_path
           && assetsRes?.voiceCloned === true,
         ))

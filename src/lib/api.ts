@@ -305,7 +305,7 @@ export const avatarApi = {
   saveAssets: (payload: { portraitPath?: string; idleVideoPath?: string; speakingVideoPath?: string }) =>
     apiFetch('/api/avatar/assets', { method: 'PUT', body: JSON.stringify(payload) }) as Promise<AvatarAssetsResponse>,
 
-  /** Register portrait + voice as live (Anam) and talking (HeyGen) avatars. Polls until liveReady on Vercel. */
+  /** Register portrait + voice as Anam live avatar. Polls until liveReady on Vercel. */
   provision: async (opts?: { onProgress?: (phase: string) => void }) => {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     type ProvisionResult = {
@@ -313,8 +313,6 @@ export const avatarApi = {
       status?: string;
       avatarReady: boolean;
       liveReady?: boolean;
-      heygenPhotoAvatarId: string | null;
-      previewUrl: string | null;
       assets: AvatarAssets;
       message?: string;
     };
@@ -331,10 +329,8 @@ export const avatarApi = {
         return {
           success: true,
           status: 'ready',
-          avatarReady: polled.avatarReady,
+          avatarReady: polled.avatarReady ?? true,
           liveReady: true,
-          heygenPhotoAvatarId: polled.assets.metadata?.heygen_photo_avatar_id ?? null,
-          previewUrl: polled.previewUrl ?? null,
           assets: polled.assets,
         };
       }
@@ -353,29 +349,26 @@ export const avatarApi = {
       answer: string; creatorId: string;
     }>,
 
-  /** Start rendering a HeyGen talking video of the avatar speaking `text`. Returns videoId + audio URL for immediate playback. */
+  /** Synthesize speech in the cloned voice (ElevenLabs). Returns audio URL for playback. */
   say: (text: string, creatorId?: string) =>
     apiFetch('/api/avatar/say', { method: 'POST', body: JSON.stringify({ text, creatorId }) }) as Promise<{
-      videoId: string | null; audioUrl: string | null; voiceCloned: boolean;
-      audioOnly?: boolean; notice?: string;
+      audioUrl: string | null;
+      voiceCloned: boolean;
+      audioOnly?: boolean;
+      notice?: string;
+      liveReady?: boolean;
     }>,
 
-  /** Poll a HeyGen render once. */
-  pollVideo: (videoId: string) =>
-    apiFetch(`/api/avatar/video/${encodeURIComponent(videoId)}`) as Promise<{
-      status: 'pending' | 'processing' | 'completed' | 'failed'; url: string | null; error: string | null;
-    }>,
-
-  /** Fetch a completed HeyGen video through our API (avoids CDN connection errors in <video>). */
-  fetchTalkingVideoSrc: async (videoId: string) => {
-    const headers = await authHeaders();
-    const res = await fetch(apiUrl(`/api/avatar/video/${encodeURIComponent(videoId)}/stream`), { headers });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error((data as { error?: string }).error || `Could not load video (${res.status})`);
-    }
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
+  /** Play an answer in the cloned voice (portrait stays static; use Live Call for face). */
+  playSpeech: async (
+    text: string,
+    creatorId?: string,
+    opts?: { onAudio?: (audioUrl: string) => void; onNotice?: (notice: string) => void },
+  ) => {
+    const res = await avatarApi.say(text, creatorId);
+    if (res.audioUrl && opts?.onAudio) opts.onAudio(res.audioUrl);
+    if (res.notice && opts?.onNotice) opts.onNotice(res.notice);
+    return res;
   },
 
   greetingText: () => apiFetch('/api/avatar/greeting-text') as Promise<{ text: string }>,
@@ -390,49 +383,6 @@ export const avatarApi = {
       videoProfile?: { videoWidth?: number; videoHeight?: number; videoQuality?: string };
     }>,
 
-  /**
-   * Render the avatar speaking `text`. Plays cloned voice audio as soon as it's ready,
-   * then polls until the HeyGen talking video is ready.
-   */
-  renderTalkingVideo: async (
-    text: string,
-    creatorId?: string,
-    opts?: {
-      onProgress?: (status: 'starting' | 'pending' | 'processing') => void;
-      onAudio?: (audioUrl: string) => void;
-      onAudioOnly?: (notice: string) => void;
-      onLiveCallHint?: (notice: string) => void;
-    },
-  ): Promise<string | null> => {
-    opts?.onProgress?.('starting');
-    let sayRes: Awaited<ReturnType<typeof avatarApi.say>>;
-    try {
-      sayRes = await avatarApi.say(text, creatorId);
-    } catch (e) {
-      const err = e as Error & { liveCallAvailable?: boolean };
-      if (err.liveCallAvailable) {
-        opts?.onLiveCallHint?.(err.message);
-        return null;
-      }
-      throw e;
-    }
-
-    const { videoId, audioUrl, audioOnly, notice } = sayRes;
-    if (audioUrl && opts?.onAudio) opts.onAudio(audioUrl);
-    if (audioOnly || !videoId) {
-      if (notice && opts?.onAudioOnly) opts.onAudioOnly(notice);
-      return null;
-    }
-
-    for (let i = 0; i < 100; i++) {
-      await new Promise((r) => setTimeout(r, 5000));
-      const { status, error } = await avatarApi.pollVideo(videoId);
-      if (status === 'completed') return avatarApi.fetchTalkingVideoSrc(videoId);
-      if (status === 'failed') throw new Error(error || 'Talking video failed to render');
-      opts?.onProgress?.(status === 'pending' ? 'pending' : 'processing');
-    }
-    throw new Error('Talking video timed out');
-  },
 
   /** Render text in the cloned voice; resolves to a playable audio src (URL or object URL). */
   speak: async (text: string, creatorId?: string) => {

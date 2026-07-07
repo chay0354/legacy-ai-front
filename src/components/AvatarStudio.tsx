@@ -435,54 +435,32 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   )
 }
 
-/* ---------------- Talking-avatar preview (HeyGen Avatar IV) --------------- */
+/* ---------------- Live avatar provision (Anam) --------------- */
 function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
   const [status, setStatus] = useState<'idle' | 'generating' | 'done' | 'error'>('idle')
   const [phase, setPhase] = useState('Preparing…')
   const [error, setError] = useState<string | null>(null)
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
-  const [audioOnlyNotice, setAudioOnlyNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const started = useRef(false)
 
   const run = async () => {
     setStatus('generating')
     setError(null)
-    setAudioOnlyNotice(null)
-    setPhase('Registering your face and voice…')
+    setNotice(null)
+    setPhase('Creating your live avatar…')
     try {
       const prov = await avatarApi.provision({
         onProgress: (p) => setPhase(p),
       })
       if (prov.liveReady) {
-        setAudioOnlyNotice(
-          'Your live avatar is ready. Go to your legacy page to talk face to face in real time.',
-        )
+        setNotice('Your live avatar is ready. Go to your legacy page to talk face to face in real time.')
         setStatus('done')
         return
       }
-      setPhase('Waking up your avatar…')
-      const { text } = await avatarApi.greetingText()
-      const url = await avatarApi.renderTalkingVideo(text, undefined, {
-        onAudio: (audioUrl) => {
-          const a = new Audio(audioUrl)
-          void a.play()
-        },
-        onAudioOnly: (notice) => setAudioOnlyNotice(notice),
-        onLiveCallHint: (notice) => setAudioOnlyNotice(notice),
-        onProgress: (s) => {
-          setPhase(s === 'starting' ? 'Building your talking avatar…' : 'Rendering your first message…')
-        },
-      })
-      setVideoUrl(url)
-      setStatus('done')
+      setError('Live avatar setup did not finish. Try again in a moment.')
+      setStatus('error')
     } catch (e) {
-      const err = e as Error & { liveCallAvailable?: boolean };
-      if (err.liveCallAvailable) {
-        setAudioOnlyNotice(err.message);
-        setStatus('done');
-        return;
-      }
-      setError(err instanceof Error ? err.message : 'Could not create your talking avatar')
+      setError(e instanceof Error ? e.message : 'Could not create your live avatar')
       setStatus('error')
     }
   }
@@ -499,8 +477,8 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
-        We're turning your photo into a talking avatar that speaks in your voice. The first render takes a minute or two —
-        after this, your avatar replies on its own whenever someone talks with it.
+        We're building your live avatar from your photo and voice. This usually takes about a minute —
+        then family can talk with you face to face in real time.
       </p>
 
       {status === 'generating' && (
@@ -513,20 +491,11 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         </div>
       )}
 
-      {status === 'done' && videoUrl && (
-        <div style={{ margin: '20px 0' }}>
-          <div style={{ width: 240, height: 240, borderRadius: 14, overflow: 'hidden', background: '#e4d8c2' }}>
-            <video src={videoUrl} autoPlay loop playsInline controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginTop: 8 }}>✓ Your avatar can speak</div>
-        </div>
-      )}
-
-      {status === 'done' && !videoUrl && (
+      {status === 'done' && (
         <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Live avatar ready</div>
           <p style={{ fontSize: 14, color: C.ink2, margin: 0, lineHeight: 1.5 }}>
-            {audioOnlyNotice || 'Your face and voice are set up. Use Call on your legacy page for a real-time conversation.'}
+            {notice || 'Your face and voice are set up. Use Live Call on your legacy page for a real-time conversation.'}
           </p>
         </div>
       )}

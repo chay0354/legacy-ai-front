@@ -507,7 +507,7 @@ interface LegacyAvatarProps {
   onAsk?: ((question: string) => string | Promise<string>) | null;
   /** Creator id for talking-video renders (owner's legacy). */
   talkCreatorId?: string;
-  /** When true, renders HeyGen talking video + plays cloned voice audio. */
+  /** When true, plays cloned voice audio for text answers (portrait stays static). */
   enableTalkingVideo?: boolean;
   /** Anam live avatar (face + voice) is provisioned and ready for a real-time call. */
   liveReady?: boolean;
@@ -601,8 +601,7 @@ export default function LegacyAvatar({
       .catch(() => setVoiceSamplePlaying(false));
   }, [voiceSampleUrl, voiceSamplePlaying]);
 
-  // Render the avatar speaking an answer. Text is already on screen; cloned voice
-  // audio plays immediately while HeyGen builds the talking-face video.
+  // Play the answer in the cloned voice (portrait stays static; Live Call shows the face).
   const speakAnswer = (text: string) => {
     if (!enableTalkingVideo || !text) return;
     const token = ++renderToken.current;
@@ -610,44 +609,23 @@ export default function LegacyAvatar({
     setVideoUrl(null);
     setVideoStatus("rendering");
     setVideoMsg("Speaking in your voice…");
-    avatarApi.renderTalkingVideo(text, talkCreatorId, {
+    avatarApi.playSpeech(text, talkCreatorId, {
       onAudio: (url) => {
         if (token !== renderToken.current) return;
         playClonedVoice(url);
+        setVideoStatus("ready");
+        setVideoMsg("");
       },
-      onAudioOnly: (notice) => {
+      onNotice: (notice) => {
         if (token !== renderToken.current) return;
         setVideoStatus("ready");
         setVideoMsg(notice);
       },
-      onLiveCallHint: (notice) => {
-        if (token !== renderToken.current) return;
-        setVideoStatus("idle");
-        setVideoMsg(liveReady ? notice : `${notice} Tap Call above for face + voice.`);
-      },
-      onProgress: (s) => {
-        if (token !== renderToken.current) return;
-        setVideoMsg(s === 'starting' ? 'Speaking in your voice…' : 'Syncing lips to your voice…');
-      },
-    })
-      .then((url) => {
-        if (token !== renderToken.current) return;
-        if (!url) return;
-        voiceAudioRef.current?.pause();
-        setVideoUrl(url);
-        setVideoStatus("ready");
-      })
-      .catch((e) => {
-        if (token !== renderToken.current) return;
-        const err = e as Error & { liveCallAvailable?: boolean };
-        if (err.liveCallAvailable) {
-          setVideoStatus("idle");
-          setVideoMsg(liveReady ? err.message : `${err.message} Tap Call above.`);
-          return;
-        }
-        setVideoStatus("error");
-        setVideoMsg(err instanceof Error ? err.message : "Could not render the talking video");
-      });
+    }).catch((e) => {
+      if (token !== renderToken.current) return;
+      setVideoStatus("error");
+      setVideoMsg(e instanceof Error ? e.message : "Could not play voice");
+    });
   };
 
   const send = useCallback(async (override?: string) => {
@@ -1409,7 +1387,7 @@ function LiveCall({
           )}
 
           {!enableTalkingVideo && (
-            <div style={{ position: "absolute", top: 14, left: 14, fontFamily: mono, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(245,241,234,.7)", background: "rgba(20,16,9,.5)", padding: "5px 10px", borderRadius: 999 }}>text only · finish avatar setup for voice &amp; video</div>
+            <div style={{ position: "absolute", top: 14, left: 14, fontFamily: mono, fontSize: 9.5, letterSpacing: ".12em", textTransform: "uppercase", color: "rgba(245,241,234,.7)", background: "rgba(20,16,9,.5)", padding: "5px 10px", borderRadius: 999 }}>text only · finish avatar setup for voice</div>
           )}
         </div>
 
