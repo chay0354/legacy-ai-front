@@ -205,6 +205,21 @@ function interviewHref(data: RoleHomeData): string {
   return stage ? `/interview?stage=${stage}` : '/interview'
 }
 
+function isInterviewBlockedError(msg: string | null | undefined) {
+  return Boolean(msg && /only for people preserving their own legacy/i.test(msg))
+}
+
+/** Never send blocked users back to /interview (avoids redirect loops). */
+function interviewEscapeRoute(me: AccessMe): string {
+  const dest = resolveLegacyDestination(me)
+  if (!dest.startsWith('/interview')) return dest
+  const shared = preferredSharedMembership(me)
+  if (shared) return primaryLegacyScreen(shared.creatorId, shared.role)
+  const owned = me.memberships.find((m) => m.isOwner)
+  if (owned) return primaryLegacyScreen(owned.creatorId, owned.role)
+  return '/'
+}
+
 /** Pick where a signed-in user should land — shared legacy first, then interview for creators only. */
 function resolveLegacyDestination(me: AccessMe): string {
   const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_CREATOR_KEY) : null
@@ -808,7 +823,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
         }
         if (!canAccessInterview(me)) {
           setRedirecting(true)
-          navigate(resolveLegacyDestination(me), { replace: true })
+          navigate(interviewEscapeRoute(me), { replace: true })
           return null
         }
         return interviewApi.getSession(requestedStage ? { stage: requestedStage } : undefined)
@@ -822,6 +837,16 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
         const msg = e instanceof Error ? e.message : 'Could not load interview session.'
         if (isAuthError(msg)) {
           await signOutAndClear()
+          return
+        }
+        if (isInterviewBlockedError(msg)) {
+          setRedirecting(true)
+          try {
+            const me = await accessApi.me()
+            if (active) navigate(interviewEscapeRoute(me), { replace: true })
+          } catch {
+            if (active) navigate('/', { replace: true })
+          }
           return
         }
         setError(msg)
@@ -913,12 +938,24 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
         )}
         {authFailed ? (
           <button type="button" onClick={() => void signOutAndClear()} style={primaryBtn}>Sign in again</button>
+        ) : isInterviewBlockedError(error) ? (
+          <button
+            type="button"
+            onClick={() => {
+              void accessApi.me()
+                .then((me) => navigate(interviewEscapeRoute(me), { replace: true }))
+                .catch(() => navigate('/', { replace: true }))
+            }}
+            style={primaryBtn}
+          >
+            Open shared legacy
+          </button>
         ) : (
           <button
             type="button"
             onClick={() => {
               void accessApi.me()
-                .then((me) => navigate(resolveLegacyDestination(me), { replace: true }))
+                .then((me) => navigate(interviewEscapeRoute(me), { replace: true }))
                 .catch(async () => {
                   const cached = localStorage.getItem(LAST_CREATOR_KEY)
                   if (cached) navigate(`/legacy?c=${cached}`, { replace: true })
