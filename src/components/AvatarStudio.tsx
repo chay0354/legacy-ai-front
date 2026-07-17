@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { avatarApi, uploadMedia, type AvatarAssets } from '../lib/api'
+import { ANAM_LANGUAGES, normalizeAnamLanguage } from '../lib/anamLanguages'
 import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
 
 const C = {
@@ -119,9 +120,9 @@ function Intro({ assets, voiceCloned, onStart }: { assets: AvatarAssets | null; 
         clones your voice and builds a talking avatar from your face — no extra steps on other websites.
       </p>
       <ul style={{ fontSize: 14, lineHeight: 1.9, color: C.ink2, marginTop: 8 }}>
-        <li>Voice sample (about a minute) → cloned automatically</li>
-        <li>A clear photo of your face → registered as your avatar automatically</li>
-        <li>Preview video speaks in your cloned voice</li>
+        <li>Choose your speaking language, then record a voice sample → cloned automatically</li>
+        <li>A clear <strong>front-facing</strong> photo (face + shoulders) → built into your live avatar</li>
+        <li>Then family can talk with you face to face in real time</li>
       </ul>
       <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
         <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update my avatar' : 'Begin'}</button>
@@ -147,6 +148,9 @@ function StudioProgress({ label }: { label: string }) {
 
 /* ------------------------------- Voice step ------------------------------ */
 function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: AvatarAssets | null; onDone: () => void | Promise<void> }) {
+  const [language, setLanguage] = useState(() =>
+    normalizeAnamLanguage(typeof assets?.metadata?.anam_language === 'string' ? assets.metadata.anam_language : 'en'),
+  )
   const [recording, setRecording] = useState(false)
   const [blob, setBlob] = useState<Blob | null>(null)
   const [url, setUrl] = useState<string | null>(null)
@@ -240,7 +244,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
     try {
       const wav = await blobToWav(blob)
       const path = await uploadMedia(creatorId, 'voice-sample', wav, 'wav', 'audio/wav')
-      const result = await avatarApi.cloneVoice(path)
+      const result = await avatarApi.cloneVoice(path, language)
       if (!result.cloned) {
         setError('Voice cloning did not succeed. Try again with a longer recording (30+ seconds) in a quiet room.')
         setBusy(false)
@@ -258,11 +262,54 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
   return (
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Record your voice</h2>
-      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>Read these lines slowly and naturally. Aim for 30–90 seconds in a quiet room.</p>
-      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px', marginTop: 12 }}>
-        {VOICE_SCRIPT.map((l, i) => (
-          <p key={i} style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.5, color: C.ink, margin: i ? '10px 0 0' : 0 }}>{l}</p>
-        ))}
+      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
+        Choose the language you’ll speak, then read these lines slowly and naturally. Aim for 30–90 seconds in a quiet room.
+      </p>
+
+      <label style={{ display: 'block', marginTop: 16 }}>
+        <span style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: C.ink3 }}>
+          Language for your live avatar voice
+        </span>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(normalizeAnamLanguage(e.target.value))}
+          disabled={recording || busy}
+          style={{
+            display: 'block',
+            width: '100%',
+            maxWidth: 360,
+            marginTop: 8,
+            padding: '12px 14px',
+            borderRadius: 10,
+            border: `1px solid ${C.line}`,
+            background: C.paper,
+            color: C.ink,
+            fontFamily: sans,
+            fontSize: 15,
+          }}
+        >
+          {ANAM_LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>{l.label}</option>
+          ))}
+        </select>
+        <span style={{ display: 'block', fontSize: 12.5, color: C.ink3, marginTop: 8, lineHeight: 1.45, maxWidth: 480 }}>
+          Only languages Anam supports. Record in this language so Live Call matches your accent.
+        </span>
+      </label>
+
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px', marginTop: 16 }}>
+        {language === 'en' ? (
+          VOICE_SCRIPT.map((l, i) => (
+            <p key={i} style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.5, color: C.ink, margin: i ? '10px 0 0' : 0 }}>{l}</p>
+          ))
+        ) : (
+          <p style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.55, color: C.ink, margin: 0 }}>
+            Speak naturally for 30–90 seconds in{' '}
+            <strong>{ANAM_LANGUAGES.find((l) => l.code === language)?.label || language}</strong>
+            — introduce yourself, talk about your family, a childhood memory, and something you care about.
+            Clear speech in a quiet room works best for cloning.
+          </p>
+        )}
       </div>
 
       <div className="legacy-voice-controls" style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 18, flexWrap: 'wrap' }}>
@@ -310,37 +357,124 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 }
 
 /* ------------------------------- Photo step ------------------------------ */
-const PORTRAIT_MIN_PX = 1024
+/** Anam Cara best practices: square ≥1152px with head, shoulders, and upper chest. */
+const PORTRAIT_MIN_PX = 1152
 const PORTRAIT_TARGET_PX = 1536
+const PORTRAIT_HARD_MIN_PX = 720
+
+const PHOTO_TIPS = [
+  'Center your face inside the oval outline',
+  'Look straight at the camera — both eyes visible',
+  'Keep head, shoulders, and upper chest in frame',
+  'Neutral expression, even lighting, plain background',
+]
+
+function portraitOutputSize(sourcePx: number): number {
+  if (sourcePx < PORTRAIT_HARD_MIN_PX) return sourcePx
+  return Math.min(Math.max(sourcePx, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
+}
 
 function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: () => void | Promise<void>; onBack: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const urlRef = useRef<string | null>(null)
   const [live, setLive] = useState(false)
+  const [starting, setStarting] = useState(true)
   const [shot, setShot] = useState<Blob | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hint, setHint] = useState<string | null>(null)
 
-  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); if (url) URL.revokeObjectURL(url) }, [url])
-
-  const startCamera = async () => {
-    setError(null)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1920, min: 1280 },
-        },
-      })
-      streamRef.current = stream
-      if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play() }
-      setLive(true)
-    } catch {
-      setError('Camera permission is needed. You can also upload a photo instead.')
-    }
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
+    setLive(false)
   }
+
+  const startCamera = useCallback(async () => {
+    setError(null)
+    setHint(null)
+    setStarting(true)
+    try {
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+      if (videoRef.current) videoRef.current.srcObject = null
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('This browser does not support webcam access. Try Chrome or Edge on HTTPS / localhost.')
+      }
+
+      // Soft constraints first — hard min 1280×1280 fails on most laptop cams (often 1280×720).
+      const attempts: MediaStreamConstraints[] = [
+        {
+          video: {
+            facingMode: { ideal: 'user' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        },
+        {
+          video: {
+            facingMode: { ideal: 'user' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        },
+        { video: true, audio: false },
+      ]
+
+      let stream: MediaStream | null = null
+      let lastErr: unknown = null
+      for (const constraints of attempts) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints)
+          break
+        } catch (err) {
+          lastErr = err
+        }
+      }
+      if (!stream) throw lastErr ?? new Error('Could not open camera')
+
+      streamRef.current = stream
+      const video = videoRef.current
+      if (video) {
+        video.srcObject = stream
+        // Some browsers need the element visible before play() resolves.
+        video.style.display = 'block'
+        await video.play()
+      }
+      setLive(true)
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : ''
+      const msg = err instanceof Error ? err.message : ''
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError('Camera permission was blocked. Click the lock/camera icon in the address bar, allow the camera, then tap Enable camera.')
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setError('No camera was found on this device.')
+      } else if (name === 'NotReadableError' || name === 'TrackStartError') {
+        setError('Camera is busy in another app. Close Zoom/Teams/etc., then tap Enable camera.')
+      } else if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+        setError('Could not match a supported camera mode. Tap Enable camera to retry.')
+      } else {
+        setError(msg || 'Could not open the camera. Tap Enable camera to try again.')
+      }
+      setLive(false)
+    } finally {
+      setStarting(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void startCamera()
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    }
+  }, [startCamera])
 
   const capture = () => {
     const v = videoRef.current
@@ -348,54 +482,41 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
     const vw = v.videoWidth
     const vh = v.videoHeight
     const crop = Math.min(vw, vh)
-    const out = Math.min(Math.max(crop, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
+    const out = portraitOutputSize(crop)
+    if (crop < PORTRAIT_HARD_MIN_PX) {
+      setError('Camera resolution is too low. Try a different camera or move closer in better light.')
+      return
+    }
     const canvas = document.createElement('canvas')
     canvas.width = out
     canvas.height = out
     const ctx = canvas.getContext('2d')!
+    // Mirror to match the preview the user saw.
+    ctx.translate(out, 0)
+    ctx.scale(-1, 1)
     ctx.drawImage(v, (vw - crop) / 2, (vh - crop) / 2, crop, crop, 0, 0, out, out)
     canvas.toBlob((b) => {
       if (!b) return
-      setShot(b); setUrl(URL.createObjectURL(b))
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      setLive(false)
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+      const next = URL.createObjectURL(b)
+      urlRef.current = next
+      setShot(b)
+      setUrl(next)
+      setHint(crop < PORTRAIT_MIN_PX
+        ? 'Captured. Check that your face fills the oval and your shoulders are visible.'
+        : 'Looks good — confirm your face is centered before continuing.')
+      stopCamera()
     }, 'image/jpeg', 0.95)
   }
 
-  const loadImage = (file: File): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve(img)
-      img.onerror = () => reject(new Error('Could not read that image'))
-      img.src = URL.createObjectURL(file)
-    })
-
-  const normalizePortrait = async (file: File): Promise<Blob> => {
-    const img = await loadImage(file)
-    const crop = Math.min(img.width, img.height)
-    const out = Math.min(Math.max(crop, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
-    const canvas = document.createElement('canvas')
-    canvas.width = out
-    canvas.height = out
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(img, (img.width - crop) / 2, (img.height - crop) / 2, crop, crop, 0, 0, out, out)
-    URL.revokeObjectURL(img.src)
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process photo'))), 'image/jpeg', 0.95)
-    })
-  }
-
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (!f) return
+  const retake = () => {
+    setShot(null)
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    urlRef.current = null
+    setUrl(null)
+    setHint(null)
     setError(null)
-    try {
-      const normalized = await normalizePortrait(f)
-      setShot(normalized)
-      setUrl(URL.createObjectURL(normalized))
-    } catch {
-      setError('Could not use that photo — try a JPG or PNG with your face centered.')
-    }
+    void startCamera()
   }
 
   const submit = async () => {
@@ -415,30 +536,155 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
 
   return (
     <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your photo</h2>
-      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
-        Face the light, center your face, and look at the camera. For the sharpest live avatar, upload a high-resolution photo from your phone (1024px+).
+      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
+      <p style={{ fontSize: 14, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 520 }}>
+        Position your face inside the oval — like an ID verification photo. Looking straight at the camera
+        with head and shoulders in frame gives the best likeness.
       </p>
 
-      <div className="legacy-photo-preview" style={{ width: 280, height: 280, borderRadius: 14, overflow: 'hidden', background: '#e4d8c2', margin: '16px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {url ? (
-          <img src={url} alt="portrait" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: live ? 'block' : 'none' }} />
+      <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {PHOTO_TIPS.map((tip) => (
+          <li key={tip} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13.5, lineHeight: 1.4, color: C.ink2 }}>
+            <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: C.terra, marginTop: 6, flex: 'none' }} />
+            <span>{tip}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div
+        className="legacy-photo-preview"
+        style={{
+          position: 'relative',
+          width: 'min(100%, 360px)',
+          aspectRatio: '1',
+          borderRadius: 18,
+          overflow: 'hidden',
+          background: '#1a1612',
+          margin: '20px 0 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'inset 0 0 0 1px rgba(43,36,28,.12)',
+        }}
+      >
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          autoPlay
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: live && !url ? 'block' : 'none',
+            transform: 'scaleX(-1)',
+          }}
+        />
+        {url && (
+          <img
+            src={url}
+            alt="Front-facing portrait preview"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         )}
-        {!live && !url && <span style={{ fontFamily: serif, fontStyle: 'italic', color: C.ink3 }}>Camera off</span>}
+
+        {/* KYC-style face guide — only while live camera is on */}
+        {live && !url && (
+          <>
+            <svg
+              aria-hidden
+              viewBox="0 0 360 360"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            >
+              <defs>
+                <mask id="kyc-face-mask">
+                  <rect width="360" height="360" fill="white" />
+                  <ellipse cx="180" cy="155" rx="108" ry="132" fill="black" />
+                </mask>
+              </defs>
+              <rect width="360" height="360" fill="rgba(10,8,6,.62)" mask="url(#kyc-face-mask)" />
+              <ellipse
+                cx="180"
+                cy="155"
+                rx="108"
+                ry="132"
+                fill="none"
+                stroke="rgba(251,246,236,.95)"
+                strokeWidth="2.5"
+              />
+              {/* Soft shoulder guide line */}
+              <path
+                d="M78 292 C120 262, 240 262, 282 292"
+                fill="none"
+                stroke="rgba(251,246,236,.35)"
+                strokeWidth="1.5"
+                strokeDasharray="5 6"
+              />
+            </svg>
+            <div
+              style={{
+                pointerEvents: 'none',
+                position: 'absolute',
+                left: 12,
+                right: 12,
+                top: 14,
+                textAlign: 'center',
+                fontFamily: mono,
+                fontSize: 11,
+                letterSpacing: '.1em',
+                textTransform: 'uppercase',
+                color: '#fbf6ec',
+                textShadow: '0 1px 4px rgba(0,0,0,.55)',
+              }}
+            >
+              Align your face in the oval
+            </div>
+            <div
+              style={{
+                pointerEvents: 'none',
+                position: 'absolute',
+                left: 12,
+                right: 12,
+                bottom: 14,
+                textAlign: 'center',
+                fontFamily: sans,
+                fontSize: 12.5,
+                fontWeight: 500,
+                color: 'rgba(251,246,236,.9)',
+                textShadow: '0 1px 4px rgba(0,0,0,.55)',
+              }}
+            >
+              Shoulders along the dashed line · look at the camera
+            </div>
+          </>
+        )}
+
+        {!live && !url && (
+          <span style={{ fontFamily: serif, fontStyle: 'italic', color: 'rgba(251,246,236,.65)', padding: 24, textAlign: 'center' }}>
+            {starting ? 'Starting camera…' : 'Camera unavailable'}
+          </span>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {!live && !url && <button style={primaryBtn} onClick={startCamera}>Open camera</button>}
-        {live && <button style={primaryBtn} onClick={capture}>Capture</button>}
-        {url && <button style={ghostBtn} onClick={() => { setShot(null); setUrl(null); startCamera() }}>Retake</button>}
-        <label style={{ ...ghostBtn, display: 'inline-block' }}>
-          Upload instead
-          <input type="file" accept="image/*" onChange={onFile} style={{ display: 'none' }} />
-        </label>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        {live && !url && (
+          <button style={primaryBtn} onClick={capture}>
+            Capture photo
+          </button>
+        )}
+        {!live && !url && !starting && (
+          <button style={primaryBtn} onClick={() => void startCamera()}>
+            Enable camera
+          </button>
+        )}
+        {url && (
+          <button style={ghostBtn} onClick={retake} disabled={busy}>
+            Retake
+          </button>
+        )}
       </div>
 
+      {hint && !error && <p style={{ color: C.sage, fontSize: 13, marginTop: 12, lineHeight: 1.45 }}>{hint}</p>}
       {error && !busy && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
       {busy && <StudioProgress label="Saving your photo…" />}
@@ -450,7 +696,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
             style={{ ...primaryBtn, opacity: shot ? 1 : 0.5, pointerEvents: shot ? 'auto' : 'none' }}
             onClick={() => void submit()}
           >
-            Use this & continue
+            Use this photo
           </button>
         )}
       </div>
@@ -476,11 +722,14 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         onProgress: (p) => setPhase(p),
       })
       if (prov.liveReady) {
-        setNotice('Your live avatar is ready. Go to your legacy page to talk face to face in real time.')
+        setNotice('Your face and cloned voice are ready. Go to your legacy page to talk face to face in real time.')
         setStatus('done')
         return
       }
-      setError('Live avatar setup did not finish. Try again in a moment.')
+      setError(
+        prov.assets?.metadata?.anam_error
+        || 'Live avatar setup did not finish — your voice must be cloned successfully (no stock voice). Re-record your voice and try again.',
+      )
       setStatus('error')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create your live avatar')
@@ -500,8 +749,8 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
-        We're building your live avatar from your photo and voice. This usually takes about a minute —
-        then family can talk with you face to face in real time.
+        We're building your live avatar from your photo and cloning your voice. This usually takes about a minute.
+        Live Call will only start once your own voice clone succeeds — we never use a stock voice.
       </p>
 
       {status === 'generating' && <StudioProgress label={phase} />}

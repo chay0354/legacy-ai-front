@@ -289,8 +289,11 @@ export const avatarApi = {
     return apiFetch(`/api/avatar/assets${q ? `?${q}` : ''}`) as Promise<AvatarAssetsResponse>;
   },
 
-  cloneVoice: (voiceSamplePath: string) =>
-    apiFetch('/api/avatar/voice', { method: 'POST', body: JSON.stringify({ voiceSamplePath }) }) as Promise<{
+  cloneVoice: (voiceSamplePath: string, language?: string) =>
+    apiFetch('/api/avatar/voice', {
+      method: 'POST',
+      body: JSON.stringify({ voiceSamplePath, language }),
+    }) as Promise<{
       success: boolean; voiceId: string; cloned: boolean; voiceProvider?: string; message?: string; assets: AvatarAssets;
     }>,
 

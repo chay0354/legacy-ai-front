@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import StageProgressTrack from "./StageProgressTrack";
 import { unlockAudioPlayback, createOpenAiRealtimeInterview, fetchRealtimeInstructions, type RealtimeVoiceInterview } from "../lib/openaiRealtimeInterview";
+import { isSkipIntent, shouldAcceptTopicAdvance } from "../lib/interviewDepth";
 
 /**
  * Legacy AI — Interview Session
@@ -32,19 +33,27 @@ export type SttHandlers = {
 
 export type SttFn = (handlers: SttHandlers) => (() => void) | void;
 
+export type PriorTopic = {
+  question: string;
+  summary: string;
+};
+
 export type ConductorContext = {
   subjectName: string;
   stage: string;
   anchorQuestion: string;
   questionIndex: number;
   totalQuestions: number;
+  /** Answers already captured — used so the interviewer can bridge topics. */
+  priorTopics?: PriorTopic[];
 };
 
 export interface AiVoiceInterview {
   connect: (ctx: ConductorContext) => Promise<void>;
   disconnect: () => void;
   updateInstructions: (instructions: string) => void;
-  completeFunctionCall: (callId: string, output: unknown) => void;
+  completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
+  transitionToTopic: (instructions: string, questionIndex: number) => void;
 }
 
 export interface InterviewSessionProps {
@@ -55,6 +64,8 @@ export interface InterviewSessionProps {
   stages?: { label: string; done?: boolean; current?: boolean }[];
   questions?: Question[];
   initialQuestionIndex?: number;
+  /** Previously saved answers — seeds continuity when resuming mid-interview. */
+  initialAnswers?: { questionIndex: number; question: string; answer: string; mode?: "voice" | "text" }[];
   autoStart?: boolean;
   accent?: string;
   ambient?: boolean;
@@ -139,6 +150,7 @@ export default function InterviewSession({
   ],
   questions = DEFAULT_QS,
   initialQuestionIndex = 0,
+  initialAnswers = [],
   autoStart = false,
   accent = C.terra,
   ambient = true,
@@ -180,7 +192,23 @@ export default function InterviewSession({
   const simIdxRef   = useRef(0);
   const realtimeRef = useRef<RealtimeVoiceInterview | null>(null);
   const activeQuestionRef = useRef(initialQuestionIndex);
+  const userTurnsRef = useRef(0);
+  const lastUserUtteranceRef = useRef('');
+  const skippingRef = useRef(false);
   const prevModeRef = useRef<Mode>(mode);
+  const seededAnswersRef = useRef(false);
+
+  if (!seededAnswersRef.current && initialAnswers.length > 0) {
+    seededAnswersRef.current = true;
+    for (const saved of initialAnswers) {
+      if (!saved?.answer?.trim()) continue;
+      answersRef.current[saved.questionIndex] = {
+        question: saved.question || QS[saved.questionIndex]?.q || '',
+        answer: saved.answer,
+        mode: saved.mode || 'voice',
+      };
+    }
+  }
 
   const cur       = QS[q];
   const running   = started && !complete;
@@ -197,26 +225,61 @@ export default function InterviewSession({
     setConvLive(false);
   };
 
+  const priorTopicsFor = (questionIndex: number): PriorTopic[] =>
+    answersRef.current
+      .slice(0, questionIndex)
+      .filter((a): a is Answer => Boolean(a?.answer?.trim()))
+      .map((a) => ({ question: a.question, summary: a.answer }));
+
   const ctxFor = (questionIndex: number): ConductorContext => ({
     subjectName,
     stage: interviewStage,
     anchorQuestion: QS[questionIndex]?.q || '',
     questionIndex,
     totalQuestions: TOTAL,
+    priorTopics: priorTopicsFor(questionIndex),
   });
 
   const handleRealtimeAdvance = async (questionIndex: number, summary: string, callId: string) => {
+    if (skippingRef.current) {
+      realtimeRef.current?.completeFunctionCall(
+        callId,
+        { ok: true, message: 'Topic already skipped.' },
+        { continueResponse: false },
+      );
+      return;
+    }
     const answer = summary.trim();
-    setTranscript(answer);
-    answersRef.current[questionIndex] = { question: QS[questionIndex].q, answer, mode: "voice" };
+    const skipped = isSkipIntent(answer) || isSkipIntent(lastUserUtteranceRef.current);
+    const depth = shouldAcceptTopicAdvance({
+      summary: answer,
+      userTurns: userTurnsRef.current,
+      userUtterance: lastUserUtteranceRef.current,
+      stage: interviewStage,
+    });
+
+    if (!depth.ok) {
+      realtimeRef.current?.completeFunctionCall(callId, {
+        ok: false,
+        continue: true,
+        message: depth.message,
+      });
+      return;
+    }
+
+    const savedAnswer = skipped ? '' : answer;
+    setTranscript(savedAnswer);
+    answersRef.current[questionIndex] = { question: QS[questionIndex].q, answer: savedAnswer, mode: "voice" };
+    userTurnsRef.current = 0;
+    lastUserUtteranceRef.current = '';
 
     if (onAnswerCommit) {
       await onAnswerCommit({
         questionIndex,
         question: QS[questionIndex].q,
-        answer,
+        answer: savedAnswer,
         mode: "voice",
-        skipped: !answer,
+        skipped,
       });
     }
 
@@ -225,8 +288,17 @@ export default function InterviewSession({
       setQ(next);
       setLiveLine("");
       const instructions = await fetchRealtimeInstructions(ctxFor(next));
-      realtimeRef.current?.completeFunctionCall(callId, { ok: true });
-      realtimeRef.current?.updateInstructions(instructions);
+      // Apply next-topic instructions before the model speaks again (avoids racing on old prompt).
+      realtimeRef.current?.completeFunctionCall(
+        callId,
+        {
+          ok: true,
+          message: skipped
+            ? `They skipped this topic. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Acknowledge briefly and open the next topic warmly.`
+            : `Topic saved. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Transition warmly — a soft progress cue in plain language (topic ${next + 1} of ${TOTAL}), bridge from their story if it fits, then ask the next topic in your own words. Never say "next question" or sound like a checklist. Do not re-welcome them.`,
+        },
+        { instructions, nextQuestionIndex: next },
+      );
     } else {
       realtimeRef.current?.completeFunctionCall(callId, { ok: true, complete: true });
       setComplete(true);
@@ -235,19 +307,71 @@ export default function InterviewSession({
     }
   };
 
+  const skipCurrentTopic = async () => {
+    if (!running || complete || skippingRef.current) return;
+    skippingRef.current = true;
+    try {
+      const questionIndex = activeQuestionRef.current;
+      answersRef.current[questionIndex] = { question: QS[questionIndex].q, answer: '', mode: 'voice' };
+
+      if (onAnswerCommit) {
+        await onAnswerCommit({
+          questionIndex,
+          question: QS[questionIndex].q,
+          answer: '',
+          mode: 'voice',
+          skipped: true,
+        });
+      }
+
+      userTurnsRef.current = 0;
+      lastUserUtteranceRef.current = '';
+      setTranscript('');
+      setLiveLine('');
+
+      if (questionIndex < TOTAL - 1) {
+        const next = questionIndex + 1;
+        setQ(next);
+        if (aiVoiceMode && realtimeRef.current) {
+          const instructions = await fetchRealtimeInstructions(ctxFor(next));
+          realtimeRef.current.transitionToTopic(instructions, next);
+        } else {
+          stopConversation();
+          void startRealtimeConversation(next);
+        }
+      } else {
+        stopConversation();
+        setComplete(true);
+        await onComplete(answersRef.current.filter(Boolean));
+      }
+    } finally {
+      skippingRef.current = false;
+    }
+  };
+
   const startRealtimeConversation = async (questionIndex: number) => {
     if (!aiVoice) return;
     stopConversation();
     setAiError(null);
+    userTurnsRef.current = 0;
 
     const client = createOpenAiRealtimeInterview({
-      onLiveLine: (text) => setLiveLine(text),
+      onLiveLine: (text, role) => {
+        if (role === 'user' && text.trim()) {
+          lastUserUtteranceRef.current = text.trim();
+          userTurnsRef.current += 1;
+          if (isSkipIntent(text) && !skippingRef.current) {
+            void skipCurrentTopic();
+          }
+        }
+        setLiveLine(text);
+      },
       onConnected: () => setConvLive(true),
       onError: (msg) => {
         setAiError(msg);
         stopConversation();
       },
-      onAdvance: (summary, callId) => handleRealtimeAdvance(activeQuestionRef.current, summary, callId),
+      onAdvance: (summary, callId, questionIndex) => handleRealtimeAdvance(questionIndex, summary, callId),
     });
 
     realtimeRef.current = client;
@@ -372,6 +496,10 @@ export default function InterviewSession({
   }, [running, paused]);
 
   const goNext = async () => {
+    if (aiVoiceMode) {
+      await skipCurrentTopic();
+      return;
+    }
     stopConversation();
     await goNextWithAnswer();
   };
@@ -497,7 +625,7 @@ export default function InterviewSession({
             {running ? (
               <>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.terra, animation: ambient && !paused ? "la-rec 1.4s ease-in-out infinite" : "none" }} />
-                <span style={{ color: C.terra }}>Recording</span>
+                <span style={{ color: C.terra }}>Topic {q + 1}/{TOTAL}</span>
                 <span style={{ color: C.line }}>·</span>
                 <span>{elapsed}</span>
               </>
@@ -543,15 +671,40 @@ export default function InterviewSession({
                   ? `Let's go deeper, ${subjectName}.`
                   : `Let's capture what matters most, ${subjectName}.`}
             </h1>
-            <p style={{ fontSize: 17, lineHeight: 1.6, color: C.ink2, margin: "20px 0 0", maxWidth: 460 }}>
+            <p style={{ fontSize: 17, lineHeight: 1.6, color: C.ink2, margin: "20px 0 0", maxWidth: 480 }}>
               {aiVoice
-                ? "I'll ask gentle questions about your life. Press start and talk naturally — one flowing conversation, at your pace."
+                ? "This is a conversation to preserve your life story for your family — not a test. When you press start, your interviewer will briefly explain how it works, then begin."
                 : stageLabel === "Foundation"
                   ? "I'll ask gentle questions about your life — identity, family, chapters, and what makes you you. Just talk; I'll listen and move us along when you're ready."
                   : stageLabel === "Enriched"
                     ? "This stage goes deeper into the stories, relationships, and wisdom behind your life. Take your time — each answer adds richness to your legacy."
                     : "This is the reflective stage — values, personality, gratitude, and what you want preserved for generations. Silence is welcome."}
             </p>
+            {(aiVoice || stageLabel === "Foundation") && (
+              <ul style={{
+                listStyle: "none",
+                margin: "22px 0 0",
+                padding: 0,
+                width: "100%",
+                maxWidth: 420,
+                textAlign: "left",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}>
+                {[
+                  `About ${TOTAL} topics in this stage — one conversation, at your pace`,
+                  "Talk naturally; the interviewer may ask a gentle follow-up before moving on",
+                  "Pause anytime, skip a topic if you want, or ask how far you are",
+                  "When you finish, your answers help build your living legacy",
+                ].map((line) => (
+                  <li key={line} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14.5, lineHeight: 1.45, color: C.ink2 }}>
+                    <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: accent, marginTop: 7, flex: "none" }} />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <button onClick={startVoice} style={{ cursor: "pointer", marginTop: 34, background: accent, color: "#fbf6ec", border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: 999, boxShadow: "0 12px 28px rgba(192,106,68,.32)", display: "inline-flex", alignItems: "center", gap: 12 }}>
               <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 2, height: 15 }}>
                 <span style={{ width: 3, height: 7, background: "#fbf6ec", borderRadius: 2 }} />
@@ -561,7 +714,9 @@ export default function InterviewSession({
               {aiVoice ? "Start talking with your interviewer" : "Start the interview"}
             </button>
             <button onClick={startText} style={{ cursor: "pointer", marginTop: 16, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
-            <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginTop: 30 }}>{TOTAL} questions · pause anytime</div>
+            <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginTop: 30 }}>
+              {TOTAL} topics · pause anytime · ask how far you are anytime
+            </div>
           </div>
         )}
 
@@ -569,9 +724,24 @@ export default function InterviewSession({
         {running && (
           <div style={{ width: "100%", maxWidth: 680, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
             {/* progress */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 36 }}>
-              <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3 }}>Question {q + 1} of {TOTAL}</div>
-              <div style={{ display: "flex", gap: 7 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 36, width: "100%", maxWidth: 360 }}>
+              <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3 }}>
+                Topic {q + 1} of {TOTAL}
+                {q < TOTAL - 1 ? ` · ${TOTAL - q - 1} left after this` : " · last topic"}
+              </div>
+              <div
+                aria-hidden
+                style={{ width: "100%", height: 4, borderRadius: 999, background: C.line, overflow: "hidden" }}
+              >
+                <div style={{
+                  width: `${((q + 1) / TOTAL) * 100}%`,
+                  height: "100%",
+                  borderRadius: 999,
+                  background: accent,
+                  transition: "width .35s ease",
+                }} />
+              </div>
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "center" }}>
                 {QS.map((_, i) => <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < q ? C.umber : i === q ? accent : C.line }} />)}
               </div>
             </div>
@@ -704,7 +874,7 @@ export default function InterviewSession({
                   {lastQ ? "Finish for today" : "Next question"}<span>→</span>
                 </button>
               )}
-              <button onClick={goNext} disabled={aiVoiceMode && convLive && !paused} style={{ cursor: "pointer", background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 13.5, textDecoration: "underline", textUnderlineOffset: 3, opacity: aiVoiceMode && convLive && !paused ? 0.5 : 1 }}>
+              <button onClick={() => void goNext()} style={{ cursor: "pointer", background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 13.5, textDecoration: "underline", textUnderlineOffset: 3 }}>
                 {lastQ ? "Finish for today →" : "Skip this question →"}
               </button>
             </div>

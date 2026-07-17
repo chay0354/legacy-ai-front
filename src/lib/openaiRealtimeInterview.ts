@@ -25,7 +25,7 @@ export function unlockAudioPlayback() {
 export type RealtimeHandlers = {
   onLiveLine: (text: string, role: 'user' | 'assistant') => void;
   onConnected: () => void;
-  onAdvance: (answerSummary: string, callId: string) => Promise<void>;
+  onAdvance: (answerSummary: string, callId: string, questionIndex: number) => Promise<void>;
   onError: (message: string) => void;
 };
 
@@ -35,7 +35,10 @@ export type RealtimeVoiceInterview = {
   pause: () => void;
   resume: () => void;
   updateInstructions: (instructions: string) => void;
-  completeFunctionCall: (callId: string, output: unknown) => void;
+  /** Optionally apply new topic instructions before returning the tool result (avoids race). */
+  completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
+  /** Move to the next topic without tearing down the Realtime session (skip). */
+  transitionToTopic: (instructions: string, questionIndex: number) => void;
 };
 
 export async function checkAiVoiceAvailable(): Promise<boolean> {
@@ -89,6 +92,28 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   let localStream: MediaStream | null = null;
   let connected = false;
   let connectGeneration = 0;
+  /** User tapped Pause — keep mic off regardless of assistant state. */
+  let userPaused = false;
+  /** Interviewer is producing a response; mic stays off so ambient noise cannot barge in. */
+  let assistantSpeaking = false;
+  let unmuteTimer: ReturnType<typeof setTimeout> | null = null;
+  /** OpenAI rejects overlapping response.create — queue until the active response finishes. */
+  let activeResponseId: string | null = null;
+  let pendingResponseCreate = false;
+  let conductingQuestionIndex = 0;
+  let topicEpoch = 0;
+  const responseTopicEpoch = new Map<string, number>();
+
+  const completeFunctionCallSilent = (callId: string, output: unknown) => {
+    sendEvent({
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: JSON.stringify(output),
+      },
+    });
+  };
 
   const isActiveConnect = (generation: number) =>
     generation === connectGeneration && pc !== null;
@@ -97,9 +122,68 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
     if (dc?.readyState === 'open') dc.send(JSON.stringify(event));
   };
 
+  const flushPendingResponseCreate = () => {
+    if (!pendingResponseCreate || activeResponseId) return;
+    pendingResponseCreate = false;
+    sendEvent({ type: 'response.create' });
+  };
+
+  const requestResponseCreate = () => {
+    if (activeResponseId) {
+      pendingResponseCreate = true;
+      return;
+    }
+    pendingResponseCreate = false;
+    sendEvent({ type: 'response.create' });
+  };
+
+  const markResponseFinished = (responseId?: string, skipFlush = false) => {
+    if (responseId && activeResponseId && responseId !== activeResponseId) return;
+    activeResponseId = null;
+    if (!skipFlush) flushPendingResponseCreate();
+  };
+
+  const syncMicEnabled = () => {
+    const enabled = !userPaused && !assistantSpeaking;
+    localStream?.getAudioTracks().forEach((t) => {
+      t.enabled = enabled;
+    });
+  };
+
+  const setAssistantSpeaking = (speaking: boolean) => {
+    if (unmuteTimer) {
+      clearTimeout(unmuteTimer);
+      unmuteTimer = null;
+    }
+    if (speaking) {
+      assistantSpeaking = true;
+      // Drop any ambient audio already buffered before the interviewer started.
+      sendEvent({ type: 'input_audio_buffer.clear' });
+      syncMicEnabled();
+      return;
+    }
+    // Brief hold so trailing playback / echo does not immediately re-trigger VAD.
+    unmuteTimer = setTimeout(() => {
+      unmuteTimer = null;
+      assistantSpeaking = false;
+      syncMicEnabled();
+    }, 350);
+  };
+
   const cleanup = () => {
     connectGeneration += 1;
     connected = false;
+    userPaused = false;
+    assistantSpeaking = false;
+    activeResponseId = null;
+    pendingResponseCreate = false;
+    conductingQuestionIndex = 0;
+    topicEpoch = 0;
+    responseTopicEpoch.clear();
+    if (unmuteTimer) {
+      clearTimeout(unmuteTimer);
+      unmuteTimer = null;
+    }
     dc?.close();
     dc = null;
     pc?.close();
@@ -124,6 +208,22 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
 
     const type = String(event.type || '');
 
+    // Mute while the interviewer speaks so room noise cannot interrupt / restart them.
+    if (type === 'response.created') {
+      const response = event.response as { id?: string } | undefined;
+      if (response?.id) {
+        activeResponseId = response.id;
+        responseTopicEpoch.set(response.id, topicEpoch);
+      }
+      setAssistantSpeaking(true);
+    }
+    if (type === 'output_audio_buffer.started') {
+      setAssistantSpeaking(true);
+    }
+    if (type === 'output_audio_buffer.stopped') {
+      setAssistantSpeaking(false);
+    }
+
     if (type === 'response.output_audio_transcript.done' && typeof event.transcript === 'string') {
       handlers.onLiveLine(event.transcript, 'assistant');
     }
@@ -134,23 +234,44 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       handlers.onLiveLine(event.transcript, 'user');
     }
 
-    if (type === 'response.done') {
-      const response = event.response as { output?: Array<{ type: string; name?: string; call_id?: string; arguments?: string }> } | undefined;
-      for (const item of response?.output || []) {
-        if (item.type === 'function_call' && item.name === 'complete_anchor_question' && item.call_id) {
-          let summary = '';
-          try {
-            const args = JSON.parse(item.arguments || '{}') as { answer_summary?: string };
-            summary = String(args.answer_summary || '');
-          } catch { /* ignore */ }
-          void handlers.onAdvance(summary, item.call_id);
+    if (type === 'response.done' || type === 'response.cancelled' || type === 'response.failed') {
+      setAssistantSpeaking(false);
+      const response = event.response as {
+        id?: string;
+        output?: Array<{ type: string; name?: string; call_id?: string; arguments?: string }>;
+      } | undefined;
+      const advanceCall = type === 'response.done'
+        ? response?.output?.find(
+            (item) => item.type === 'function_call' && item.name === 'complete_anchor_question' && item.call_id,
+          )
+        : undefined;
+      markResponseFinished(response?.id, Boolean(advanceCall));
+
+      if (advanceCall?.call_id) {
+        const responseId = response?.id;
+        const epoch = responseId ? responseTopicEpoch.get(responseId) : undefined;
+        if (responseId) responseTopicEpoch.delete(responseId);
+        let summary = '';
+        try {
+          const args = JSON.parse(advanceCall.arguments || '{}') as { answer_summary?: string };
+          summary = String(args.answer_summary || '');
+        } catch { /* ignore */ }
+        if (epoch !== topicEpoch) {
+          completeFunctionCallSilent(advanceCall.call_id, { ok: true, message: 'Already moved on.' });
+        } else {
+          void handlers.onAdvance(summary, advanceCall.call_id, conductingQuestionIndex);
         }
       }
     }
 
     if (type === 'error') {
-      const err = event.error as { message?: string } | undefined;
-      handlers.onError(err?.message || 'Realtime error');
+      const err = event.error as { message?: string; code?: string } | undefined;
+      const message = err?.message || 'Realtime error';
+      if (/active response in progress/i.test(message)) {
+        pendingResponseCreate = true;
+        return;
+      }
+      handlers.onError(message);
     }
   };
 
@@ -159,6 +280,17 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       const generation = connectGeneration + 1;
       connectGeneration = generation;
       connected = false;
+      userPaused = false;
+      assistantSpeaking = false;
+      activeResponseId = null;
+      pendingResponseCreate = false;
+      conductingQuestionIndex = ctx.questionIndex;
+      topicEpoch = 0;
+      responseTopicEpoch.clear();
+      if (unmuteTimer) {
+        clearTimeout(unmuteTimer);
+        unmuteTimer = null;
+      }
 
       dc?.close();
       dc = null;
@@ -192,7 +324,11 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       };
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
       });
       if (!isActiveConnect(generation)) {
         stream.getTracks().forEach((t) => t.stop());
@@ -200,6 +336,9 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       }
 
       localStream = stream;
+      userPaused = false;
+      assistantSpeaking = false;
+      syncMicEnabled();
       for (const track of localStream.getTracks()) {
         pc!.addTrack(track, localStream);
       }
@@ -210,7 +349,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
         if (!isActiveConnect(generation) || connected) return;
         connected = true;
         handlers.onConnected();
-        sendEvent({ type: 'response.create' });
+        requestResponseCreate();
       };
 
       const offer = await pc.createOffer();
@@ -279,12 +418,14 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
     },
 
     pause() {
-      localStream?.getAudioTracks().forEach((t) => { t.enabled = false; });
+      userPaused = true;
+      syncMicEnabled();
       if (audioEl) audioEl.pause();
     },
 
     resume() {
-      localStream?.getAudioTracks().forEach((t) => { t.enabled = true; });
+      userPaused = false;
+      syncMicEnabled();
       if (audioEl) void audioEl.play().catch(() => {});
     },
 
@@ -295,7 +436,17 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       });
     },
 
-    completeFunctionCall(callId, output) {
+    completeFunctionCall(callId, output, options) {
+      if (options?.nextQuestionIndex != null) {
+        topicEpoch += 1;
+        conductingQuestionIndex = options.nextQuestionIndex;
+      }
+      if (options?.instructions) {
+        sendEvent({
+          type: 'session.update',
+          session: { type: 'realtime', instructions: options.instructions },
+        });
+      }
       sendEvent({
         type: 'conversation.item.create',
         item: {
@@ -304,7 +455,24 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
           output: JSON.stringify(output),
         },
       });
-      sendEvent({ type: 'response.create' });
+      if (options?.continueResponse !== false) {
+        requestResponseCreate();
+      }
+    },
+
+    transitionToTopic(instructions, questionIndex) {
+      topicEpoch += 1;
+      conductingQuestionIndex = questionIndex;
+      if (activeResponseId) {
+        sendEvent({ type: 'response.cancel' });
+        activeResponseId = null;
+      }
+      sendEvent({
+        type: 'session.update',
+        session: { type: 'realtime', instructions },
+      });
+      pendingResponseCreate = true;
+      flushPendingResponseCreate();
     },
   };
 }

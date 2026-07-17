@@ -980,6 +980,12 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
       stages={sessionData.stages?.map(({ label, done, current }) => ({ label, done, current }))}
       questions={sessionData.questions}
       initialQuestionIndex={sessionData.resumeIndex ?? 0}
+      initialAnswers={(sessionData.savedAnswers || []).map((a) => ({
+        questionIndex: a.question_index,
+        question: a.question,
+        answer: a.answer,
+        mode: a.answer_mode,
+      }))}
       autoStart={(sessionData.savedAnswers?.length ?? 0) > 0}
       interviewStage={sessionData.stage}
       aiVoice={aiVoice}

@@ -54,17 +54,37 @@ function friendlyAnamError(e: unknown): string {
   return msg || 'Could not start the live call'
 }
 
+function tuneLiveVideoElement(videoId: string) {
+  const el = document.getElementById(videoId) as HTMLVideoElement | null
+  if (!el) return
+  el.playsInline = true
+  el.setAttribute('playsinline', 'true')
+  el.setAttribute('webkit-playsinline', 'true')
+  el.disablePictureInPicture = true
+  // Prefer smoother playback over perfect A/V sync when the decoder is under load.
+  try {
+    ;(el as HTMLVideoElement & { playsInline: boolean }).playsInline = true
+    if ('latencyHint' in el) (el as HTMLVideoElement & { latencyHint?: string }).latencyHint = 'realtime'
+  } catch { /* ignore */ }
+}
+
 function wireAnamClient(
   connected: AnamClient,
   stale: () => boolean,
   onEnded: () => void,
   onCaption: (text: string) => void,
   onVideoReady: () => void,
+  videoId: string,
 ) {
   connected.addListener(AnamEvent.VIDEO_PLAY_STARTED, () => { if (!stale()) onVideoReady() })
   connected.addListener(AnamEvent.VIDEO_STREAM_STARTED, (stream: MediaStream) => {
     if (!stale()) onVideoReady()
+    tuneLiveVideoElement(videoId)
     const track = stream.getVideoTracks()[0]
+    try {
+      // Hint the browser encoder/decoder path that motion smoothness matters more than still detail.
+      if (track && 'contentHint' in track) track.contentHint = 'motion'
+    } catch { /* ignore */ }
     const { width, height } = track?.getSettings?.() ?? {}
     if (width && height) console.info(`[Anam] video stream ${width}×${height}`)
   })
@@ -109,6 +129,11 @@ async function connectAnam(
     'Starting live session',
   )
   if (stale()) throw new Error('Connect cancelled')
+  if (!usingOwnVoice) {
+    throw new Error(
+      'Your voice was not cloned successfully. Re-record in Avatar Studio and generate the live avatar again — Live Call will not use a stock voice.',
+    )
+  }
 
   const client = createClient(sessionToken)
   registerAnamClient(client)
@@ -135,7 +160,9 @@ async function connectAnam(
 
     try {
       onStatus?.('Connecting video…')
+      tuneLiveVideoElement(videoId)
       await withTimeout(client.streamToVideoElement(videoId), 45000, 'Video stream')
+      tuneLiveVideoElement(videoId)
       return { client, usingOwnVoice }
     } catch (e) {
       lastError = e
@@ -215,6 +242,7 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
           },
           (text) => setCaption(text),
           () => setVideoReady(true),
+          videoId,
         )
       } catch (e) {
         if (stale()) return
@@ -301,11 +329,6 @@ export default function LiveAvatarCall({ creatorId, name = 'your legacy', onClos
           </div>
         )}
 
-        {live.phase === 'live' && !live.ownVoice && (
-          <div style={{ position: 'absolute', top: 14, left: 14 }}>
-            <Badge>using a stock voice — re-record in Studio for their own</Badge>
-          </div>
-        )}
       </div>
 
       <LiveCallControls onEnd={hangUp} />
@@ -352,14 +375,6 @@ function Overlay({ children }: { children: React.ReactNode }) {
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', gap: 6 }}>
       {children}
     </div>
-  )
-}
-
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{ background: 'rgba(0,0,0,.55)', color: '#f4ecdc', fontSize: 11, letterSpacing: '.04em', padding: '5px 10px', borderRadius: 999, fontFamily: "'Spline Sans Mono', ui-monospace, monospace" }}>
-      {children}
-    </span>
   )
 }
 

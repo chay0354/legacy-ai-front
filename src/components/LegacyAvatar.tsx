@@ -1213,6 +1213,7 @@ function PortraitCard({
               id={PORTRAIT_LIVE_VIDEO_ID}
               autoPlay
               playsInline
+              disablePictureInPicture
               style={{
                 position: "absolute",
                 inset: 0,
@@ -1224,6 +1225,9 @@ function PortraitCard({
                 opacity: videoLive ? 1 : 0,
                 transition: "opacity 0.55s ease",
                 pointerEvents: videoLive ? "auto" : "none",
+                // Promote to its own compositor layer so Cara-4 decode stays smoother.
+                transform: "translateZ(0)",
+                willChange: "contents",
               }}
             />
             {live.phase === "connecting" && (
