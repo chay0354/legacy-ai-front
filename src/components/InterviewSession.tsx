@@ -1,7 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import StageProgressTrack from "./StageProgressTrack";
 import { unlockAudioPlayback, createOpenAiRealtimeInterview, fetchRealtimeInstructions, type RealtimeVoiceInterview } from "../lib/openaiRealtimeInterview";
-import { isSkipIntent, shouldAcceptTopicAdvance } from "../lib/interviewDepth";
+import {
+  exclusionAppliesToTopic,
+  extractTopicExclusions,
+  isPauseInterviewIntent,
+  isSkipIntent,
+  isSoftDeclineIntent,
+  isTopicDoneIntent,
+  mergeTopicExclusions,
+  shouldAcceptTopicAdvance,
+} from "../lib/interviewDepth";
+import { sanitizeForSessionLanguage, textMatchesSessionLanguage } from "../lib/languageScript";
+import { avatarApi, type CreatorGender, type CreatorPronouns } from "../lib/api";
 
 /**
  * Legacy AI — Interview Session
@@ -13,6 +24,8 @@ import { isSkipIntent, shouldAcceptTopicAdvance } from "../lib/interviewDepth";
 export interface Question {
   q: string;
   a?: string;
+  /** Concrete details the interviewer should dig for on this topic. */
+  digFor?: string;
 }
 
 export interface Answer {
@@ -42,15 +55,33 @@ export type ConductorContext = {
   subjectName: string;
   stage: string;
   anchorQuestion: string;
+  /** What concrete detail to pursue on this topic. */
+  digFor?: string;
   questionIndex: number;
   totalQuestions: number;
   /** Answers already captured — used so the interviewer can bridge topics. */
   priorTopics?: PriorTopic[];
+  /** Subjects they asked not to discuss — kept off-limits across topics. */
+  topicExclusions?: string[];
+  /** Locked session language (ISO-639-1). Default English — prevents transcript drift. */
+  language?: string;
+  /** Explicit profile gender — never inferred from name. */
+  gender?: CreatorGender | string | null;
+  /** Explicit pronouns e.g. she/her — never inferred from name. */
+  pronouns?: CreatorPronouns | string | null;
 };
 
 export interface AiVoiceInterview {
   connect: (ctx: ConductorContext) => Promise<void>;
   disconnect: () => void;
+  pause?: () => void;
+  resume?: (briefing?: {
+    topicNum: number;
+    totalTopics: number;
+    topicPrompt: string;
+    lastUserNote?: string;
+  }) => void;
+  nudge?: (reason?: 'idle' | 'manual' | 'escalate') => void;
   updateInstructions: (instructions: string) => void;
   completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
   transitionToTopic: (instructions: string, questionIndex: number) => void;
@@ -66,6 +97,8 @@ export interface InterviewSessionProps {
   initialQuestionIndex?: number;
   /** Previously saved answers — seeds continuity when resuming mid-interview. */
   initialAnswers?: { questionIndex: number; question: string; answer: string; mode?: "voice" | "text" }[];
+  /** Prior "don't talk about X" exclusions (from earlier stages / profile). */
+  initialTopicExclusions?: string[];
   autoStart?: boolean;
   accent?: string;
   ambient?: boolean;
@@ -74,8 +107,10 @@ export interface InterviewSessionProps {
   /** When true, voice mode uses OpenAI Realtime API (WebRTC speech-to-speech). */
   aiVoice?: boolean;
   interviewStage?: string;
+  /** Locked speaking/transcript language (ISO-639-1). Defaults to English. */
+  interviewLanguage?: string;
   onAnswerCommit?: (answer: Answer & { questionIndex: number; skipped: boolean }) => void | Promise<void>;
-  onComplete?: (answers: Answer[]) => void | Promise<void>;
+  onComplete?: (answers: Answer[], meta?: { topicExclusions?: string[] }) => void | Promise<void>;
   onViewAvatar?: () => void;
   onViewLegacy?: () => void;
   onManageAccess?: () => void;
@@ -151,6 +186,7 @@ export default function InterviewSession({
   questions = DEFAULT_QS,
   initialQuestionIndex = 0,
   initialAnswers = [],
+  initialTopicExclusions = [],
   autoStart = false,
   accent = C.terra,
   ambient = true,
@@ -158,6 +194,7 @@ export default function InterviewSession({
   stt = null,
   aiVoice = false,
   interviewStage = "foundation",
+  interviewLanguage = "en",
   onAnswerCommit,
   onComplete = (a) => console.log("interview complete", a),
   onViewAvatar,
@@ -184,8 +221,21 @@ export default function InterviewSession({
   const [paused,     setPaused]     = useState(false);
   const [secs,       setSecs]       = useState(0);
   const [convLive,   setConvLive]   = useState(false);
-  const [liveLine,   setLiveLine]   = useState("");
+  /** Spoken turns for the current topic — must match what was actually said. */
+  const [chatTurns,  setChatTurns]  = useState<{ id: string; role: "user" | "assistant"; text: string }[]>([]);
+  const [partialAssistant, setPartialAssistant] = useState("");
+  const [partialUser, setPartialUser] = useState("");
   const [aiError,    setAiError]    = useState<string | null>(null);
+  const [gender, setGender] = useState<CreatorGender>(null);
+  const [pronouns, setPronouns] = useState<CreatorPronouns>(null);
+  const [identityBusy, setIdentityBusy] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const genderRef = useRef<CreatorGender>(null);
+  const pronounsRef = useRef<CreatorPronouns>(null);
+  const turnSeqRef = useRef(0);
+  /** Accumulated user speech for the current topic (avoids stale React state on advance). */
+  const userSpokenRef = useRef('');
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   const answersRef  = useRef<Answer[]>([]);
   const sttStopRef  = useRef<(() => void) | null>(null);
@@ -195,8 +245,11 @@ export default function InterviewSession({
   const userTurnsRef = useRef(0);
   const lastUserUtteranceRef = useRef('');
   const skippingRef = useRef(false);
+  const finishingRef = useRef(false);
   const prevModeRef = useRef<Mode>(mode);
   const seededAnswersRef = useRef(false);
+  const topicExclusionsRef = useRef<string[]>(mergeTopicExclusions([], initialTopicExclusions));
+  const exclusionUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (!seededAnswersRef.current && initialAnswers.length > 0) {
     seededAnswersRef.current = true;
@@ -219,28 +272,150 @@ export default function InterviewSession({
     activeQuestionRef.current = q;
   }, [q]);
 
+  // Keep the conversation scroller pinned to the latest spoken line.
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [chatTurns, partialAssistant, partialUser]);
+
   const stopConversation = () => {
     realtimeRef.current?.disconnect();
     realtimeRef.current = null;
     setConvLive(false);
   };
 
+  const clearTopicTranscript = () => {
+    setChatTurns([]);
+    setPartialAssistant("");
+    setPartialUser("");
+    setTranscript("");
+    userSpokenRef.current = "";
+  };
+
+  const sessionLang = interviewLanguage || "en";
+
+  const appendFinalTurn = (role: "user" | "assistant", text: string) => {
+    const raw = text.trim();
+    if (!raw) return;
+    // English sessions: never paint Hebrew/Arabic dumps onto the conversation UI.
+    if (!textMatchesSessionLanguage(raw, sessionLang)) return;
+    const cleaned = sanitizeForSessionLanguage(raw, sessionLang);
+    if (!cleaned || cleaned === "[non-English speech omitted]") return;
+    turnSeqRef.current += 1;
+    const id = `${role}-${turnSeqRef.current}`;
+    setChatTurns((prev) => {
+      // Dedupe exact consecutive repeats (done + response.done fallback).
+      const last = prev[prev.length - 1];
+      if (last && last.role === role && last.text === cleaned) return prev;
+      return [...prev, { id, role, text: cleaned }];
+    });
+    if (role === "user") {
+      userSpokenRef.current = userSpokenRef.current
+        ? `${userSpokenRef.current} ${cleaned}`
+        : cleaned;
+      setTranscript(userSpokenRef.current);
+    }
+  };
+
+  /** Last topic done — tear down voice immediately, then preserve. Never leave a live session hanging. */
+  const endInterviewSession = async () => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setPaused(false);
+    setComplete(true);
+    clearTopicTranscript();
+    if (sttStopRef.current) {
+      sttStopRef.current();
+      sttStopRef.current = null;
+    }
+    stopConversation();
+    try {
+      await onComplete(answersRef.current.filter(Boolean), {
+        topicExclusions: topicExclusionsRef.current,
+      });
+    } catch (err) {
+      console.warn('[interview] onComplete failed', err);
+    }
+  };
+
+  const pushTopicExclusions = (incoming: string[], opts?: { skipIfCurrent?: boolean }) => {
+    const before = topicExclusionsRef.current.length;
+    topicExclusionsRef.current = mergeTopicExclusions(topicExclusionsRef.current, incoming);
+    if (topicExclusionsRef.current.length === before) return false;
+
+    const questionIndex = activeQuestionRef.current;
+    const prompt = QS[questionIndex]?.q || '';
+    if (opts?.skipIfCurrent !== false) {
+      const hitsCurrent = incoming.some((ex) => exclusionAppliesToTopic(ex, prompt));
+      if (hitsCurrent && !skippingRef.current) {
+        void skipCurrentTopic();
+        return true;
+      }
+    }
+
+    if (aiVoiceMode && realtimeRef.current && running && !finishingRef.current) {
+      if (exclusionUpdateTimerRef.current) clearTimeout(exclusionUpdateTimerRef.current);
+      exclusionUpdateTimerRef.current = setTimeout(() => {
+        void fetchRealtimeInstructions(ctxFor(activeQuestionRef.current))
+          .then((instructions) => {
+            realtimeRef.current?.updateInstructions(instructions);
+          })
+          .catch((err) => console.warn('[interview] exclusion instruction update failed', err));
+      }, 200);
+    }
+    return true;
+  };
+
   const priorTopicsFor = (questionIndex: number): PriorTopic[] =>
     answersRef.current
       .slice(0, questionIndex)
       .filter((a): a is Answer => Boolean(a?.answer?.trim()))
-      .map((a) => ({ question: a.question, summary: a.answer }));
+      .map((a) => ({
+        question: a.question,
+        // Pass their words as confirmed background — interviewer must not invent beyond this.
+        summary: a.answer.trim(),
+      }));
+
+  useEffect(() => {
+    let cancelled = false;
+    avatarApi.getAssets({ light: true })
+      .then((r) => {
+        if (cancelled) return;
+        const g = (r.gender ?? null) as CreatorGender;
+        const p = (r.pronouns ?? null) as CreatorPronouns;
+        setGender(g);
+        setPronouns(p);
+        genderRef.current = g;
+        pronounsRef.current = p;
+      })
+      .catch(() => { /* identity optional until they set it */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const ctxFor = (questionIndex: number): ConductorContext => ({
     subjectName,
     stage: interviewStage,
     anchorQuestion: QS[questionIndex]?.q || '',
+    digFor: QS[questionIndex]?.digFor || '',
     questionIndex,
     totalQuestions: TOTAL,
     priorTopics: priorTopicsFor(questionIndex),
+    topicExclusions: topicExclusionsRef.current,
+    language: interviewLanguage || 'en',
+    gender: genderRef.current,
+    pronouns: pronounsRef.current,
   });
 
   const handleRealtimeAdvance = async (questionIndex: number, summary: string, callId: string) => {
+    if (finishingRef.current || complete) {
+      realtimeRef.current?.completeFunctionCall(
+        callId,
+        { ok: true, complete: true, message: 'Interview already finishing.' },
+        { continueResponse: false },
+      );
+      return;
+    }
     if (skippingRef.current) {
       realtimeRef.current?.completeFunctionCall(
         callId,
@@ -249,85 +424,131 @@ export default function InterviewSession({
       );
       return;
     }
-    const answer = summary.trim();
-    const skipped = isSkipIntent(answer) || isSkipIntent(lastUserUtteranceRef.current);
-    const depth = shouldAcceptTopicAdvance({
-      summary: answer,
-      userTurns: userTurnsRef.current,
-      userUtterance: lastUserUtteranceRef.current,
-      stage: interviewStage,
-    });
 
-    if (!depth.ok) {
-      realtimeRef.current?.completeFunctionCall(callId, {
-        ok: false,
-        continue: true,
-        message: depth.message,
-      });
-      return;
-    }
+    let completed = false;
+    const finish = (output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => {
+      if (completed) return;
+      completed = true;
+      realtimeRef.current?.completeFunctionCall(callId, output, options);
+    };
 
-    const savedAnswer = skipped ? '' : answer;
-    setTranscript(savedAnswer);
-    answersRef.current[questionIndex] = { question: QS[questionIndex].q, answer: savedAnswer, mode: "voice" };
-    userTurnsRef.current = 0;
-    lastUserUtteranceRef.current = '';
-
-    if (onAnswerCommit) {
-      await onAnswerCommit({
-        questionIndex,
-        question: QS[questionIndex].q,
-        answer: savedAnswer,
-        mode: "voice",
-        skipped,
-      });
-    }
-
-    if (questionIndex < TOTAL - 1) {
-      const next = questionIndex + 1;
-      setQ(next);
-      setLiveLine("");
-      const instructions = await fetchRealtimeInstructions(ctxFor(next));
-      // Apply next-topic instructions before the model speaks again (avoids racing on old prompt).
-      realtimeRef.current?.completeFunctionCall(
-        callId,
-        {
-          ok: true,
-          message: skipped
-            ? `They skipped this topic. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Acknowledge briefly and open the next topic warmly.`
-            : `Topic saved. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Transition warmly — a soft progress cue in plain language (topic ${next + 1} of ${TOTAL}), bridge from their story if it fits, then ask the next topic in your own words. Never say "next question" or sound like a checklist. Do not re-welcome them.`,
-        },
-        { instructions, nextQuestionIndex: next },
-      );
-    } else {
-      realtimeRef.current?.completeFunctionCall(callId, { ok: true, complete: true });
-      setComplete(true);
-      stopConversation();
-      await onComplete(answersRef.current.filter(Boolean));
-    }
-  };
-
-  const skipCurrentTopic = async () => {
-    if (!running || complete || skippingRef.current) return;
-    skippingRef.current = true;
     try {
-      const questionIndex = activeQuestionRef.current;
-      answersRef.current[questionIndex] = { question: QS[questionIndex].q, answer: '', mode: 'voice' };
+      const answer = summary.trim();
+      const lastUtterance = lastUserUtteranceRef.current;
+      const skipped =
+        isTopicDoneIntent(answer) ||
+        isTopicDoneIntent(lastUtterance) ||
+        isSoftDeclineIntent(answer) ||
+        isSoftDeclineIntent(lastUtterance) ||
+        isSkipIntent(answer) ||
+        isSkipIntent(lastUtterance);
+      const depth = shouldAcceptTopicAdvance({
+        summary: answer,
+        userTurns: userTurnsRef.current,
+        userUtterance: lastUtterance,
+        stage: interviewStage,
+      });
+
+      if (!depth.ok) {
+        finish({
+          ok: false,
+          continue: true,
+          message: depth.message,
+        });
+        return;
+      }
+
+      // Prefer the user's actual spoken words for storage; fall back to model summary.
+      // Even on skip/stop, keep what they already said — don't wipe a real answer.
+      const spokenWords = userSpokenRef.current.trim() || lastUserUtteranceRef.current.trim();
+      const savedAnswer = spokenWords || (skipped ? '' : answer);
+      const trulySkipped = skipped && !savedAnswer.trim();
+      answersRef.current[questionIndex] = { question: QS[questionIndex].q, answer: savedAnswer, mode: "voice" };
+      userTurnsRef.current = 0;
+      lastUserUtteranceRef.current = '';
 
       if (onAnswerCommit) {
         await onAnswerCommit({
           questionIndex,
           question: QS[questionIndex].q,
-          answer: '',
+          answer: savedAnswer,
+          mode: "voice",
+          skipped: trulySkipped,
+        });
+      }
+
+      if (questionIndex < TOTAL - 1) {
+        if (finishingRef.current) {
+          finish({ ok: true, complete: true }, { continueResponse: false });
+          return;
+        }
+        const next = questionIndex + 1;
+        setQ(next);
+        clearTopicTranscript();
+        const instructions = await fetchRealtimeInstructions(ctxFor(next));
+        // Apply next-topic instructions before the model speaks again (avoids racing on old prompt).
+        const langLock = ` Speak only in session language "${sessionLang}" — never Hebrew, Arabic, German, or any other language.`;
+        finish(
+          {
+            ok: true,
+            message: (trulySkipped
+              ? `They asked to leave this topic. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Acknowledge briefly (no follow-up on the skipped topic) and open the next topic warmly.`
+              : skipped
+                ? `They asked to stop this topic. What they said is saved. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Acknowledge briefly — do NOT dig further — then open the next topic warmly.`
+                : `Topic saved. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Transition warmly — a soft progress cue in plain language (topic ${next + 1} of ${TOTAL}), bridge from their story if it fits, then ask the next topic in your own words. Never say "next question" or sound like a checklist. Do not re-welcome them.`) + langLock,
+          },
+          { instructions, nextQuestionIndex: next },
+        );
+      } else {
+        // Critical: do NOT request another model turn — that left sessions hanging after the last topic.
+        finish(
+          {
+            ok: true,
+            complete: true,
+            message: 'Interview complete. Do not speak further. The session is ending now.',
+          },
+          { continueResponse: false },
+        );
+        await endInterviewSession();
+      }
+    } catch (err) {
+      console.warn('[interview] advance failed — keeping session alive', err);
+      // Never leave a tool-call hanging: that freezes the whole interview.
+      finish({
+        ok: false,
+        continue: true,
+        message: 'A save hiccup happened. Stay on this topic, acknowledge briefly, and continue the conversation warmly.',
+      });
+      setAiError('Connection hiccup — continuing this topic. You can keep talking.');
+    }
+  };
+
+  const skipCurrentTopic = async () => {
+    if (!running || complete || skippingRef.current || finishingRef.current) return;
+    skippingRef.current = true;
+    try {
+      const questionIndex = activeQuestionRef.current;
+      // Preserve anything already spoken; only mark skipped when there is nothing to keep.
+      const kept = userSpokenRef.current.trim() || lastUserUtteranceRef.current.trim();
+      answersRef.current[questionIndex] = {
+        question: QS[questionIndex].q,
+        answer: kept,
+        mode: 'voice',
+      };
+
+      if (onAnswerCommit) {
+        await onAnswerCommit({
+          questionIndex,
+          question: QS[questionIndex].q,
+          answer: kept,
           mode: 'voice',
-          skipped: true,
+          skipped: !kept,
         });
       }
 
       userTurnsRef.current = 0;
       lastUserUtteranceRef.current = '';
-      setTranscript('');
-      setLiveLine('');
+      clearTopicTranscript();
 
       if (questionIndex < TOTAL - 1) {
         const next = questionIndex + 1;
@@ -340,13 +561,17 @@ export default function InterviewSession({
           void startRealtimeConversation(next);
         }
       } else {
-        stopConversation();
-        setComplete(true);
-        await onComplete(answersRef.current.filter(Boolean));
+        await endInterviewSession();
       }
     } finally {
       skippingRef.current = false;
     }
+  };
+
+  const pauseInterviewFromVoice = () => {
+    if (!running || complete || paused || finishingRef.current) return;
+    setPaused(true);
+    realtimeRef.current?.pause();
   };
 
   const startRealtimeConversation = async (questionIndex: number) => {
@@ -356,20 +581,83 @@ export default function InterviewSession({
     userTurnsRef.current = 0;
 
     const client = createOpenAiRealtimeInterview({
-      onLiveLine: (text, role) => {
-        if (role === 'user' && text.trim()) {
-          lastUserUtteranceRef.current = text.trim();
-          userTurnsRef.current += 1;
-          if (isSkipIntent(text) && !skippingRef.current) {
-            void skipCurrentTopic();
+      onLiveLine: (text, role, meta) => {
+        const partial = Boolean(meta?.partial);
+        if (partial) {
+          if (role === 'assistant') {
+            setPartialAssistant((prev) => {
+              const next = prev + text;
+              return textMatchesSessionLanguage(next, sessionLang) ? next : prev;
+            });
+          } else {
+            setPartialUser((prev) => {
+              const next = prev + text;
+              return textMatchesSessionLanguage(next, sessionLang) ? next : prev;
+            });
           }
+          return;
         }
-        setLiveLine(text);
+
+        // Final utterance — replace the streaming draft with the authoritative text.
+        if (role === 'assistant') {
+          setPartialAssistant('');
+          appendFinalTurn('assistant', text);
+          return;
+        }
+
+        setPartialUser('');
+        const cleaned = text.trim();
+        if (!cleaned) return;
+        // Drop ASR language-drift so we don't advance/skip on Hebrew garbage in EN sessions.
+        if (!textMatchesSessionLanguage(cleaned, sessionLang)) return;
+        const safe = sanitizeForSessionLanguage(cleaned, sessionLang);
+        if (!safe || safe === '[non-English speech omitted]') return;
+        lastUserUtteranceRef.current = safe;
+        userTurnsRef.current += 1;
+        appendFinalTurn('user', safe);
+
+        const exclusions = extractTopicExclusions(safe);
+        if (exclusions.length) {
+          pushTopicExclusions(exclusions);
+          return;
+        }
+
+        // "Please stop" / "pause" / "I'm done" → pause the interview (UI resume).
+        if (isPauseInterviewIntent(safe)) {
+          pauseInterviewFromVoice();
+          return;
+        }
+
+        // Done with this topic / refuse / stop asking — advance; keep what they said.
+        if (isTopicDoneIntent(safe) && !skippingRef.current) {
+          void skipCurrentTopic();
+          return;
+        }
+
+        // Soft "no" after a follow-up (2+ turns) — stop digging and move on.
+        if (
+          isSoftDeclineIntent(safe) &&
+          userTurnsRef.current >= 2 &&
+          !skippingRef.current
+        ) {
+          void skipCurrentTopic();
+        }
       },
-      onConnected: () => setConvLive(true),
+      onTopicExclusion: (topic) => {
+        pushTopicExclusions([topic]);
+      },
+      onConnected: () => {
+        setConvLive(true);
+        setAiError(null);
+      },
       onError: (msg) => {
         setAiError(msg);
-        stopConversation();
+        // Soft errors: keep the socket if possible; hard disconnect only on connect failures from connect().
+        if (/token|SDP|microphone|permission|session failed|Could not start/i.test(msg)) {
+          stopConversation();
+        } else {
+          realtimeRef.current?.nudge?.('manual');
+        }
       },
       onAdvance: (summary, callId, questionIndex) => handleRealtimeAdvance(questionIndex, summary, callId),
     });
@@ -402,8 +690,7 @@ export default function InterviewSession({
     }
 
     if (mode === "voice" && prev === "text") {
-      setTranscript("");
-      setLiveLine("");
+      clearTopicTranscript();
       setAiError(null);
       setPaused(false);
       simIdxRef.current = 0;
@@ -425,21 +712,46 @@ export default function InterviewSession({
   useEffect(() => () => stopConversation(), []); // eslint-disable-line
 
   const togglePause = () => {
-    setPaused((p) => {
-      const next = !p;
-      if (aiVoiceMode) {
-        if (next) realtimeRef.current?.pause();
-        else realtimeRef.current?.resume();
-      } else if (next && sttStopRef.current) {
-        sttStopRef.current();
-        sttStopRef.current = null;
+    // Side effects outside setState — React may double-invoke updaters in Strict Mode.
+    const next = !paused;
+    setPaused(next);
+    if (aiVoiceMode) {
+      if (next) {
+        realtimeRef.current?.pause();
+      } else {
+        realtimeRef.current?.resume({
+          topicNum: q + 1,
+          totalTopics: TOTAL,
+          topicPrompt: cur?.q || '',
+          lastUserNote: lastUserUtteranceRef.current || transcript.trim() || undefined,
+        });
       }
-      return next;
-    });
+    } else if (next && sttStopRef.current) {
+      sttStopRef.current();
+      sttStopRef.current = null;
+    }
   };
 
   const goNextWithAnswer = async (answerOverride?: string) => {
+    if (finishingRef.current || complete) return;
     const answer = answerOverride ?? (voiceMode ? transcript : typed);
+    if (isPauseInterviewIntent(answer)) {
+      pauseInterviewFromVoice();
+      return;
+    }
+    const exclusions = extractTopicExclusions(answer);
+    if (exclusions.length) {
+      topicExclusionsRef.current = mergeTopicExclusions(topicExclusionsRef.current, exclusions);
+      if (exclusions.some((ex) => exclusionAppliesToTopic(ex, cur.q))) {
+        await skipCurrentTopic();
+        return;
+      }
+    }
+    if (isTopicDoneIntent(answer) || (isSoftDeclineIntent(answer) && userTurnsRef.current >= 1)) {
+      userSpokenRef.current = answer.trim() || userSpokenRef.current;
+      await skipCurrentTopic();
+      return;
+    }
     const skipped = !answer.trim();
     answersRef.current[q] = { question: cur.q, answer, mode };
 
@@ -458,9 +770,8 @@ export default function InterviewSession({
     if (q < TOTAL - 1) {
       const next = q + 1;
       setQ(next);
-      setTranscript("");
+      clearTopicTranscript();
       setTyped("");
-      setLiveLine("");
       simIdxRef.current = 0;
       if (aiVoiceMode) {
         void startRealtimeConversation(next);
@@ -468,8 +779,7 @@ export default function InterviewSession({
         setPhase("asking");
       }
     } else {
-      setComplete(true);
-      await onComplete(answersRef.current.filter(Boolean));
+      await endInterviewSession();
     }
   };
 
@@ -544,15 +854,79 @@ export default function InterviewSession({
     return () => clearTimeout(t);
   }, [doneV, paused, q]); // eslint-disable-line
 
-  /* controls */
-  const startVoice  = () => {
-    unlockAudioPlayback();
-    setStarted(true); setMode("voice"); setQ(initialQuestionIndex); setSecs(0); setComplete(false);
-    setTranscript(""); setLiveLine(""); setAiError(null); simIdxRef.current = 0;
-    if (aiVoice) void startRealtimeConversation(initialQuestionIndex);
-    else setPhase("asking");
+  const defaultPronounsForGender = (g: CreatorGender): CreatorPronouns => {
+    if (g === "female") return "she/her";
+    if (g === "male") return "he/him";
+    if (g === "non_binary") return "they/them";
+    return null;
   };
-  const startText   = () => { stopConversation(); setStarted(true); setMode("text");  setQ(initialQuestionIndex); setSecs(0); setComplete(false); setPhase("asking"); setTyped(""); };
+
+  const persistIdentity = async (nextGender: CreatorGender, nextPronouns: CreatorPronouns) => {
+    setIdentityBusy(true);
+    setIdentityError(null);
+    try {
+      const r = await avatarApi.saveIdentity({ gender: nextGender, pronouns: nextPronouns });
+      const g = (r.gender ?? nextGender) as CreatorGender;
+      const p = (r.pronouns ?? nextPronouns) as CreatorPronouns;
+      setGender(g);
+      setPronouns(p);
+      genderRef.current = g;
+      pronounsRef.current = p;
+    } catch (e) {
+      setIdentityError(e instanceof Error ? e.message : "Could not save pronouns");
+      throw e;
+    } finally {
+      setIdentityBusy(false);
+    }
+  };
+
+  const ensureIdentityBeforeStart = async (): Promise<boolean> => {
+    if (!pronounsRef.current && genderRef.current) {
+      const p = defaultPronounsForGender(genderRef.current);
+      if (p) {
+        try {
+          await persistIdentity(genderRef.current, p);
+        } catch {
+          return false;
+        }
+      }
+    }
+    if (!pronounsRef.current) {
+      setIdentityError("Please set your pronouns before starting — we never guess from your name.");
+      return false;
+    }
+    setIdentityError(null);
+    return true;
+  };
+
+  /* controls */
+  const startVoice = () => {
+    void (async () => {
+      if (!(await ensureIdentityBeforeStart())) return;
+      unlockAudioPlayback();
+      finishingRef.current = false;
+      setStarted(true); setMode("voice"); setQ(initialQuestionIndex); setSecs(0); setComplete(false);
+      clearTopicTranscript();
+      setAiError(null);
+      simIdxRef.current = 0;
+      if (aiVoice) void startRealtimeConversation(initialQuestionIndex);
+      else setPhase("asking");
+    })();
+  };
+  const startText = () => {
+    void (async () => {
+      if (!(await ensureIdentityBeforeStart())) return;
+      finishingRef.current = false;
+      stopConversation();
+      setStarted(true);
+      setMode("text");
+      setQ(initialQuestionIndex);
+      setSecs(0);
+      setComplete(false);
+      setPhase("asking");
+      setTyped("");
+    })();
+  };
   const switchVoice = () => {
     setTyped("");
     setMode("voice");
@@ -586,7 +960,7 @@ export default function InterviewSession({
     : listening ? "Listening… just speak"
     : doneV     ? "Got it — that's saved" : "Listening…");
   const statusColor  = paused ? C.ink3 : (aiVoiceMode ? (convLive ? C.terra : C.gold) : (doneV ? C.sage : asking ? C.gold : C.terra));
-  const reassurance  = paused ? "Paused. Nothing is lost — take your time."
+  const reassurance  = paused ? "Paused. Tap Resume when you're ready — the interviewer will pick up where you left off."
     : voiceMode
       ? aiVoiceMode
         ? "Just talk — I'll listen and guide us to the next question when you're ready."
@@ -705,7 +1079,97 @@ export default function InterviewSession({
                 ))}
               </ul>
             )}
-            <button onClick={startVoice} style={{ cursor: "pointer", marginTop: 34, background: accent, color: "#fbf6ec", border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: 999, boxShadow: "0 12px 28px rgba(192,106,68,.32)", display: "inline-flex", alignItems: "center", gap: 12 }}>
+
+            <div style={{
+              marginTop: 26,
+              width: "100%",
+              maxWidth: 420,
+              textAlign: "left",
+              padding: "16px 16px 14px",
+              background: C.panel,
+              border: `1px solid ${C.line}`,
+              borderRadius: 12,
+            }}>
+              <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3 }}>
+                How should we refer to you?
+              </div>
+              <p style={{ fontSize: 13, lineHeight: 1.45, color: C.ink2, margin: "8px 0 0" }}>
+                Required before starting — we never guess from your name (e.g. Yael is not assumed he/him).
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+                <label style={{ fontSize: 13, color: C.ink2 }}>
+                  Gender
+                  <select
+                    disabled={identityBusy}
+                    value={gender || ""}
+                    onChange={(e) => {
+                      const g = (e.target.value || null) as CreatorGender;
+                      const p = pronouns || defaultPronounsForGender(g);
+                      setGender(g);
+                      setPronouns(p);
+                      genderRef.current = g;
+                      pronounsRef.current = p;
+                      void persistIdentity(g, p).catch(() => {});
+                    }}
+                    style={{
+                      width: "100%",
+                      marginTop: 6,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: `1px solid ${C.line}`,
+                      background: C.card,
+                      fontFamily: sans,
+                      fontSize: 14,
+                      color: C.ink,
+                    }}
+                  >
+                    <option value="">Not set</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="non_binary">Non-binary</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: 13, color: C.ink2 }}>
+                  Pronouns
+                  <select
+                    disabled={identityBusy}
+                    value={pronouns || ""}
+                    onChange={(e) => {
+                      const p = (e.target.value || null) as CreatorPronouns;
+                      setPronouns(p);
+                      pronounsRef.current = p;
+                      void persistIdentity(gender, p).catch(() => {});
+                    }}
+                    style={{
+                      width: "100%",
+                      marginTop: 6,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: `1px solid ${C.line}`,
+                      background: C.card,
+                      fontFamily: sans,
+                      fontSize: 14,
+                      color: C.ink,
+                    }}
+                  >
+                    <option value="">Not set</option>
+                    <option value="she/her">she/her</option>
+                    <option value="he/him">he/him</option>
+                    <option value="they/them">they/them</option>
+                  </select>
+                </label>
+              </div>
+              {identityError && (
+                <div style={{ fontSize: 13, color: "#b04a3a", marginTop: 10 }}>{identityError}</div>
+              )}
+            </div>
+
+            <button
+              onClick={startVoice}
+              disabled={identityBusy}
+              style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 34, background: accent, color: "#fbf6ec", border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: 999, boxShadow: "0 12px 28px rgba(192,106,68,.32)", display: "inline-flex", alignItems: "center", gap: 12, opacity: identityBusy ? 0.7 : 1 }}
+            >
               <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 2, height: 15 }}>
                 <span style={{ width: 3, height: 7, background: "#fbf6ec", borderRadius: 2 }} />
                 <span style={{ width: 3, height: 15, background: "#fbf6ec", borderRadius: 2 }} />
@@ -713,7 +1177,7 @@ export default function InterviewSession({
               </span>
               {aiVoice ? "Start talking with your interviewer" : "Start the interview"}
             </button>
-            <button onClick={startText} style={{ cursor: "pointer", marginTop: 16, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
+            <button onClick={startText} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 16, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
             <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginTop: 30 }}>
               {TOTAL} topics · pause anytime · ask how far you are anytime
             </div>
@@ -754,22 +1218,20 @@ export default function InterviewSession({
               </div>
             </div>
 
-            {/* question / interviewer */}
+            {/* Current prompt / status — full conversation lives in the scroller below */}
             {aiVoiceMode ? (
-              liveLine ? (
-                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 28, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink, textWrap: "pretty", maxWidth: 560 }}>{liveLine}</p>
-              ) : (
-                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 22, lineHeight: 1.4, margin: 0, color: C.ink2, textWrap: "pretty", maxWidth: 560 }}>
-                  {convLive ? "I'm listening…" : "Connecting to your interviewer…"}
+              <div style={{ width: "100%", maxWidth: 560 }}>
+                <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, marginBottom: 12 }}>
+                  Topic theme · {cur.q}
+                </div>
+                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 26, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink, textWrap: "pretty" }}>
+                  {partialAssistant
+                    || [...chatTurns].reverse().find((t) => t.role === "assistant")?.text
+                    || (convLive ? "I'm listening…" : "Connecting to your interviewer…")}
                 </p>
-              )
+              </div>
             ) : (
               <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 40, lineHeight: 1.16, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
-            )}
-            {aiVoiceMode && (
-              <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, marginTop: 14 }}>
-                Topic {q + 1}: {cur.q}
-              </div>
             )}
 
             {/* mode toggle */}
@@ -846,11 +1308,11 @@ export default function InterviewSession({
                   {aiError && (
                     <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{aiError}</p>
                   )}
-                  {transcript && (
+                  {!aiVoiceMode && transcript && (
                     <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 20, lineHeight: 1.55, color: C.ink, margin: "20px 0 0", textAlign: "left", width: "100%" }}>
                       <span style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, display: "block", marginBottom: 8 }}>Your words so far</span>
                       {transcript}
-                      <span style={{ color: C.terra, animation: (listening || (aiVoiceMode && convLive)) ? "la-blink 1s step-end infinite" : "none", opacity: (listening || (aiVoiceMode && convLive)) ? 1 : 0 }}>▏</span>
+                      <span style={{ color: C.terra, animation: listening ? "la-blink 1s step-end infinite" : "none", opacity: listening ? 1 : 0 }}>▏</span>
                     </p>
                   )}
                 </div>
@@ -878,6 +1340,74 @@ export default function InterviewSession({
                 {lastQ ? "Finish for today →" : "Skip this question →"}
               </button>
             </div>
+
+            {/* Conversation transcript — below controls, designed scroller */}
+            {aiVoiceMode && (
+              <div style={{ width: "100%", marginTop: 36, textAlign: "left" }}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".14em", textTransform: "uppercase", color: C.ink3 }}>
+                    Conversation
+                  </div>
+                  <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: C.ink3 }}>
+                    Scroll for earlier lines
+                  </div>
+                </div>
+                <div
+                  className="legacy-interview-chat-scroll"
+                  ref={chatScrollRef}
+                  style={{
+                    position: "relative",
+                    maxHeight: 260,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    padding: "18px 18px 16px",
+                    borderRadius: 14,
+                    border: `1px solid ${C.line}`,
+                    background: `linear-gradient(180deg, ${C.card} 0%, ${C.panel} 100%)`,
+                    boxShadow: "inset 0 1px 0 rgba(255,251,242,.55)",
+                    scrollBehavior: "smooth",
+                    WebkitOverflowScrolling: "touch",
+                  }}
+                >
+                  {chatTurns.length === 0 && !partialAssistant && !partialUser ? (
+                    <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 16, lineHeight: 1.5, margin: 0, color: C.ink3, textAlign: "center" }}>
+                      {convLive ? "Lines will appear here as you talk." : "Connecting…"}
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {chatTurns.map((turn) => (
+                        <div key={turn.id}>
+                          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: turn.role === "assistant" ? C.terra : C.ink3, marginBottom: 5 }}>
+                            {turn.role === "assistant" ? "Interviewer" : "You"}
+                          </div>
+                          <p style={{ fontFamily: serif, fontWeight: 300, fontSize: turn.role === "assistant" ? 18 : 16, lineHeight: 1.45, margin: 0, color: C.ink, textWrap: "pretty" }}>
+                            {turn.text}
+                          </p>
+                        </div>
+                      ))}
+                      {partialAssistant && (
+                        <div>
+                          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.terra, marginBottom: 5 }}>Interviewer</div>
+                          <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 18, lineHeight: 1.45, margin: 0, color: C.ink, textWrap: "pretty" }}>
+                            {partialAssistant}
+                            <span style={{ color: C.terra, animation: "la-blink 1s step-end infinite" }}>▏</span>
+                          </p>
+                        </div>
+                      )}
+                      {partialUser && (
+                        <div>
+                          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginBottom: 5 }}>You</div>
+                          <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 16, lineHeight: 1.45, margin: 0, color: C.ink, textWrap: "pretty" }}>
+                            {partialUser}
+                            <span style={{ color: C.terra, animation: "la-blink 1s step-end infinite" }}>▏</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -890,7 +1420,9 @@ export default function InterviewSession({
                   <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#fbf6ec" }} />
                 </div>
                 <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h1>
-                <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>We're reading through everything you shared — extracting your stories, values, and wisdom.</p>
+                <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
+                  Your interview is finished. We're extracting your stories, values, and wisdom — this usually takes under a minute.
+                </p>
               </>
             ) : (
               <>

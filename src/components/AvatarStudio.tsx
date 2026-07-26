@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { avatarApi, uploadMedia, type AvatarAssets } from '../lib/api'
+import {
+  avatarApi,
+  uploadMedia,
+  type AvatarAssets,
+  type CreatorGender,
+  type CreatorPronouns,
+} from '../lib/api'
 import { ANAM_LANGUAGES, normalizeAnamLanguage } from '../lib/anamLanguages'
 import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
 
@@ -31,12 +37,20 @@ export default function AvatarStudio({ onExit }: Props) {
   const [creatorId, setCreatorId] = useState<string | null>(null)
   const [assets, setAssets] = useState<AvatarAssets | null>(null)
   const [voiceCloned, setVoiceCloned] = useState<boolean | null>(null)
+  const [gender, setGender] = useState<CreatorGender>(null)
+  const [pronouns, setPronouns] = useState<CreatorPronouns>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     avatarApi.getAssets()
-      .then((r) => { setCreatorId(r.creatorId); setAssets(r.assets); setVoiceCloned(r.voiceCloned ?? null) })
+      .then((r) => {
+        setCreatorId(r.creatorId)
+        setAssets(r.assets)
+        setVoiceCloned(r.voiceCloned ?? null)
+        setGender(r.gender ?? null)
+        setPronouns(r.pronouns ?? null)
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Could not load avatar studio'))
       .finally(() => setLoading(false))
   }, [])
@@ -46,6 +60,8 @@ export default function AvatarStudio({ onExit }: Props) {
     setCreatorId(r.creatorId)
     setAssets(r.assets)
     setVoiceCloned(r.voiceCloned ?? null)
+    setGender(r.gender ?? null)
+    setPronouns(r.pronouns ?? null)
   }, [])
 
   if (loading) return <Centered>Preparing the studio…</Centered>
@@ -82,7 +98,16 @@ export default function AvatarStudio({ onExit }: Props) {
         )}
 
         <div style={{ marginTop: 26 }}>
-          {step === 'intro' && <Intro assets={assets} voiceCloned={voiceCloned} onStart={() => setStep('voice')} />}
+          {step === 'intro' && (
+            <Intro
+              assets={assets}
+              voiceCloned={voiceCloned}
+              gender={gender}
+              pronouns={pronouns}
+              onIdentityChange={(g, p) => { setGender(g); setPronouns(p) }}
+              onStart={() => setStep('voice')}
+            />
+          )}
           {step === 'voice' && (
             <VoiceStep creatorId={creatorId} assets={assets} onDone={async () => { await refresh(); setStep('photo') }} />
           )}
@@ -109,9 +134,73 @@ function Centered({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Intro({ assets, voiceCloned, onStart }: { assets: AvatarAssets | null; voiceCloned: boolean | null; onStart: () => void }) {
+const GENDER_OPTIONS: { value: CreatorGender; label: string }[] = [
+  { value: 'female', label: 'Female' },
+  { value: 'male', label: 'Male' },
+  { value: 'non_binary', label: 'Non-binary' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+]
+
+const PRONOUN_OPTIONS: { value: string; label: string }[] = [
+  { value: 'she/her', label: 'she/her' },
+  { value: 'he/him', label: 'he/him' },
+  { value: 'they/them', label: 'they/them' },
+]
+
+function defaultPronounsForGender(g: CreatorGender): CreatorPronouns {
+  if (g === 'female') return 'she/her'
+  if (g === 'male') return 'he/him'
+  if (g === 'non_binary') return 'they/them'
+  return null
+}
+
+function Intro({
+  assets,
+  voiceCloned,
+  gender,
+  pronouns,
+  onIdentityChange,
+  onStart,
+}: {
+  assets: AvatarAssets | null
+  voiceCloned: boolean | null
+  gender: CreatorGender
+  pronouns: CreatorPronouns
+  onIdentityChange: (g: CreatorGender, p: CreatorPronouns) => void
+  onStart: () => void
+}) {
   const hasVoice = assets?.voice_status === 'ready'
   const cloned = voiceCloned === true
+  const [busy, setBusy] = useState(false)
+  const [idError, setIdError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(Boolean(gender || pronouns))
+
+  const selectStyle: React.CSSProperties = {
+    width: '100%',
+    marginTop: 6,
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: `1px solid ${C.line}`,
+    background: C.paper,
+    fontFamily: sans,
+    fontSize: 14,
+    color: C.ink,
+  }
+
+  async function persistIdentity(nextGender: CreatorGender, nextPronouns: CreatorPronouns) {
+    setBusy(true)
+    setIdError(null)
+    try {
+      const r = await avatarApi.saveIdentity({ gender: nextGender, pronouns: nextPronouns })
+      onIdentityChange(r.gender ?? nextGender, r.pronouns ?? nextPronouns)
+      setSaved(true)
+    } catch (e) {
+      setIdError(e instanceof Error ? e.message : 'Could not save identity')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div style={card}>
       <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: 0 }}>Create your living avatar</h1>
@@ -119,7 +208,60 @@ function Intro({ assets, voiceCloned, onStart }: { assets: AvatarAssets | null; 
         Record your <strong>voice</strong> and take a <strong>photo</strong>. The system automatically
         clones your voice and builds a talking avatar from your face — no extra steps on other websites.
       </p>
-      <ul style={{ fontSize: 14, lineHeight: 1.9, color: C.ink2, marginTop: 8 }}>
+
+      <div style={{ marginTop: 20, padding: '18px 18px 16px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 12 }}>
+        <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: C.ink3 }}>
+          How should we refer to you?
+        </div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: C.ink2, margin: '8px 0 0' }}>
+          Set this explicitly — we never guess from your name (e.g. Yael is not assumed male or female).
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
+          <label style={{ fontSize: 13, color: C.ink2 }}>
+            Gender
+            <select
+              style={selectStyle}
+              value={gender || ''}
+              disabled={busy}
+              onChange={(e) => {
+                const g = (e.target.value || null) as CreatorGender
+                const p = pronouns || defaultPronounsForGender(g)
+                onIdentityChange(g, p)
+                void persistIdentity(g, p)
+              }}
+            >
+              <option value="">Not set</option>
+              {GENDER_OPTIONS.map((o) => (
+                <option key={String(o.value)} value={o.value || ''}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label style={{ fontSize: 13, color: C.ink2 }}>
+            Pronouns
+            <select
+              style={selectStyle}
+              value={pronouns || ''}
+              disabled={busy}
+              onChange={(e) => {
+                const p = (e.target.value || null) as CreatorPronouns
+                onIdentityChange(gender, p)
+                void persistIdentity(gender, p)
+              }}
+            >
+              <option value="">Not set</option>
+              {PRONOUN_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {saved && !idError && (
+          <div style={{ fontFamily: mono, fontSize: 11, color: C.sage, marginTop: 10 }}>✓ saved for your avatar &amp; interviews</div>
+        )}
+        {idError && <div style={{ fontSize: 13, color: '#b04a3a', marginTop: 10 }}>{idError}</div>}
+      </div>
+
+      <ul style={{ fontSize: 14, lineHeight: 1.9, color: C.ink2, marginTop: 16 }}>
         <li>Choose your speaking language, then record a voice sample → cloned automatically</li>
         <li>A clear <strong>front-facing</strong> photo (face + shoulders) → built into your live avatar</li>
         <li>Then family can talk with you face to face in real time</li>

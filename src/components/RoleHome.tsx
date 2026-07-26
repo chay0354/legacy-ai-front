@@ -133,7 +133,7 @@ const ROLE_PILL: Partial<Record<Role, { color: string; bg: string; label: string
 const NAV: Record<Role, string[]> = {
   [ROLES.CREATOR]: ['Home', 'My story', 'Memories', 'People'],
   [ROLES.ADMINISTRATOR]: ['Home', 'Legacy', 'Family & access', 'Talk'],
-  [ROLES.MEMBER]: ['Home', 'Stories', 'His life', 'Wisdom'],
+  [ROLES.MEMBER]: ['Home', 'Stories', 'Their life', 'Wisdom'],
 }
 
 function injectHead() {

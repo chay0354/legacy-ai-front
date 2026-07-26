@@ -193,6 +193,7 @@ export interface QuestionMeta {
   module: string;
   category: string;
   q: string;
+  digFor?: string;
 }
 
 export interface SavedAnswer {
@@ -211,10 +212,12 @@ export interface InterviewSessionData {
   stageGoal?: string;
   stages?: { id: string; label: string; done?: boolean; current?: boolean }[];
   allStagesComplete?: boolean;
-  questions: { q: string }[];
+  questions: { q: string; digFor?: string }[];
   questionMeta: QuestionMeta[];
   savedAnswers: SavedAnswer[];
   resumeIndex: number;
+  /** Subjects they asked not to discuss (from personality profile). */
+  topicExclusions?: string[];
 }
 
 export interface CompleteResult {
@@ -253,9 +256,14 @@ export interface AvatarAssets {
   };
 }
 
+export type CreatorGender = 'female' | 'male' | 'non_binary' | 'unspecified' | 'prefer_not_to_say' | null;
+export type CreatorPronouns = 'she/her' | 'he/him' | 'they/them' | string | null;
+
 export interface AvatarAssetsResponse {
   creatorId: string | null;
   displayName?: string | null;
+  gender?: CreatorGender;
+  pronouns?: CreatorPronouns;
   assets: AvatarAssets | null;
   voiceCloned?: boolean;
   avatarReady?: boolean;
@@ -307,6 +315,13 @@ export const avatarApi = {
 
   saveAssets: (payload: { portraitPath?: string; idleVideoPath?: string; speakingVideoPath?: string }) =>
     apiFetch('/api/avatar/assets', { method: 'PUT', body: JSON.stringify(payload) }) as Promise<AvatarAssetsResponse>,
+
+  /** Explicit gender/pronouns — never inferred from name. */
+  saveIdentity: (payload: { gender?: CreatorGender | string | null; pronouns?: CreatorPronouns | string | null }) =>
+    apiFetch('/api/avatar/identity', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }) as Promise<{ success: boolean; gender: CreatorGender; pronouns: CreatorPronouns; displayName?: string | null }>,
 
   /** Register portrait + voice as Anam live avatar. Polls until liveReady on Vercel. */
   provision: async (opts?: { onProgress?: (phase: string) => void }) => {
@@ -382,6 +397,7 @@ export const avatarApi = {
       sessionToken: string;
       usingOwnFace: boolean;
       usingOwnVoice: boolean;
+      languageCode?: string;
       creatorId: string;
       videoProfile?: { videoWidth?: number; videoHeight?: number; videoQuality?: string };
     }>,
@@ -434,6 +450,7 @@ export const interviewApi = {
       answer: string;
       mode: 'voice' | 'text';
     }>;
+    topicExclusions?: string[];
   }) => apiFetch(`/api/interview/session/${sessionId}/complete`, {
     method: 'POST',
     body: JSON.stringify(payload),

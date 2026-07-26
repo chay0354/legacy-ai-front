@@ -9,10 +9,16 @@ import {
   unregisterAnamClient,
   withTimeout,
 } from '../lib/anamSessionGate'
+import { textMatchesSessionLanguage } from '../lib/languageScript'
 
 const C = { line: '#ddccb0', terra: '#c06a44' }
 const sans = "'Hanken Grotesk', system-ui, sans-serif"
 const serif = "'Newsreader', Georgia, serif"
+
+/** Keep captions to a spoken subtitle — never a wall of text over the face. */
+const CAPTION_MAX_CHARS = 160
+const CAPTION_CLEAR_MS = 2800
+const VIDEO_STALL_MS = 2800
 
 export type LiveCallPhase = 'idle' | 'connecting' | 'live' | 'ended' | 'error'
 
@@ -54,43 +60,118 @@ function friendlyAnamError(e: unknown): string {
   return msg || 'Could not start the live call'
 }
 
+function clampCaption(text: string, maxChars = CAPTION_MAX_CHARS): string {
+  const t = String(text || '').replace(/\s+/g, ' ').trim()
+  if (t.length <= maxChars) return t
+  return `${t.slice(0, maxChars - 1).trimEnd()}…`
+}
+
 function tuneLiveVideoElement(videoId: string) {
   const el = document.getElementById(videoId) as HTMLVideoElement | null
-  if (!el) return
+  if (!el) return el
   el.playsInline = true
   el.setAttribute('playsinline', 'true')
   el.setAttribute('webkit-playsinline', 'true')
   el.disablePictureInPicture = true
-  // Prefer smoother playback over perfect A/V sync when the decoder is under load.
   try {
-    ;(el as HTMLVideoElement & { playsInline: boolean }).playsInline = true
     if ('latencyHint' in el) (el as HTMLVideoElement & { latencyHint?: string }).latencyHint = 'realtime'
   } catch { /* ignore */ }
+  return el
 }
 
+type CaptionHandler = (text: string) => void
+type CaptionClearHandler = () => void
+
+/**
+ * Anam requires listeners BEFORE streamToVideoElement.
+ * Persona `content` chunks are deltas — append by message id, then clear on endOfSpeech.
+ */
 function wireAnamClient(
   connected: AnamClient,
   stale: () => boolean,
-  onEnded: () => void,
-  onCaption: (text: string) => void,
-  onVideoReady: () => void,
-  videoId: string,
+  handlers: {
+    onEnded: () => void
+    onCaption: CaptionHandler
+    onCaptionClear: CaptionClearHandler
+    onVideoReady: () => void
+    videoId: string
+    languageCode?: string
+  },
 ) {
-  connected.addListener(AnamEvent.VIDEO_PLAY_STARTED, () => { if (!stale()) onVideoReady() })
+  const { onEnded, onCaption, onCaptionClear, onVideoReady, videoId, languageCode = 'en' } = handlers
+  let personaBuf = { id: '', text: '' }
+  let clearTimer: ReturnType<typeof setTimeout> | null = null
+
+  const scheduleClear = () => {
+    if (clearTimer) clearTimeout(clearTimer)
+    clearTimer = setTimeout(() => {
+      if (stale()) return
+      personaBuf = { id: '', text: '' }
+      onCaptionClear()
+    }, CAPTION_CLEAR_MS)
+  }
+
+  connected.addListener(AnamEvent.VIDEO_PLAY_STARTED, () => {
+    if (!stale()) onVideoReady()
+  })
   connected.addListener(AnamEvent.VIDEO_STREAM_STARTED, (stream: MediaStream) => {
     if (!stale()) onVideoReady()
     tuneLiveVideoElement(videoId)
     const track = stream.getVideoTracks()[0]
     try {
-      // Hint the browser encoder/decoder path that motion smoothness matters more than still detail.
       if (track && 'contentHint' in track) track.contentHint = 'motion'
     } catch { /* ignore */ }
+    track?.addEventListener('mute', () => {
+      console.warn('[Anam] video track muted — attempting play recovery')
+      const el = tuneLiveVideoElement(videoId)
+      void el?.play().catch(() => {})
+    })
+    track?.addEventListener('unmute', () => {
+      if (!stale()) onVideoReady()
+    })
+    track?.addEventListener('ended', () => {
+      console.warn('[Anam] video track ended while session may still be audible')
+    })
     const { width, height } = track?.getSettings?.() ?? {}
     if (width && height) console.info(`[Anam] video stream ${width}×${height}`)
   })
-  connected.addListener(AnamEvent.CONNECTION_CLOSED, () => { if (!stale()) onEnded() })
+  connected.addListener(AnamEvent.AUDIO_STREAM_STARTED, () => {
+    // Audio can keep going even if video stalls — keep the element playing.
+    const el = tuneLiveVideoElement(videoId)
+    void el?.play().catch(() => {})
+  })
+  connected.addListener(AnamEvent.CONNECTION_CLOSED, () => {
+    if (!stale()) onEnded()
+  })
+  connected.addListener(AnamEvent.SERVER_WARNING, (warning: unknown) => {
+    console.warn('[Anam] server warning', warning)
+  })
   connected.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (e: MessageStreamEvent) => {
-    if (!stale() && e?.role === MessageRole.PERSONA && e.content) onCaption(e.content)
+    if (stale() || !e) return
+
+    if (e.role === MessageRole.PERSONA) {
+      if (e.id !== personaBuf.id) {
+        personaBuf = { id: e.id, text: '' }
+        if (clearTimer) {
+          clearTimeout(clearTimer)
+          clearTimer = null
+        }
+      }
+      // SDK emits deltas — append, don't replace.
+      personaBuf.text += e.content || ''
+      const next = clampCaption(personaBuf.text)
+      if (textMatchesSessionLanguage(next, languageCode)) {
+        onCaption(next)
+      } else {
+        // Language drift — hide mismatched script rather than flash Hebrew/Arabic over an EN call.
+        onCaptionClear()
+      }
+      if (e.endOfSpeech || e.interrupted) scheduleClear()
+      return
+    }
+
+    // User turn or end-of-turn elsewhere — don't leave old persona text stuck.
+    if (e.endOfSpeech) scheduleClear()
   })
 }
 
@@ -112,18 +193,82 @@ function armVideoReadyWatch(
   }
 }
 
+/** If video frames stop while the element is still "playing", re-bind the stream (common Cara-4 stall). */
+function armVideoStallWatch(videoId: string, stale: () => boolean): () => void {
+  const el = document.getElementById(videoId) as HTMLVideoElement | null
+  if (!el) return () => {}
+
+  let lastFrameAt = performance.now()
+  let frameHandle = 0
+  const onFrame = () => {
+    lastFrameAt = performance.now()
+    if (stale()) return
+    const anyEl = el as HTMLVideoElement & {
+      requestVideoFrameCallback?: (cb: () => void) => number
+    }
+    if (typeof anyEl.requestVideoFrameCallback === 'function') {
+      frameHandle = anyEl.requestVideoFrameCallback(onFrame)
+    }
+  }
+  const anyEl = el as HTMLVideoElement & {
+    requestVideoFrameCallback?: (cb: () => void) => number
+    cancelVideoFrameCallback?: (h: number) => void
+  }
+  if (typeof anyEl.requestVideoFrameCallback === 'function') {
+    frameHandle = anyEl.requestVideoFrameCallback(onFrame)
+  }
+
+  const iv = window.setInterval(() => {
+    if (stale()) return
+    if (el.ended) return
+    if (el.paused) {
+      void el.play().catch(() => {})
+      return
+    }
+    // Without rVFC support, skip stall detection (can't know frame progress).
+    if (typeof anyEl.requestVideoFrameCallback !== 'function') return
+    if (performance.now() - lastFrameAt < VIDEO_STALL_MS) return
+
+    console.warn('[Anam] video frames stalled — rebinding stream')
+    const stream = el.srcObject
+    if (stream instanceof MediaStream) {
+      el.srcObject = null
+      el.srcObject = stream
+    }
+    tuneLiveVideoElement(videoId)
+    void el.play().catch(() => {})
+    lastFrameAt = performance.now()
+    if (typeof anyEl.requestVideoFrameCallback === 'function') {
+      frameHandle = anyEl.requestVideoFrameCallback(onFrame)
+    }
+  }, 1000)
+
+  return () => {
+    window.clearInterval(iv)
+    if (frameHandle && typeof anyEl.cancelVideoFrameCallback === 'function') {
+      anyEl.cancelVideoFrameCallback(frameHandle)
+    }
+  }
+}
+
 async function connectAnam(
   creatorId: string | undefined,
   videoId: string,
   stale: () => boolean,
-  onStatus?: (msg: string) => void,
+  onStatus: ((msg: string) => void) | undefined,
+  streamHandlers: {
+    onEnded: () => void
+    onCaption: CaptionHandler
+    onCaptionClear: CaptionClearHandler
+    onVideoReady: () => void
+  },
 ): Promise<{ client: AnamClient; usingOwnVoice: boolean }> {
   onStatus?.('Closing any previous session…')
   await ensureAnamSlotFree(6000)
   if (stale()) throw new Error('Connect cancelled')
 
   onStatus?.('Starting live session…')
-  const { sessionToken, usingOwnVoice } = await withTimeout(
+  const { sessionToken, usingOwnVoice, languageCode } = await withTimeout(
     avatarApi.startLive(creatorId),
     30000,
     'Starting live session',
@@ -145,6 +290,10 @@ async function connectAnam(
     unregisterAnamClient(client)
     throw new Error('Video element not ready')
   }
+
+  // Critical: wire listeners BEFORE streaming so VIDEO_* / caption events aren't missed.
+  // Wire once — re-adding on retry would duplicate caption/video handlers.
+  wireAnamClient(client, stale, { ...streamHandlers, videoId, languageCode: languageCode || 'en' })
 
   const maxStreamAttempts = 4
   let lastError: unknown
@@ -190,6 +339,7 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
   const retry = useCallback(() => {
     setError(null)
     setVideoReady(false)
+    setCaption('')
     setPhase('connecting')
     setStatusNote('Closing previous session…')
     void stopActiveAnamSession(6000).finally(() => setRetryKey((n) => n + 1))
@@ -206,6 +356,7 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
 
     const attemptId = ++attemptRef.current
     let disarmVideoReady = () => {}
+    let disarmStallWatch = () => {}
     const stale = () => attemptId !== attemptRef.current
 
     setPhase('connecting')
@@ -221,6 +372,16 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
           videoId,
           stale,
           (msg) => { if (!stale()) setStatusNote(msg) },
+          {
+            onEnded: () => {
+              setVideoReady(false)
+              setCaption('')
+              setPhase('ended')
+            },
+            onCaption: (text) => setCaption(text),
+            onCaptionClear: () => setCaption(''),
+            onVideoReady: () => setVideoReady(true),
+          },
         )
         if (stale()) {
           unregisterAnamClient(client)
@@ -233,17 +394,7 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
         setStatusNote('')
         setPhase('live')
         disarmVideoReady = armVideoReadyWatch(videoId, () => setVideoReady(true), stale)
-        wireAnamClient(
-          client,
-          stale,
-          () => {
-            setVideoReady(false)
-            setPhase('ended')
-          },
-          (text) => setCaption(text),
-          () => setVideoReady(true),
-          videoId,
-        )
+        disarmStallWatch = armVideoStallWatch(videoId, stale)
       } catch (e) {
         if (stale()) return
         const msg = e instanceof Error ? e.message : String(e)
@@ -256,6 +407,7 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
     return () => {
       attemptRef.current++
       disarmVideoReady()
+      disarmStallWatch()
       const c = clientRef.current
       clientRef.current = null
       void ensureAnamSlotFree(6000, c)
@@ -267,6 +419,7 @@ export function useAnamLiveCall(creatorId: string | undefined, videoId: string, 
     const c = clientRef.current
     clientRef.current = null
     setVideoReady(false)
+    setCaption('')
     setStatusNote('Closing session…')
     await ensureAnamSlotFree(6000, c)
     setStatusNote('')
@@ -322,8 +475,23 @@ export default function LiveAvatarCall({ creatorId, name = 'your legacy', onClos
         )}
 
         {live.phase === 'live' && live.caption && (
-          <div className="legacy-live-call-captions" style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
-            <div style={{ background: 'rgba(0,0,0,.55)', color: '#fff', padding: '10px 18px', borderRadius: 12, fontSize: 16, maxWidth: 720, textAlign: 'center', backdropFilter: 'blur(4px)' }}>
+          <div className="legacy-live-call-captions" style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center', padding: '0 24px', pointerEvents: 'none' }}>
+            <div style={{
+              background: 'rgba(0,0,0,.55)',
+              color: '#fff',
+              padding: '10px 18px',
+              borderRadius: 12,
+              fontSize: 16,
+              lineHeight: 1.35,
+              maxWidth: 520,
+              maxHeight: '4.2em',
+              overflow: 'hidden',
+              textAlign: 'center',
+              backdropFilter: 'blur(4px)',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical' as const,
+            }}>
               {live.caption}
             </div>
           </div>

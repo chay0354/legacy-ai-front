@@ -222,6 +222,8 @@ export type ConductorContext = {
   anchorQuestion: string;
   questionIndex: number;
   totalQuestions: number;
+  gender?: string | null;
+  pronouns?: string | null;
 };
 
 type Turn = { role: 'assistant' | 'user'; text: string };

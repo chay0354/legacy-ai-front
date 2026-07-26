@@ -774,6 +774,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
   const [processingError, setProcessingError] = useState<string | null>(null)
   const [extractionResult, setExtractionResult] = useState<CompleteResult | null>(null)
   const lastAnswersRef = useRef<Answer[]>([])
+  const lastExclusionsRef = useRef<string[]>([])
   const [aiVoice, setAiVoice] = useState(false)
   const [aiVoiceReady, setAiVoiceReady] = useState(false)
 
@@ -877,15 +878,17 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
     })
   }
 
-  const handleComplete = async (answers: Answer[]) => {
+  const handleComplete = async (answers: Answer[], meta?: { topicExclusions?: string[] }) => {
     if (!sessionData) return
     lastAnswersRef.current = answers
+    lastExclusionsRef.current = meta?.topicExclusions || []
     setProcessing(true)
     setProcessingError(null)
     setExtractionResult(null)
+    const COMPLETE_TIMEOUT_MS = 120_000
     try {
       const durationSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000)
-      const result = await interviewApi.complete(sessionData.session.id, {
+      const payload = {
         durationSeconds,
         answers: answers.map((a, i) => ({
           questionIndex: i,
@@ -893,7 +896,18 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
           answer: a.answer,
           mode: a.mode,
         })),
-      }) as CompleteResult
+        topicExclusions: meta?.topicExclusions || [],
+      }
+      const result = await Promise.race([
+        interviewApi.complete(sessionData.session.id, payload) as Promise<CompleteResult>,
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => {
+            reject(new Error(
+              'Preserving is taking longer than expected. Your answers are saved — tap try again, or open your legacy.',
+            ))
+          }, COMPLETE_TIMEOUT_MS)
+        }),
+      ])
       setExtractionResult(result)
     } catch (e) {
       setProcessingError(e instanceof Error ? e.message : 'Failed to process interview')
@@ -903,7 +917,9 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
   }
 
   const retryPreservation = () => {
-    if (lastAnswersRef.current.length) void handleComplete(lastAnswersRef.current)
+    if (lastAnswersRef.current.length) {
+      void handleComplete(lastAnswersRef.current, { topicExclusions: lastExclusionsRef.current })
+    }
   }
 
   if (redirecting) {
@@ -986,6 +1002,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
         answer: a.answer,
         mode: a.answer_mode,
       }))}
+      initialTopicExclusions={sessionData.topicExclusions || []}
       autoStart={(sessionData.savedAnswers?.length ?? 0) > 0}
       interviewStage={sessionData.stage}
       aiVoice={aiVoice}

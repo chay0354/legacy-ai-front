@@ -1248,8 +1248,22 @@ function PortraitCard({
               </div>
             )}
             {live.phase === "live" && live.caption && (
-              <div style={{ position: "absolute", left: 8, right: 8, bottom: 8 }}>
-                <div style={{ background: "rgba(0,0,0,.62)", color: "#fff", padding: "8px 12px", borderRadius: 10, fontSize: 13, lineHeight: 1.45, fontFamily: serif, textAlign: "center" }}>
+              <div style={{ position: "absolute", left: 8, right: 8, bottom: 8, pointerEvents: "none" }}>
+                <div style={{
+                  background: "rgba(0,0,0,.62)",
+                  color: "#fff",
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  lineHeight: 1.35,
+                  fontFamily: serif,
+                  textAlign: "center",
+                  maxHeight: "3.6em",
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical" as const,
+                }}>
                   {live.caption}
                 </div>
               </div>
