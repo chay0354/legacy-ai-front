@@ -857,7 +857,6 @@ export default function InterviewSession({
   const defaultPronounsForGender = (g: CreatorGender): CreatorPronouns => {
     if (g === "female") return "she/her";
     if (g === "male") return "he/him";
-    if (g === "non_binary") return "they/them";
     return null;
   };
 
@@ -1126,8 +1125,6 @@ export default function InterviewSession({
                     <option value="">Not set</option>
                     <option value="female">Female</option>
                     <option value="male">Male</option>
-                    <option value="non_binary">Non-binary</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
                   </select>
                 </label>
                 <label style={{ fontSize: 13, color: C.ink2 }}>
@@ -1156,7 +1153,6 @@ export default function InterviewSession({
                     <option value="">Not set</option>
                     <option value="she/her">she/her</option>
                     <option value="he/him">he/him</option>
-                    <option value="they/them">they/them</option>
                   </select>
                 </label>
               </div>

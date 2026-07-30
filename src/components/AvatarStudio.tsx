@@ -137,20 +137,16 @@ function Centered({ children }: { children: React.ReactNode }) {
 const GENDER_OPTIONS: { value: CreatorGender; label: string }[] = [
   { value: 'female', label: 'Female' },
   { value: 'male', label: 'Male' },
-  { value: 'non_binary', label: 'Non-binary' },
-  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ]
 
 const PRONOUN_OPTIONS: { value: string; label: string }[] = [
   { value: 'she/her', label: 'she/her' },
   { value: 'he/him', label: 'he/him' },
-  { value: 'they/them', label: 'they/them' },
 ]
 
 function defaultPronounsForGender(g: CreatorGender): CreatorPronouns {
   if (g === 'female') return 'she/her'
   if (g === 'male') return 'he/him'
-  if (g === 'non_binary') return 'they/them'
   return null
 }
 

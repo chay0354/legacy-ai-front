@@ -256,8 +256,8 @@ export interface AvatarAssets {
   };
 }
 
-export type CreatorGender = 'female' | 'male' | 'non_binary' | 'unspecified' | 'prefer_not_to_say' | null;
-export type CreatorPronouns = 'she/her' | 'he/him' | 'they/them' | string | null;
+export type CreatorGender = 'female' | 'male' | null;
+export type CreatorPronouns = 'she/her' | 'he/him' | string | null;
 
 export interface AvatarAssetsResponse {
   creatorId: string | null;
