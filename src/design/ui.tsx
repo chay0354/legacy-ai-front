@@ -94,10 +94,10 @@ export function UiLabel({
 
 /* ─────────────────────────────── surfaces ──────────────────────────── */
 export function Panel({
-  children, pad = 24, style, onDark,
-}: { children: ReactNode; pad?: number | string; style?: CSSProperties; onDark?: boolean }) {
+  children, pad = 24, style, onDark, className,
+}: { children: ReactNode; pad?: number | string; style?: CSSProperties; onDark?: boolean; className?: string }) {
   return (
-    <section style={{
+    <section className={className} style={{
       background: onDark ? T.walnut : T.card,
       border: `1px solid ${onDark ? T.darkLine : T.cardEdge}`,
       borderRadius: radius.md,

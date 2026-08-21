@@ -96,7 +96,7 @@ export function NextAction({
   onCta: () => void; imageSrc?: string | null
 }) {
   return (
-    <Panel pad={0} style={{ overflow: 'hidden', display: 'flex', minHeight: 176 }}>
+    <Panel pad={0} className="featured-split" style={{ overflow: 'hidden', display: 'flex', minHeight: 176 }}>
       <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icon name="interview" size={17} color={T.gold} strokeWidth={1.4} />
@@ -108,17 +108,70 @@ export function NextAction({
           <Btn tone="secondary" onClick={onCta}>{cta}</Btn>
         </div>
       </div>
-      <div style={{ flex: '0 0 30%', minWidth: 96, maxWidth: 190, background: T.paperDeep }}>
-        {imageSrc
-          ? <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          : <div style={{
-              width: '100%', height: '100%',
-              background: `linear-gradient(150deg, ${T.walnutSoft}, ${T.walnut})`,
-              display: 'grid', placeItems: 'center',
-            }}>
-              <Icon name="story" size={26} color="rgba(240,231,214,.35)" />
-            </div>}
+      {imageSrc && (
+        <div style={{ flex: '0 0 38%', minWidth: 140, maxWidth: 240, background: T.paperDeep }}>
+          <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+/* ──────────────────────── featured story ───────────────────────── */
+export function FeaturedStory({
+  eyebrow, title, year, category, summary, lesson, people, imageSrc, cta, onOpen,
+}: {
+  eyebrow: string
+  title: string
+  year?: string
+  category?: string
+  summary?: string
+  lesson?: string
+  people?: string[]
+  imageSrc?: string | null
+  cta: string
+  onOpen: () => void
+}) {
+  return (
+    <Panel pad={0} className="featured-split" style={{ overflow: 'hidden', display: 'flex', minHeight: 220 }}>
+      <div style={{
+        padding: '24px 26px', display: 'flex', flexDirection: 'column', gap: 10,
+        flex: 1, minWidth: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="story" size={17} color={T.gold} strokeWidth={1.4} />
+          <Eyebrow>{eyebrow}</Eyebrow>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <Display size={26}>{title}</Display>
+          <Meta items={[category, year]} />
+        </div>
+        {summary && <Body size={15} style={{ maxWidth: 560 }}>{summary}</Body>}
+        {lesson && (
+          <div style={{ borderLeft: '1px solid rgba(179,144,47,.5)', paddingLeft: 14 }}>
+            <span style={{
+              fontFamily: serif, fontStyle: 'italic', fontSize: 16.5, color: T.ink2, lineHeight: 1.5,
+            }}>{lesson}</span>
+          </div>
+        )}
+        {people && people.length > 0 && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            fontFamily: sans, fontSize: 13, color: T.ink3,
+          }}>
+            <Icon name="people" size={14} color={T.ink3} strokeWidth={1.3} />
+            {people.slice(0, 4).join(', ')}
+          </span>
+        )}
+        <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+          <Btn tone="quiet" size="sm" icon="story" onClick={onOpen}>{cta}</Btn>
+        </div>
       </div>
+      {imageSrc && (
+        <div style={{ flex: '0 0 34%', minWidth: 160, maxWidth: 280, background: T.paperDeep }}>
+          <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+      )}
     </Panel>
   )
 }

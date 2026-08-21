@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { useArchiveContext } from './data'
 import { useSectionNav, type ArchiveOutlet } from './ArchiveLayout'
 import AskPortrait from './AskPortrait'
-import { ArchiveSetup, NextAction, RecentActivity } from './parts'
+import { ArchiveSetup, FeaturedStory, NextAction, RecentActivity } from './parts'
 import {
   AccessBlock, AskBlock, Band, PeopleBlock, PhotosBlock, StoriesBlock, VoiceBlock, WisdomBlock,
 } from './blocks'
@@ -118,6 +118,15 @@ export default function ArchiveHome() {
   const ownerFirst = ownerName.split(' ')[0]
   const voiceUrl = ctx.assets?.urls?.voiceSample || null
   const firstMemory = profile.memories?.[0]
+  const featured = [...(profile.memories || [])].sort((a, b) => {
+    const rank = (m: { importance?: string }) => (
+      m.importance === 'high' ? 2 : m.importance === 'medium' ? 1 : 0
+    )
+    return rank(b) - rank(a)
+  })[0]
+  const storyPhoto = profile.gallery?.find((g) => g.imageUrl)?.imageUrl
+    || ctx.portraitUrl
+    || null
   const liveReady = ctx.assets?.liveReady === true
   const mayAsk = canAsk(role)
   const ask = stageAsk(level)
@@ -194,8 +203,10 @@ export default function ArchiveHome() {
 
       {has('setup') && (
         <Band
-          id="setup" refFn={register('setup')} icon="overview" title="Archive setup"
-          count="Where the archive stands"
+          id="setup" refFn={register('setup')}
+          icon={owner ? 'overview' : 'story'}
+          title={owner ? 'Archive setup' : 'A story to begin with'}
+          count={owner ? 'Where the archive stands' : 'Worth starting here'}
           action={canRunInterview(role)
             ? (
               <Btn
@@ -208,29 +219,83 @@ export default function ArchiveHome() {
             : undefined}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <ArchiveSetup pct={setupPct} level={level} counts={counts} />
+            {owner ? (
+              <ArchiveSetup pct={setupPct} level={level} counts={counts} />
+            ) : featured ? (
+              <FeaturedStory
+                eyebrow="An important story"
+                title={featured.title || 'Untitled entry'}
+                year={featured.year}
+                category={featured.category}
+                summary={featured.summary}
+                lesson={featured.lesson_learned}
+                people={featured.people_involved}
+                imageSrc={storyPhoto}
+                cta="Read the stories"
+                onOpen={() => scrollTo('stories')}
+              />
+            ) : (
+              <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Display size={21}>What you can do here</Display>
+                <Body size={14.5}>
+                  {canManageAccess(role)
+                    ? `Read everything ${ownerFirst} has recorded, and manage who else can open this archive.`
+                    : 'Read the entries, listen to the voice memories, and ask the archive a question.'}
+                </Body>
+                <PrivacyNote>Only invited family can access this</PrivacyNote>
+              </Panel>
+            )}
+
             <div className="overview-grid" style={{
               display: 'grid', gap: 16,
-              gridTemplateColumns: 'minmax(320px, 1.15fr) minmax(280px, .85fr)', alignItems: 'start',
+              gridTemplateColumns: 'minmax(320px, 1.15fr) minmax(280px, .85fr)', alignItems: 'stretch',
             }}>
-              {canRunInterview(role) ? (
+              {owner ? (
                 <NextAction
                   eyebrow={ask.eyebrow} title={ask.title} note={ask.note} cta={ask.cta}
+                  imageSrc={storyPhoto}
                   onCta={() => navigate(ask.stage ? `/interview?stage=${ask.stage}` : `/family-access${cQuery}`)}
                 />
-              ) : (
+              ) : featured ? (
                 <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <Eyebrow>{canManageAccess(role) ? 'Looking after this archive' : 'Shared with you'}</Eyebrow>
                   <Display size={21}>What you can do here</Display>
                   <Body size={14.5}>
                     {canManageAccess(role)
                       ? `Read everything ${ownerFirst} has recorded, and manage who else can open this archive.`
-                      : 'Read the entries, listen to the voice memories, and ask the archive a question.'}
+                      : `Read the entries, listen to the voice memories, and ask ${ownerFirst}’s archive a question.`}
                   </Body>
-                  <PrivacyNote>Only invited family can access this</PrivacyNote>
+                  <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+                    {mayAsk && (
+                      <Btn tone="quiet" size="sm" icon="ask" onClick={() => navigate(`/ask${cQuery}`)}>
+                        {ASK.write}
+                      </Btn>
+                    )}
+                  </div>
+                </Panel>
+              ) : (
+                <Panel pad="22px 24px">
+                  <Body size={14.5}>Stories will appear here as they are added.</Body>
                 </Panel>
               )}
               <RecentActivity rows={activity} />
             </div>
+
+            {owner && featured && (
+              <FeaturedStory
+                eyebrow="An important story"
+                title={featured.title || 'Untitled entry'}
+                year={featured.year}
+                category={featured.category}
+                summary={featured.summary}
+                lesson={featured.lesson_learned}
+                people={featured.people_involved}
+                imageSrc={storyPhoto}
+                cta="Read the stories"
+                onOpen={() => scrollTo('stories')}
+              />
+            )}
+
             {canEditArchive(role) && (
               <Panel pad="18px 22px" style={{
                 display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',

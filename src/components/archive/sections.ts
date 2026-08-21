@@ -44,9 +44,9 @@ export function sectionsForRole(role: Role | string | null | undefined): Section
   const r = normalizeRole(role) || 'member'
   return ALL.filter((s) => {
     switch (s.key) {
-      // Setup progress is about the owner's work — administrators track it, members do not.
+      // Opening band: setup progress for the owner, a featured story for everyone else.
       case 'setup':
-        return r === 'creator' || r === 'administrator'
+        return can(r, ACTIONS.VIEW_CONTENT)
       // Access controls belong to whoever can manage them.
       case 'access':
         return can(r, ACTIONS.MANAGE_ACCESS) || can(r, ACTIONS.INVITE_USER)
@@ -75,6 +75,16 @@ export const canManageAccess = (role: Role | string | null | undefined) =>
 
 export const canAsk = (role: Role | string | null | undefined) =>
   can(role, ACTIONS.CHAT_WITH_AVATAR)
+
+/** Side-nav label for a band — the opening band is setup only for the owner. */
+export function sectionNavLabel(
+  key: SectionKey,
+  role: Role | string | null | undefined,
+  fallback: string,
+) {
+  if (key === 'setup' && !isOwner(role)) return 'Start here'
+  return fallback
+}
 
 /** One line explaining, to this viewer, what they are looking at. */
 export function roleStandfirst(role: Role | string | null | undefined, ownerFirstName: string) {

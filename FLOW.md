@@ -42,7 +42,7 @@ Each band is a `<section id>` from the registry in `sections.ts`, and the read-o
 
 | Band | id | Holds |
 | --- | --- | --- |
-| Archive setup | `setup` | setup percentage, three stages, counts, next action, recent activity |
+| Archive setup / Start here | `setup` | owner: setup percentage and next action. Family: a featured story. |
 | Stories | `stories` | every entry: title, date, summary, lesson, people |
 | Voice memories | `voice` | the recording, with playback |
 | Photos & documents | `photos` | gallery with captions |
@@ -81,7 +81,7 @@ derived from it in `src/components/archive/sections.ts`; no screen tests role st
 | --- | --- | --- | --- |
 | Read stories, voice, photos, people, wisdom | ✅ | ✅ | ✅ |
 | Ask the archive | ✅ | ✅ | ✅ |
-| Archive setup band (progress) | ✅ | ✅ | ❌ hidden |
+| Archive setup band (progress) | ✅ | ❌ featured story instead | ❌ featured story instead |
 | Family Access band + `/family-access` | ✅ | ✅ | ❌ hidden |
 | Interview (`/interview`) | ✅ | ❌ redirected | ❌ redirected |
 | Edit archive (`/edit`) | ✅ | ❌ redirected | ❌ redirected |

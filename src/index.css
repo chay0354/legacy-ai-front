@@ -79,8 +79,19 @@ a:hover {
   .archive-setup-stages,
   .editorial-band,
   .site-footer-grid,
-  .ask-hero {
+  .ask-hero,
+  .featured-split {
     grid-template-columns: 1fr !important;
+  }
+
+  .featured-split {
+    flex-direction: column !important;
+  }
+
+  .featured-split > div:last-child {
+    min-height: 180px;
+    max-width: none !important;
+    flex: none !important;
   }
 
   .site-header {

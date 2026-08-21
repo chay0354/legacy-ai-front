@@ -5,7 +5,7 @@ import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Role } from '../../lib/api'
 import {
-  canEditArchive, canManageAccess, canRunInterview, sectionsForRole, type SectionKey,
+  canEditArchive, canManageAccess, canRunInterview, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
 
 export type ArchiveRouteKey = 'edit' | 'settings' | 'access' | 'ask'
@@ -92,7 +92,6 @@ export default function ArchiveShell({
   const sections = sectionsForRole(role).filter((s) => s.inNav)
   const firstName = creatorName.split(' ')[0] || creatorName
   const mayEdit = canEditArchive(role)
-  // A member has no setup band, so fall back to the first band they can see.
   const readingBand = sections.some((s) => s.key === activeSection)
     ? activeSection
     : sections[0]?.key
@@ -147,7 +146,7 @@ export default function ArchiveShell({
                 style={itemStyle(active)}
               >
                 <Icon name={s.icon} size={18} color={iconColor(active)} />
-                {s.label}
+                {sectionNavLabel(s.key, role, s.label)}
               </button>
             )
           })}
