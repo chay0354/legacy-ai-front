@@ -94,6 +94,11 @@ a:hover {
     flex: none !important;
   }
 
+  .photo-collage-grid {
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+  }
+
   .site-header {
     flex-wrap: wrap;
     gap: 16px !important;

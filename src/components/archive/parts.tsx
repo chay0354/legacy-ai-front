@@ -176,6 +176,74 @@ export function FeaturedStory({
   )
 }
 
+/* ───────────────────────── photo collage ────────────────────────── */
+export function PhotoCollage({
+  items, onOpen,
+}: {
+  items: { id?: string; imageUrl?: string | null; title?: string | null; caption?: string }[]
+  onOpen: () => void
+}) {
+  const photos = items.filter((p) => p.imageUrl).slice(0, 5)
+  if (photos.length === 0) {
+    return (
+      <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
+        <Eyebrow>Photographs</Eyebrow>
+        <Display size={21}>No photographs yet</Display>
+        <Body size={14.5}>Pictures will appear here as they are added to the archive.</Body>
+      </Panel>
+    )
+  }
+
+  const extra = Math.max(0, items.filter((p) => p.imageUrl).length - photos.length)
+  const many = photos.length >= 3
+
+  return (
+    <Panel pad={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 248 }}>
+      <button
+        type="button" onClick={onOpen}
+        title="Open photographs"
+        style={{
+          display: 'grid', gap: 3, flex: 1, minHeight: 248, padding: 0, border: 'none',
+          cursor: 'pointer', background: T.walnut,
+          gridTemplateColumns: many ? '1.35fr 1fr 1fr' : photos.length === 2 ? '1fr 1fr' : '1fr',
+          gridTemplateRows: many ? '1fr 1fr' : '1fr',
+        }}
+        className="photo-collage-grid"
+      >
+        {photos.map((p, i) => {
+          const area = many
+            ? (['1 / 1 / 3 / 2', '1 / 2 / 2 / 3', '1 / 3 / 2 / 4', '2 / 2 / 3 / 3', '2 / 3 / 3 / 4'][i])
+            : undefined
+          const showExtra = extra > 0 && i === photos.length - 1
+          return (
+            <div key={p.id || i} style={{
+              gridArea: area, overflow: 'hidden', background: T.paperDeep, position: 'relative', minHeight: 0,
+            }}>
+              <img
+                src={p.imageUrl!} alt={p.title || p.caption || 'Photograph'}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+              {showExtra && (
+                <span style={{
+                  position: 'absolute', inset: 0, background: 'rgba(30,23,18,.45)',
+                  display: 'grid', placeItems: 'center',
+                  fontFamily: serif, fontSize: 22, color: T.onDark,
+                }}>+{extra}</span>
+              )}
+            </div>
+          )
+        })}
+      </button>
+      <div style={{
+        padding: '10px 14px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+      }}>
+        <Eyebrow>{items.length} {items.length === 1 ? 'photograph' : 'photographs'}</Eyebrow>
+        <span style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: T.sienna }}>See the gallery</span>
+      </div>
+    </Panel>
+  )
+}
+
 /* ───────────────────────── voice memory panel ───────────────────── */
 function bars(seed: number, n = 84) {
   let x = seed || 7

@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { useArchiveContext } from './data'
 import { useSectionNav, type ArchiveOutlet } from './ArchiveLayout'
 import AskPortrait from './AskPortrait'
-import { ArchiveSetup, FeaturedStory, NextAction, RecentActivity } from './parts'
+import { ArchiveSetup, FeaturedStory, NextAction, PhotoCollage, RecentActivity } from './parts'
 import {
   AccessBlock, AskBlock, Band, PeopleBlock, PhotosBlock, StoriesBlock, VoiceBlock, WisdomBlock,
 } from './blocks'
@@ -256,27 +256,11 @@ export default function ArchiveHome() {
                   imageSrc={storyPhoto}
                   onCta={() => navigate(ask.stage ? `/interview?stage=${ask.stage}` : `/family-access${cQuery}`)}
                 />
-              ) : featured ? (
-                <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <Eyebrow>{canManageAccess(role) ? 'Looking after this archive' : 'Shared with you'}</Eyebrow>
-                  <Display size={21}>What you can do here</Display>
-                  <Body size={14.5}>
-                    {canManageAccess(role)
-                      ? `Read everything ${ownerFirst} has recorded, and manage who else can open this archive.`
-                      : `Read the entries, listen to the voice memories, and ask ${ownerFirst}’s archive a question.`}
-                  </Body>
-                  <div style={{ marginTop: 'auto', paddingTop: 12 }}>
-                    {mayAsk && (
-                      <Btn tone="quiet" size="sm" icon="ask" onClick={() => navigate(`/ask${cQuery}`)}>
-                        {ASK.write}
-                      </Btn>
-                    )}
-                  </div>
-                </Panel>
               ) : (
-                <Panel pad="22px 24px">
-                  <Body size={14.5}>Stories will appear here as they are added.</Body>
-                </Panel>
+                <PhotoCollage
+                  items={profile.gallery || []}
+                  onOpen={() => scrollTo('photos')}
+                />
               )}
               <RecentActivity rows={activity} />
             </div>
