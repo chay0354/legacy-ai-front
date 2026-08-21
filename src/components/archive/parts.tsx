@@ -325,8 +325,8 @@ export function AccessSummary({
 export function Loading({ label = 'Opening your archive…' }: { label?: string }) {
   return (
     <div style={{
-      minHeight: '100dvh', display: 'grid', placeItems: 'center',
-      background: T.paper, fontFamily: serif, fontSize: 17, color: T.ink2,
+      minHeight: 220, display: 'grid', placeItems: 'center',
+      fontFamily: serif, fontSize: 17, color: T.ink2, padding: '48px 16px',
     }}>{label}</div>
   )
 }

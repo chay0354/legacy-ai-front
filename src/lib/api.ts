@@ -316,8 +316,12 @@ export const avatarApi = {
   saveAssets: (payload: { portraitPath?: string; idleVideoPath?: string; speakingVideoPath?: string }) =>
     apiFetch('/api/avatar/assets', { method: 'PUT', body: JSON.stringify(payload) }) as Promise<AvatarAssetsResponse>,
 
-  /** Explicit gender/pronouns — never inferred from name. */
-  saveIdentity: (payload: { gender?: CreatorGender | string | null; pronouns?: CreatorPronouns | string | null }) =>
+  /** Explicit gender/pronouns — never inferred from name. Optional displayName updates the archive label. */
+  saveIdentity: (payload: {
+    gender?: CreatorGender | string | null
+    pronouns?: CreatorPronouns | string | null
+    displayName?: string
+  }) =>
     apiFetch('/api/avatar/identity', {
       method: 'POST',
       body: JSON.stringify(payload),

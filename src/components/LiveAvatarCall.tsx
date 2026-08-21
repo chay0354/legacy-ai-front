@@ -10,6 +10,7 @@ import {
   withTimeout,
 } from '../lib/anamSessionGate'
 import { textMatchesSessionLanguage } from '../lib/languageScript'
+import { bindMediaStream, playMedia } from '../lib/playMedia'
 
 const C = { line: '#ddccb0', terra: '#c06a44' }
 const sans = "'Hanken Grotesk', system-ui, sans-serif"
@@ -124,7 +125,7 @@ function wireAnamClient(
     track?.addEventListener('mute', () => {
       console.warn('[Anam] video track muted — attempting play recovery')
       const el = tuneLiveVideoElement(videoId)
-      void el?.play().catch(() => {})
+      void playMedia(el)
     })
     track?.addEventListener('unmute', () => {
       if (!stale()) onVideoReady()
@@ -138,7 +139,7 @@ function wireAnamClient(
   connected.addListener(AnamEvent.AUDIO_STREAM_STARTED, () => {
     // Audio can keep going even if video stalls — keep the element playing.
     const el = tuneLiveVideoElement(videoId)
-    void el?.play().catch(() => {})
+    void playMedia(el)
   })
   connected.addListener(AnamEvent.CONNECTION_CLOSED, () => {
     if (!stale()) onEnded()
@@ -222,7 +223,7 @@ function armVideoStallWatch(videoId: string, stale: () => boolean): () => void {
     if (stale()) return
     if (el.ended) return
     if (el.paused) {
-      void el.play().catch(() => {})
+      void playMedia(el)
       return
     }
     // Without rVFC support, skip stall detection (can't know frame progress).
@@ -232,11 +233,10 @@ function armVideoStallWatch(videoId: string, stale: () => boolean): () => void {
     console.warn('[Anam] video frames stalled — rebinding stream')
     const stream = el.srcObject
     if (stream instanceof MediaStream) {
-      el.srcObject = null
-      el.srcObject = stream
+      void bindMediaStream(el, stream)
+    } else {
+      void playMedia(el)
     }
-    tuneLiveVideoElement(videoId)
-    void el.play().catch(() => {})
     lastFrameAt = performance.now()
     if (typeof anyEl.requestVideoFrameCallback === 'function') {
       frameHandle = anyEl.requestVideoFrameCallback(onFrame)

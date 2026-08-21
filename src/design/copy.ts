@@ -6,7 +6,7 @@
  * Website POV is the creator, second person: you, your archive, your stories.
  */
 
-export const BRAND = '[Name TBD]'
+export const BRAND = 'Legacy AI'
 export const BRAND_SUB = 'Private Archive'
 
 export const NAV = {
@@ -16,6 +16,7 @@ export const NAV = {
   voice: 'Voice memories',
   photos: 'Photos & documents',
   people: 'People',
+  live: 'Live avatar',
   access: 'Family Access',
   settings: 'Settings',
 } as const
@@ -37,6 +38,8 @@ export const CTA = {
   continueInterview: 'Continue interview',
   beginInterview: 'Begin interview',
   addVoicePhoto: 'Add voice & photo',
+  createLive: 'Create live avatar',
+  editLive: 'Edit live avatar',
   recordVoice: 'Record a voice memory',
   addEntry: 'Add an entry',
   invite: 'Invite family',
@@ -110,6 +113,28 @@ export const STATUS = {
   onlyInvited: 'Only invited family can access this',
   sourced: 'This answer is based on recorded archive material',
   unknown: 'The archive does not have enough information to answer that yet',
+} as const
+
+export const ASK = {
+  eyebrow: 'The archive',
+  title: 'Ask the archive',
+  familyNote: 'Read and hear what was recorded — in their own words. Nothing that was not shared.',
+  ownerNote: 'This is the reading and listening surface invited family uses. Answers come only from what you recorded.',
+  talk: 'Start a live call',
+  setup: 'Set up live avatar',
+  write: 'Ask in writing',
+  hear: 'Hear a voice memory',
+  pause: 'Pause',
+  connecting: 'Connecting…',
+  live: 'Live call',
+  endCall: 'End call',
+  retry: 'Try again',
+  backPhoto: 'Back to photograph',
+  placeholder: 'Ask something the archive might know…',
+  send: 'Ask',
+  speaking: 'Speaking in recorded voice…',
+  thinking: 'Looking in the archive…',
+  empty: 'Nothing has been added to this archive yet.',
 } as const
 
 export const TRUST = [

@@ -2,6 +2,7 @@ import type { ConductorContext } from '../components/InterviewSession';
 
 import { apiUrl } from './apiUrl';
 import { authHeaders, clearAuthTokenCache } from './api';
+import { playMedia } from './playMedia';
 
 async function fetchWithAuth(path: string, options: RequestInit = {}, retried = false): Promise<Response> {
   const headers = await authHeaders(retried);
@@ -257,7 +258,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
     if (!audioEl) return;
     audioEl.muted = !audible;
     audioEl.volume = audible ? 1 : 0;
-    if (audible) void audioEl.play().catch(() => {});
+    if (audible) void playMedia(audioEl);
   };
 
   const ensureRemoteStream = (): MediaStream | null => {
@@ -284,7 +285,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
     if (audioEl) {
       audioEl.muted = true;
       audioEl.volume = 0;
-      void audioEl.play().catch(() => {});
+      void playMedia(audioEl);
     }
   };
 

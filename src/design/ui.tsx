@@ -6,7 +6,7 @@ import { T, radius, sans, serif, shadow } from './tokens'
 export type IconName =
   | 'overview' | 'interview' | 'story' | 'voice' | 'photo' | 'people'
   | 'lock' | 'settings' | 'pen' | 'check' | 'clock' | 'folder'
-  | 'play' | 'plus' | 'arrow' | 'ask' | 'document'
+  | 'play' | 'plus' | 'arrow' | 'ask' | 'document' | 'live'
 
 const PATHS: Record<IconName, ReactNode> = {
   overview: <><path d="M3 9.5 10 4l7 5.5V16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" /><path d="M8 17v-5h4v5" /></>,
@@ -26,6 +26,7 @@ const PATHS: Record<IconName, ReactNode> = {
   arrow: <><path d="M4 10h11" /><path d="M11 6.5 15 10l-4 3.5" /></>,
   ask: <><path d="M4 5.5h12v7H9l-3.5 3v-3H4z" /><path d="M8.6 8.2a1.5 1.5 0 1 1 1.8 1.5v.8" /><path d="M10.4 11.9v.1" /></>,
   document: <><path d="M5.5 3.5h6L15 7v9.5H5.5z" /><path d="M11.2 3.6V7H15M8 10.5h4M8 13h4" /></>,
+  live: <><rect x="3.5" y="3.5" width="13" height="13" rx="1.5" /><circle cx="10" cy="8.2" r="2.2" /><path d="M6.2 16c.4-2.4 1.8-3.8 3.8-3.8s3.4 1.4 3.8 3.8" /></>,
 }
 
 export function Icon({

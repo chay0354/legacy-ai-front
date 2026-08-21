@@ -17,20 +17,19 @@ import {
 import { browserStt, browserTts } from './lib/voice'
 import { checkAiVoiceAvailable } from './lib/openaiRealtimeInterview'
 import InterviewSession, { type Answer } from './components/InterviewSession'
-import AvatarStudio from './components/AvatarStudio'
+import RequireAction from './components/archive/RequireAction'
 import { ACTIONS, can, normalizeRole } from './lib/permissions'
 
 import HomePage from './site/HomePage'
 import { AboutPage, HowItWorksPage, PricingPage, TheArchivePage } from './site/InfoPages'
 import AuthPage from './site/AuthPage'
-import OverviewScreen from './components/archive/OverviewScreen'
-import StoriesScreen from './components/archive/StoriesScreen'
-import VoiceMemoriesScreen from './components/archive/VoiceMemoriesScreen'
-import PhotosScreen from './components/archive/PhotosScreen'
-import PeopleScreen from './components/archive/PeopleScreen'
+import ArchiveHome from './components/archive/ArchiveHome'
+import EditArchiveScreen from './components/archive/EditArchiveScreen'
 import FamilyAccessScreen from './components/archive/FamilyAccessScreen'
 import SettingsScreen from './components/archive/SettingsScreen'
 import AskArchiveScreen from './components/archive/AskArchiveScreen'
+import VoiceAndPhotoScreen from './components/archive/VoiceAndPhotoScreen'
+import ArchiveWorkspace from './components/archive/ArchiveLayout'
 import { T, radius, sans, serif } from './design/tokens'
 import { BRAND } from './design/copy'
 import { Body, Btn, Display, Eyebrow } from './design/ui'
@@ -69,6 +68,12 @@ function Centered({ children }: { children: React.ReactNode }) {
 function KeepQueryRedirect({ to }: { to: string }) {
   const location = useLocation()
   return <Navigate to={`${to}${location.search}`} replace />
+}
+
+/** The former section routes are bands on the main screen now. */
+function SectionRedirect({ section }: { section: string }) {
+  const location = useLocation()
+  return <Navigate to={`/overview${location.search}#${section}`} replace />
 }
 
 function membershipHasProgress(m: AccessMe['memberships'][number]) {
@@ -502,7 +507,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
       onComplete={handleComplete}
       onViewAvatar={() => navigate(`/ask?c=${sessionData.creator.id}`)}
       onViewLegacy={goToArchive}
-      onManageAccess={() => navigate('/family-access')}
+      onManageAccess={() => navigate(`/family-access?c=${sessionData.creator.id}`)}
       onBack={() => navigate(archiveScreen(sessionData.creator.id))}
       processing={processing}
       processingError={processingError}
@@ -514,13 +519,6 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
       extractionResult={extractionResult}
     />
   )
-}
-
-/* ───────────────────────── voice & photo studio ──────────────────── */
-function VoiceAndPhotoPage({ session }: { session: Session | null }) {
-  const navigate = useNavigate()
-  if (!session) return <Navigate to="/" replace />
-  return <AvatarStudio onExit={() => navigate('/overview')} />
 }
 
 /* ──────────────────────────────── Join ───────────────────────────── */
@@ -706,57 +704,53 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/signin" element={<SignInRoute session={session} />} />
 
-        {/* the archive */}
+        {/* the archive — one shell; sidebar does not remount */}
         <Route
-          path="/overview"
-          element={<ArchiveRoute
-            session={session}
-            render={(c) => <OverviewScreen creatorIdParam={c} viewerName={viewer} />}
-          />}
-        />
+          element={
+            <ArchiveRoute
+              session={session}
+              render={(c, s) => (
+                <ArchiveWorkspace
+                  creatorIdParam={c}
+                  viewerName={viewer}
+                  viewerEmail={s.user.email}
+                />
+              )}
+            />
+          }
+        >
+          <Route path="/overview" element={<ArchiveHome />} />
+          <Route path="/edit" element={
+            <RequireAction action={ACTIONS.EDIT_MEMORY}>
+              <EditArchiveScreen />
+            </RequireAction>
+          } />
+          <Route path="/voice-and-photo" element={
+            <RequireAction action={ACTIONS.EDIT_PROFILE}>
+              <VoiceAndPhotoScreen />
+            </RequireAction>
+          } />
+          <Route path="/family-access" element={
+            <RequireAction action={[ACTIONS.INVITE_USER, ACTIONS.MANAGE_ACCESS]}>
+              <FamilyAccessScreen />
+            </RequireAction>
+          } />
+          <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/ask" element={<AskArchiveScreen />} />
+        </Route>
         <Route path="/interview" element={<InterviewPage session={session} authReady={authReady} />} />
-        <Route
-          path="/stories"
-          element={<ArchiveRoute session={session} render={(c) => <StoriesScreen creatorIdParam={c} />} />}
-        />
-        <Route
-          path="/voice-memories"
-          element={<ArchiveRoute session={session} render={(c) => <VoiceMemoriesScreen creatorIdParam={c} />} />}
-        />
-        <Route
-          path="/photos"
-          element={<ArchiveRoute session={session} render={(c) => <PhotosScreen creatorIdParam={c} />} />}
-        />
-        <Route
-          path="/people"
-          element={<ArchiveRoute session={session} render={(c) => <PeopleScreen creatorIdParam={c} />} />}
-        />
-        <Route
-          path="/family-access"
-          element={<ArchiveRoute session={session} render={(c) => <FamilyAccessScreen creatorIdParam={c} />} />}
-        />
-        <Route
-          path="/settings"
-          element={<ArchiveRoute
-            session={session}
-            render={(c, s) => <SettingsScreen creatorIdParam={c} viewerEmail={s.user.email} />}
-          />}
-        />
-        <Route
-          path="/ask"
-          element={<ArchiveRoute
-            session={session}
-            render={(c) => <AskArchiveScreen creatorIdParam={c} viewerName={viewer} />}
-          />}
-        />
-        <Route path="/voice-and-photo" element={<VoiceAndPhotoPage session={session} />} />
         <Route path="/join" element={<JoinPage session={session} />} />
 
         {/* previous routes → their new homes */}
+        <Route path="/stories" element={<SectionRedirect section="stories" />} />
+        <Route path="/voice-memories" element={<SectionRedirect section="voice" />} />
+        <Route path="/photos" element={<SectionRedirect section="photos" />} />
+        <Route path="/people" element={<SectionRedirect section="people" />} />
         <Route path="/home" element={<KeepQueryRedirect to="/overview" />} />
         <Route path="/legacy" element={<KeepQueryRedirect to="/overview" />} />
         <Route path="/avatar" element={<KeepQueryRedirect to="/ask" />} />
         <Route path="/studio" element={<KeepQueryRedirect to="/voice-and-photo" />} />
+        <Route path="/live-avatar" element={<KeepQueryRedirect to="/voice-and-photo" />} />
         <Route path="/manage" element={<KeepQueryRedirect to="/family-access" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

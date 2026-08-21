@@ -96,7 +96,11 @@ async function playMp3Blob(blob: Blob, captionText: string) {
           setTimeout(finish, audio.duration * 1000 + 500);
         }
       })
-      .catch(finish);
+      .catch((err) => {
+        const name = err instanceof DOMException ? err.name : '';
+        if (name === 'AbortError') return;
+        finish();
+      });
   });
 }
 

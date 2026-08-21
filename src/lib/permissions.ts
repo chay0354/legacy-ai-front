@@ -74,8 +74,18 @@ const MATRIX: Record<Role, Set<Action>> = {
 
 /** can(role, action) -> boolean. Unknown role/action => false (deny by default). */
 export function can(role: Role | string | null | undefined, action: Action): boolean {
-  const set = MATRIX[role as Role];
+  const set = MATRIX[normalizeRole(role) as Role];
   return set ? set.has(action) : false;
+}
+
+/** First matching canonical role, else member (least privilege). */
+export function resolveViewerRole(...inputs: (string | null | undefined | boolean)[]): Role {
+  for (const input of inputs) {
+    if (input === true) return ROLES.CREATOR
+    const n = normalizeRole(typeof input === 'string' ? input : null)
+    if (n) return n
+  }
+  return ROLES.MEMBER
 }
 
 /** Normalize messy inputs ("Admin", "ADMINISTRATOR", legacy "owner") to a canonical role. */

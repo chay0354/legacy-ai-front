@@ -8,6 +8,7 @@ import {
 } from '../lib/api'
 import { ANAM_LANGUAGES, normalizeAnamLanguage } from '../lib/anamLanguages'
 import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { bindMediaStream } from '../lib/playMedia'
 
 const C = {
   paper: '#ece3d2', card: '#fbf6ec', ink: '#2b241c', ink2: '#6e6253', ink3: '#9a8d79',
@@ -30,9 +31,11 @@ const STEPS: { id: StepId; label: string }[] = [
 
 interface Props {
   onExit: () => void
+  /** Render inside the archive edit screen instead of a full-page studio. */
+  embedded?: boolean
 }
 
-export default function AvatarStudio({ onExit }: Props) {
+export default function AvatarStudio({ onExit, embedded = false }: Props) {
   const [step, setStep] = useState<StepId>('intro')
   const [creatorId, setCreatorId] = useState<string | null>(null)
   const [assets, setAssets] = useState<AvatarAssets | null>(null)
@@ -70,7 +73,7 @@ export default function AvatarStudio({ onExit }: Props) {
     return (
       <Centered>
         <strong>Finish your interview first</strong>
-        <p style={{ color: C.ink2, maxWidth: 420, textAlign: 'center' }}>Your legacy needs to exist before we can build its avatar.</p>
+        <p style={{ color: C.ink2, maxWidth: 420, textAlign: 'center' }}>Your archive needs a first interview before we can build a live avatar.</p>
         <button style={primaryBtn} onClick={onExit}>Back</button>
       </Centered>
     )
@@ -79,12 +82,14 @@ export default function AvatarStudio({ onExit }: Props) {
   const currentIndex = STEPS.findIndex((s) => s.id === step)
 
   return (
-    <div className="legacy-studio" style={{ minHeight: '100dvh', background: C.paper, fontFamily: sans, color: C.ink }}>
-      <div className="legacy-studio-inner" style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 96px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: C.ink3 }}>Avatar Studio</div>
-          <button style={ghostBtn} onClick={onExit}>Exit</button>
-        </div>
+    <div className="legacy-studio" style={{ minHeight: embedded ? undefined : '100dvh', background: embedded ? 'transparent' : C.paper, fontFamily: sans, color: C.ink }}>
+      <div className="legacy-studio-inner" style={{ maxWidth: 760, margin: embedded ? 0 : '0 auto', padding: embedded ? '8px 0 12px' : '48px 24px 96px' }}>
+        {!embedded && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: C.ink3 }}>Avatar Studio</div>
+            <button style={ghostBtn} onClick={onExit}>Exit</button>
+          </div>
+        )}
 
         {step !== 'intro' && (
           <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
@@ -556,7 +561,10 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
-    if (videoRef.current) videoRef.current.srcObject = null
+    if (videoRef.current) {
+      try { videoRef.current.pause() } catch { /* ignore */ }
+      videoRef.current.srcObject = null
+    }
     setLive(false)
   }
 
@@ -567,7 +575,10 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
     try {
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
-      if (videoRef.current) videoRef.current.srcObject = null
+      if (videoRef.current) {
+        try { videoRef.current.pause() } catch { /* ignore */ }
+        videoRef.current.srcObject = null
+      }
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('This browser does not support webcam access. Try Chrome or Edge on HTTPS / localhost.')
@@ -609,10 +620,8 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
       streamRef.current = stream
       const video = videoRef.current
       if (video) {
-        video.srcObject = stream
-        // Some browsers need the element visible before play() resolves.
         video.style.display = 'block'
-        await video.play()
+        await bindMediaStream(video, stream)
       }
       setLive(true)
     } catch (err) {
@@ -970,7 +979,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
         <button style={ghostBtn} onClick={onBack} disabled={status === 'generating'}>← Back</button>
         {status === 'error' && <button style={primaryBtn} onClick={retry}>Try again</button>}
-        {status === 'done' && <button style={primaryBtn} onClick={onDone}>Go to my legacy & talk →</button>}
+        {status === 'done' && <button style={primaryBtn} onClick={onDone}>Talk with the live avatar →</button>}
       </div>
     </div>
   )

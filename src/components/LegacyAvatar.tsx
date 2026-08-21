@@ -6,6 +6,7 @@ import { authHeaders } from "../lib/api";
 import { apiUrl } from "../lib/apiUrl";
 import { openLiveCallMic, startLiveCallStt, type LiveCallSttSession } from "../lib/liveCallStt";
 import { useAnamLiveCall, LiveCallControls } from "./LiveAvatarCall";
+import { playMedia } from "../lib/playMedia";
 import GallerySection from "./GallerySection";
 import StageProgressTrack from "./StageProgressTrack";
 
@@ -577,7 +578,7 @@ export default function LegacyAvatar({
     voiceAudioRef.current?.pause();
     const a = new Audio(audioUrl);
     voiceAudioRef.current = a;
-    void a.play().catch(() => { /* autoplay blocked — user already interacted */ });
+    void playMedia(a);
   }, []);
 
   useEffect(() => () => {
@@ -596,8 +597,8 @@ export default function LegacyAvatar({
     const audio = voiceSampleRef.current || new Audio(voiceSampleUrl);
     voiceSampleRef.current = audio;
     audio.onended = () => setVoiceSamplePlaying(false);
-    void audio.play()
-      .then(() => setVoiceSamplePlaying(true))
+    void playMedia(audio)
+      .then(() => { if (!audio.paused) setVoiceSamplePlaying(true); })
       .catch(() => setVoiceSamplePlaying(false));
   }, [voiceSampleUrl, voiceSamplePlaying]);
 

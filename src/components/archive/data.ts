@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  type ReactNode,
+} from 'react'
 import {
   accessApi, avatarApi, interviewApi,
   type AvatarAssetsResponse, type MemberRow, type Role,
 } from '../../lib/api'
 import type { LegacyProfile } from '../../lib/mapAvatarData'
-import { ACTIONS, can, normalizeRole } from '../../lib/permissions'
+import { ACTIONS, can, normalizeRole, resolveViewerRole } from '../../lib/permissions'
 import { ACTIVITY_LABEL } from '../../design/copy'
 
 export interface ArchiveActivity {
@@ -40,11 +43,9 @@ export interface ArchiveContext {
   reload: () => void
 }
 
-/**
- * One loader for every archive section screen: profile, media assets and
- * (where permitted) the family roster.
- */
-export function useArchiveContext(creatorIdParam?: string, opts?: { withMedia?: boolean }): ArchiveContext {
+const ArchiveDataContext = createContext<ArchiveContext | null>(null)
+
+export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<(LegacyProfile & { role?: Role }) | null>(null)
@@ -52,26 +53,44 @@ export function useArchiveContext(creatorIdParam?: string, opts?: { withMedia?: 
   const [members, setMembers] = useState<MemberRow[]>([])
   const [tick, setTick] = useState(0)
   const reload = useCallback(() => setTick((n) => n + 1), [])
-  const withMedia = opts?.withMedia !== false
+  const profileRef = useRef(profile)
+  profileRef.current = profile
 
   useEffect(() => {
     let active = true
-    setLoading(true)
+    const loadedId = profileRef.current?.creator?.id
+    const switching = Boolean(creatorIdParam && loadedId && loadedId !== creatorIdParam)
+    if (!profileRef.current || switching) {
+      if (switching) {
+        setProfile(null)
+        setAssets(null)
+        setMembers([])
+      }
+      setLoading(true)
+    }
     setError(null)
     Promise.all([
       interviewApi.getProfile(creatorIdParam),
-      avatarApi.getAssets({ creatorId: creatorIdParam, light: !withMedia }).catch(() => null),
+      avatarApi.getAssets({ creatorId: creatorIdParam }).catch(() => null),
+      accessApi.me().catch(() => null),
     ])
-      .then(([p, a]) => {
+      .then(([p, a, me]) => {
         if (!active) return
-        setProfile(p)
-        setAssets(a)
-        const role = normalizeRole(p.role) || 'member'
         const cid = p.creator?.id || creatorIdParam
+        const membership = me?.memberships.find((m) => m.creatorId === cid)
+        const role = resolveViewerRole(
+          membership?.isOwner,
+          membership?.role,
+          p.role,
+        )
+        setProfile({ ...p, role })
+        setAssets(a)
         if (cid && (can(role, ACTIONS.MANAGE_ACCESS) || can(role, ACTIONS.INVITE_USER))) {
           accessApi.members(cid)
             .then((m) => { if (active) setMembers(m.members) })
             .catch(() => { /* roster is optional */ })
+        } else if (active) {
+          setMembers([])
         }
       })
       .catch((e) => {
@@ -79,7 +98,7 @@ export function useArchiveContext(creatorIdParam?: string, opts?: { withMedia?: 
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [creatorIdParam, tick, withMedia])
+  }, [creatorIdParam, tick])
 
   const role = (normalizeRole(profile?.role) || 'member') as Role
   const creatorName = profile?.creator?.display_name || 'Your'
@@ -95,7 +114,6 @@ export function useArchiveContext(creatorIdParam?: string, opts?: { withMedia?: 
     values: profile?.values?.length ?? 0,
   }), [profile, assets])
 
-  /** Labels must match the object — a photograph is never "People added". */
   const activity = useMemo<ArchiveActivity[]>(() => {
     const rows: ArchiveActivity[] = []
     for (const m of (profile?.memories || []).slice(0, 3)) {
@@ -141,4 +159,17 @@ export function useArchiveContext(creatorIdParam?: string, opts?: { withMedia?: 
     portraitUrl: assets?.urls?.portrait || assets?.previewUrl || null,
     level, setupPct, counts, activity, reload,
   }
+}
+
+export function ArchiveProvider({
+  value, children,
+}: { value: ArchiveContext; children: ReactNode }) {
+  return createElement(ArchiveDataContext.Provider, { value }, children)
+}
+
+/** Shared archive data for every sidebar section. Do not refetch on each click. */
+export function useArchiveContext(): ArchiveContext {
+  const ctx = useContext(ArchiveDataContext)
+  if (!ctx) throw new Error('useArchiveContext must be used inside ArchiveProvider')
+  return ctx
 }

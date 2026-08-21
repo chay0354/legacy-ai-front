@@ -1,5 +1,5 @@
 /**
- * [Name TBD] — visual tokens. Direction: Warm Editorial Heirloom.
+ * Legacy AI — visual tokens. Direction: Warm Editorial Heirloom.
  *
  * Colour roles (from the product + website direction handoff):
  *   paper / stone  reading surfaces, transcripts, entries, forms — paper, not blank beige

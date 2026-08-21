@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import ArchiveShell from './ArchiveShell'
 import { useArchiveContext } from './data'
-import { Loading, SectionHeader } from './parts'
+import { SectionHeader } from './parts'
 import {
   accessApi, type InvitationRow, type MemberRow, type Role,
 } from '../../lib/api'
@@ -22,8 +21,8 @@ const ROLE_NOTE: Record<Role, string> = {
   member: 'Can read and listen to what you have shared. Nothing else.',
 }
 
-export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?: string }) {
-  const ctx = useArchiveContext(creatorIdParam, { withMedia: false })
+export default function FamilyAccessScreen() {
+  const ctx = useArchiveContext()
   const [members, setMembers] = useState<MemberRow[]>([])
   const [invitations, setInvitations] = useState<InvitationRow[]>([])
   const [inviteRole, setInviteRole] = useState<Role>('member')
@@ -49,12 +48,12 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
 
   useEffect(() => { void load() }, [load])
 
-  if (ctx.loading) return <Loading label="Opening family access…" />
-  if (ctx.error || !ctx.profile) return <Loading label={ctx.error || 'Nothing here yet.'} />
+  if (!ctx.profile) return null
 
   const role = ctx.role
-  const isCreator = normalizeRole(role) === 'creator'
   const mayInvite = can(role, ACTIONS.INVITE_USER)
+  const mayManage = can(role, ACTIONS.MANAGE_ACCESS)
+  const mayAppoint = can(role, ACTIONS.APPOINT_ADMIN)
   const invited = members.filter((m) => normalizeRole(m.role) !== 'creator')
   const pending = invitations.filter((i) => i.status === 'pending')
 
@@ -120,14 +119,15 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
   }
 
   return (
-    <ArchiveShell
-      active="access" role={role} creatorId={creatorId}
-      creatorName={ctx.profile.creator?.display_name || 'Your'} portraitUrl={ctx.portraitUrl}
-    >
+    <>
       <SectionHeader
         eyebrow="Permissions"
         title="Family Access"
-        note="Only people you invite can open this archive. You can change or remove access at any time."
+        note={mayAppoint
+          ? 'Only people you invite can open this archive. You can change or remove access at any time.'
+          : mayInvite
+            ? 'You can invite family and remove access. You cannot change what is in the archive.'
+            : 'Who can open this archive.'}
       />
 
       {error && (
@@ -136,7 +136,7 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
         </Panel>
       )}
 
-      <div style={{
+      <div className="overview-grid" style={{
         display: 'grid', gap: 18,
         gridTemplateColumns: 'minmax(340px, 1.5fr) minmax(260px, .8fr)', alignItems: 'start',
       }}>
@@ -160,7 +160,7 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
                     }}
                   >
                     <option value="member">Family member — read and listen</option>
-                    {isCreator && <option value="administrator">Administrator — manage access</option>}
+                    {mayAppoint && <option value="administrator">Administrator — manage access</option>}
                   </select>
                 </label>
                 <Btn onClick={createInvite} disabled={busy}>
@@ -204,7 +204,11 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
           <Panel pad="22px 24px">
             <Display size={20} style={{ marginBottom: 10 }}>Invited family</Display>
             {invited.length === 0 ? (
-              <Body size={14}>No one has been invited yet. This archive is visible only to you.</Body>
+              <Body size={14}>
+                {mayAppoint
+                  ? 'No one has been invited yet. This archive is visible only to you.'
+                  : 'No one has been invited yet. This archive is visible only to its owner.'}
+              </Body>
             ) : invited.map((m) => {
               const name = m.name || m.email || 'Family member'
               const r = (normalizeRole(m.role) || 'member') as Role
@@ -216,19 +220,21 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
                       {ROLE_LABEL[r]}{m.email ? ` · ${m.email}` : ''}
                     </span>
                   </div>
-                  {isCreator && (
+                  {mayManage && (mayAppoint || r === 'member') && (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <select
-                        value={r}
-                        onChange={(e) => changeRole(m.user_id, e.target.value as Role)}
-                        style={{
-                          background: T.paper, border: `1px solid ${T.line}`, borderRadius: radius.sm,
-                          padding: '7px 10px', fontFamily: sans, fontSize: 13, color: T.ink,
-                        }}
-                      >
-                        <option value="member">Family member</option>
-                        <option value="administrator">Administrator</option>
-                      </select>
+                      {mayAppoint && (
+                        <select
+                          value={r}
+                          onChange={(e) => changeRole(m.user_id, e.target.value as Role)}
+                          style={{
+                            background: T.paper, border: `1px solid ${T.line}`, borderRadius: radius.sm,
+                            padding: '7px 10px', fontFamily: sans, fontSize: 13, color: T.ink,
+                          }}
+                        >
+                          <option value="member">Family member</option>
+                          <option value="administrator">Administrator</option>
+                        </select>
+                      )}
                       <Btn tone="quiet" size="sm" onClick={() => remove(m.user_id, name)}>Remove</Btn>
                     </div>
                   )}
@@ -256,6 +262,6 @@ export default function FamilyAccessScreen({ creatorIdParam }: { creatorIdParam?
           <PrivacyNote onDark>Only invited family can access this</PrivacyNote>
         </Panel>
       </div>
-    </ArchiveShell>
+    </>
   )
 }

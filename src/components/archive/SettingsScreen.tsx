@@ -1,27 +1,28 @@
-import type { CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
-import ArchiveShell from './ArchiveShell'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useArchiveContext } from './data'
-import { Loading, SectionHeader } from './parts'
+import type { ArchiveOutlet } from './ArchiveLayout'
+import { SectionHeader } from './parts'
+import { canEditArchive, canManageAccess, canRunInterview, isOwner } from './sections'
 import { supabase } from '../../lib/supabase'
 import { clearAuthTokenCache } from '../../lib/api'
-import { ACTIONS, can } from '../../lib/permissions'
 import { T, radius, sans } from '../../design/tokens'
 import { CTA, TRUST, archiveSetupLabel, countsLine } from '../../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel, PrivacyNote } from '../../design/ui'
 
-export default function SettingsScreen({
-  creatorIdParam, viewerEmail,
-}: { creatorIdParam?: string; viewerEmail?: string | null }) {
+/** Account, profile, privacy, sign out. Never a second edit surface. */
+export default function SettingsScreen() {
+  const { viewerEmail, viewerName } = useOutletContext<ArchiveOutlet>()
   const navigate = useNavigate()
-  const ctx = useArchiveContext(creatorIdParam)
+  const ctx = useArchiveContext()
 
-  if (ctx.loading) return <Loading label="Opening settings…" />
-  if (ctx.error || !ctx.profile) return <Loading label={ctx.error || 'Nothing here yet.'} />
+  if (!ctx.profile) return null
 
   const { role, creatorId, profile, counts, setupPct } = ctx
-  const name = profile.creator?.display_name || 'Your archive'
+  const name = profile.creator?.display_name || 'This archive'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const owner = isOwner(role)
+  const mayEdit = canEditArchive(role)
+  const profileName = owner ? name : (viewerName || viewerEmail || 'Your account')
 
   const signOut = async () => {
     clearAuthTokenCache()
@@ -29,27 +30,30 @@ export default function SettingsScreen({
     navigate('/')
   }
 
-  const rowStyle: CSSProperties = {
+  const rowStyle: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     gap: 16, padding: '15px 0', borderTop: `1px solid ${T.lineSoft}`, flexWrap: 'wrap',
   }
 
   return (
-    <ArchiveShell
-      active="settings" role={role} creatorId={creatorId}
-      creatorName={name} portraitUrl={ctx.portraitUrl}
-    >
-      <SectionHeader eyebrow="Your account" title="Settings" note="Your profile, your archive, and who can reach it." />
+    <>
+      <SectionHeader
+        eyebrow="Your account"
+        title="Settings"
+        note={owner
+          ? 'Your profile, your archive, and who can reach it.'
+          : 'Your account on this device. The archive itself belongs to its owner.'}
+      />
 
-      <div style={{
+      <div className="overview-grid" style={{
         display: 'grid', gap: 18,
         gridTemplateColumns: 'minmax(340px, 1.4fr) minmax(260px, .85fr)', alignItems: 'start',
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Panel pad="22px 24px">
             <Display size={20} style={{ marginBottom: 14 }}>Profile</Display>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              {ctx.portraitUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {owner && ctx.portraitUrl ? (
                 <img
                   src={ctx.portraitUrl} alt=""
                   style={{
@@ -66,13 +70,13 @@ export default function SettingsScreen({
                 </span>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                <Display size={22}>{name}</Display>
+                <Display size={22}>{profileName}</Display>
                 {viewerEmail && <Body size={13.5} color={T.ink3}>{viewerEmail}</Body>}
               </div>
-              {can(role, ACTIONS.EDIT_PROFILE) && (
+              {mayEdit && (
                 <div style={{ marginLeft: 'auto' }}>
-                  <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate('/voice-and-photo')}>
-                    {CTA.addVoicePhoto}
+                  <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
+                    Edit archive
                   </Btn>
                 </div>
               )}
@@ -80,7 +84,9 @@ export default function SettingsScreen({
           </Panel>
 
           <Panel pad="22px 24px">
-            <Display size={20} style={{ marginBottom: 6 }}>Your archive</Display>
+            <Display size={20} style={{ marginBottom: 6 }}>
+              {owner ? 'Your archive' : `${name.split(' ')[0]}’s archive`}
+            </Display>
             <Eyebrow>{archiveSetupLabel(setupPct)}</Eyebrow>
             <Body size={13.5} style={{ marginTop: 10 }}>
               {countsLine({
@@ -89,20 +95,26 @@ export default function SettingsScreen({
               })}
             </Body>
             <div style={rowStyle}>
-              <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Continue the guided interview</span>
-              {can(role, ACTIONS.COMPLETE_INTERVIEW)
-                ? <Btn tone="quiet" size="sm" onClick={() => navigate('/interview')}>{CTA.continueInterview}</Btn>
-                : <Body size={13} color={T.ink3}>Only the archive owner can do this</Body>}
-            </div>
-            <div style={rowStyle}>
               <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Who can open this archive</span>
-              {can(role, ACTIONS.INVITE_USER)
+              {canManageAccess(role)
                 ? <Btn tone="quiet" size="sm" onClick={() => navigate(`/family-access${cQuery}`)}>{CTA.manage}</Btn>
                 : <Body size={13} color={T.ink3}>Managed by the archive owner</Body>}
             </div>
+            {mayEdit && (
+              <div style={rowStyle}>
+                <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Add, correct, or remove entries</span>
+                <Btn tone="quiet" size="sm" onClick={() => navigate(`/edit${cQuery}`)}>Edit archive</Btn>
+              </div>
+            )}
+            {canRunInterview(role) && (
+              <div style={rowStyle}>
+                <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Continue the guided interview</span>
+                <Btn tone="quiet" size="sm" onClick={() => navigate('/interview')}>{CTA.continueInterview}</Btn>
+              </div>
+            )}
             <div style={rowStyle}>
               <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Sign out of this device</span>
-              <Btn tone="quiet" size="sm" onClick={signOut}>Sign out</Btn>
+              <Btn tone="quiet" size="sm" onClick={() => void signOut()}>Sign out</Btn>
             </div>
           </Panel>
         </div>
@@ -124,6 +136,6 @@ export default function SettingsScreen({
           <PrivacyNote>Private by default</PrivacyNote>
         </Panel>
       </div>
-    </ArchiveShell>
+    </>
   )
 }

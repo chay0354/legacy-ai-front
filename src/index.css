@@ -1,4 +1,4 @@
-/* [Name TBD] — global shell. Fonts are locked: Newsreader (display) + Source Sans 3 (UI). */
+/* Legacy AI — global shell. Fonts are locked: Newsreader (display) + Source Sans 3 (UI). */
 
 * {
   box-sizing: border-box;
@@ -78,7 +78,8 @@ a:hover {
   .overview-grid,
   .archive-setup-stages,
   .editorial-band,
-  .site-footer-grid {
+  .site-footer-grid,
+  .ask-hero {
     grid-template-columns: 1fr !important;
   }
 
@@ -97,7 +98,55 @@ a:hover {
   }
 }
 
-/* Interview conversation scroller */
+/* Band list in the dark sidebar: a quiet warm rail, never the browser default. */
+.archive-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(240, 231, 214, 0.22) transparent;
+}
+
+.archive-nav-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.archive-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.archive-nav-scroll::-webkit-scrollbar-thumb {
+  background: rgba(240, 231, 214, 0.2);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.18s ease;
+}
+
+.archive-nav-scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(240, 231, 214, 0.32);
+  background-clip: padding-box;
+}
+
+.archive-nav-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(179, 144, 47, 0.7);
+  background-clip: padding-box;
+}
+
+.archive-pane {
+  animation: archive-pane-in 0.16s ease;
+}
+
+@keyframes archive-pane-in {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+.archive-live-dot {
+  animation: archive-live-dot 1.8s ease-in-out infinite;
+}
+
+@keyframes archive-live-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
 .legacy-interview-chat-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(36, 28, 21, 0.28) transparent;
