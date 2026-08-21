@@ -1462,7 +1462,7 @@ export default function InterviewSession({
                     )}
                     {extractionResult.completion_score != null && (
                       <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: C.terra, marginTop: 16 }}>
-                        Legacy completion: {extractionResult.completion_score}%
+                        Archive setup: {extractionResult.completion_score}% complete
                       </div>
                     )}
                   </div>
@@ -1470,12 +1470,12 @@ export default function InterviewSession({
                 <div style={{ display: "flex", gap: 13, marginTop: 34, flexWrap: "wrap", justifyContent: "center" }}>
                   {(onViewLegacy != null || onViewAvatar != null) && (
                     <button onClick={onViewLegacy ?? onViewAvatar} style={{ cursor: "pointer", background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 999 }}>
-                      See your updated legacy →
+                      Open your archive →
                     </button>
                   )}
-                  <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Add administrators &amp; invite family</button>
+                  <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Invite family</button>
                   {onViewLegacy != null && onViewAvatar != null && (
-                    <button onClick={onViewAvatar} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Preview avatar</button>
+                    <button onClick={onViewAvatar} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Ask the archive</button>
                   )}
                 </div>
               </>

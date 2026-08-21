@@ -512,10 +512,39 @@ function portraitOutputSize(sourcePx: number): number {
   return Math.min(Math.max(sourcePx, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
 }
 
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Could not read that image'))
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+async function normalizePortrait(file: File): Promise<Blob> {
+  const img = await loadImage(file)
+  const crop = Math.min(img.width, img.height)
+  if (crop < PORTRAIT_HARD_MIN_PX) {
+    URL.revokeObjectURL(img.src)
+    throw new Error('That photo is too small. Use a clearer, closer photo of your face.')
+  }
+  const out = portraitOutputSize(crop)
+  const canvas = document.createElement('canvas')
+  canvas.width = out
+  canvas.height = out
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(img, (img.width - crop) / 2, (img.height - crop) / 2, crop, crop, 0, 0, out, out)
+  URL.revokeObjectURL(img.src)
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process photo'))), 'image/jpeg', 0.95)
+  })
+}
+
 function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: () => void | Promise<void>; onBack: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const urlRef = useRef<string | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
   const [live, setLive] = useState(false)
   const [starting, setStarting] = useState(true)
   const [shot, setShot] = useState<Blob | null>(null)
@@ -590,7 +619,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
       const name = err instanceof DOMException ? err.name : ''
       const msg = err instanceof Error ? err.message : ''
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setError('Camera permission was blocked. Click the lock/camera icon in the address bar, allow the camera, then tap Enable camera.')
+        setError('Camera permission was blocked. Click the lock/camera icon in the address bar, allow the camera, then tap Enable camera — or upload a photo instead.')
       } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
         setError('No camera was found on this device.')
       } else if (name === 'NotReadableError' || name === 'TrackStartError') {
@@ -598,7 +627,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
       } else if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
         setError('Could not match a supported camera mode. Tap Enable camera to retry.')
       } else {
-        setError(msg || 'Could not open the camera. Tap Enable camera to try again.')
+        setError(msg || 'Could not open the camera. Tap Enable camera to try again, or upload a photo instead.')
       }
       setLive(false)
     } finally {
@@ -654,7 +683,29 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
     setUrl(null)
     setHint(null)
     setError(null)
+    if (fileRef.current) fileRef.current.value = ''
     void startCamera()
+  }
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    setError(null)
+    setHint(null)
+    try {
+      const normalized = await normalizePortrait(f)
+      stopCamera()
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+      const next = URL.createObjectURL(normalized)
+      urlRef.current = next
+      setShot(normalized)
+      setUrl(next)
+      setHint('Photo loaded — check that your face is centered, then continue.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not use that photo — try a JPG or PNG with your face centered.')
+    } finally {
+      e.target.value = ''
+    }
   }
 
   const submit = async () => {
@@ -677,7 +728,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 520 }}>
         Position your face inside the oval — like an ID verification photo. Looking straight at the camera
-        with head and shoulders in frame gives the best likeness.
+        with head and shoulders in frame gives the best likeness. You can also upload a photo from your phone.
       </p>
 
       <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -819,6 +870,18 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
           <button style={ghostBtn} onClick={retake} disabled={busy}>
             Retake
           </button>
+        )}
+        {!url && (
+          <label style={{ ...ghostBtn, display: 'inline-block', cursor: 'pointer' }}>
+            Upload instead
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/*"
+              onChange={(e) => void onFile(e)}
+              style={{ display: 'none' }}
+            />
+          </label>
         )}
       </div>
 

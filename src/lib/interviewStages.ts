@@ -10,13 +10,13 @@ export interface StageProgress {
 export function stagesForLevel(level: number): StageProgress[] {
   return [
     { id: 'foundation', label: 'Foundation', done: level >= 1, current: level === 0 },
-    { id: 'enriched', label: 'Enriched', done: level >= 2, current: level === 1 },
-    { id: 'legacy', label: 'Legacy', done: level >= 3, current: level === 2 },
+    { id: 'enriched', label: 'Enrichment', done: level >= 2, current: level === 1 },
+    { id: 'legacy', label: 'Family Archive', done: level >= 3, current: level === 2 },
   ]
 }
 
 export function stageDisplayName(stage: InterviewStage): string {
-  return { foundation: 'Foundation', enriched: 'Enriched', legacy: 'Legacy' }[stage]
+  return { foundation: 'Foundation', enriched: 'Enrichment', legacy: 'Family Archive' }[stage]
 }
 
 export function continueInterviewAction(level: number): {
@@ -25,21 +25,21 @@ export function continueInterviewAction(level: number): {
   stage: InterviewStage | null
 } {
   if (level >= 3) {
-    return { title: 'All stages complete', note: 'Foundation, Enriched, and Legacy preserved', stage: null }
+    return { title: 'Review the archive', note: 'Review, organize, and prepare family access', stage: null }
   }
   if (level >= 2) {
-    return { title: 'Continue Legacy interview', note: 'Worldview, personality & meaning', stage: 'legacy' }
+    return { title: 'Continue interview', note: 'Review, organize, and prepare family access', stage: 'legacy' }
   }
   if (level >= 1) {
-    return { title: 'Continue Enriched interview', note: 'Stories, relationships & wisdom', stage: 'enriched' }
+    return { title: 'Continue interview', note: 'Add voice, photographs, memories, and meaning', stage: 'enriched' }
   }
-  return { title: 'Continue Foundation interview', note: 'Breadth — the first usable avatar', stage: 'foundation' }
+  return { title: 'Begin interview', note: 'Gather the core stories, people, and context', stage: 'foundation' }
 }
 
 export function stageGoal(stage: InterviewStage): string {
   return {
-    foundation: 'Breadth — the first usable avatar',
-    enriched: 'Depth — stories, relationships & wisdom',
-    legacy: 'Meaning — worldview, personality & legacy',
+    foundation: 'Gather the core stories, people, and context.',
+    enriched: 'Add voice, photographs, memories, and meaning.',
+    legacy: 'Review, organize, and prepare family access.',
   }[stage]
 }
