@@ -26,6 +26,9 @@ export default function SettingsScreen() {
 
   const signOut = async () => {
     clearAuthTokenCache()
+    sessionStorage.removeItem('legacy-ai:pending-join-token')
+    localStorage.removeItem('legacy-ai:pending-join-token')
+    localStorage.removeItem('legacy-ai:last-creator-id')
     await supabase.auth.signOut()
     navigate('/')
   }

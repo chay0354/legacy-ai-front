@@ -54,6 +54,14 @@ function clearPendingJoinToken() {
   localStorage.removeItem(PENDING_JOIN_TOKEN_KEY)
 }
 
+function ownsArchive(me: AccessMe) {
+  return me.memberships.some((m) => m.isOwner)
+}
+
+function ownedMemberships(me: AccessMe) {
+  return me.memberships.filter((m) => m.isOwner)
+}
+
 function Centered({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
@@ -82,6 +90,8 @@ function membershipHasProgress(m: AccessMe['memberships'][number]) {
 
 async function signOutAndClear() {
   clearAuthTokenCache()
+  clearPendingJoinToken()
+  if (typeof localStorage !== 'undefined') localStorage.removeItem(LAST_CREATOR_KEY)
   await supabase.auth.signOut()
 }
 
@@ -111,18 +121,17 @@ function preferredSharedMembership(me: AccessMe, cached?: string | null) {
 
 /** The interview belongs to the person building their own archive — never an invitee. */
 function shouldStartInterview(me: AccessMe): boolean {
-  if (pendingJoinToken()) return false
-  const shared = me.memberships.filter((m) => !m.isOwner)
-  const owned = me.memberships.filter((m) => m.isOwner)
+  if (pendingJoinToken() && !ownsArchive(me)) return false
+  const owned = ownedMemberships(me)
   if (owned.find(membershipHasProgress)) return false
-  if (shared.length > 0) return false
   if (owned.length > 0) return can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)
+  if (me.memberships.some((m) => !m.isOwner)) return false
   return true
 }
 
 function canAccessInterview(me: AccessMe): boolean {
-  if (pendingJoinToken()) return false
-  const owned = me.memberships.filter((m) => m.isOwner)
+  if (pendingJoinToken() && !ownsArchive(me)) return false
+  const owned = ownedMemberships(me)
   if (owned.length === 0) return me.memberships.filter((m) => !m.isOwner).length === 0
   return can(normalizeRole(owned[0].role), ACTIONS.COMPLETE_INTERVIEW)
 }
@@ -133,37 +142,43 @@ function isInterviewBlockedError(msg: string | null | undefined) {
 
 function pickCreatorId(me: AccessMe, preferred?: string | null): string | null {
   const byId = (id: string) => me.memberships.find((m) => m.creatorId === id)
+  const owned = ownedMemberships(me)
   if (preferred) {
     const pref = byId(preferred)
-    if (pref && (!pref.isOwner || membershipHasProgress(pref))) return preferred
+    if (pref?.isOwner) return preferred
+    if (pref && owned.length === 0) return preferred
   }
-  const activeOwned = me.memberships.find((m) => m.isOwner && membershipHasProgress(m))
+  const activeOwned = owned.find(membershipHasProgress)
   if (activeOwned) return activeOwned.creatorId
-  const shared = me.memberships.find((m) => !m.isOwner)
-  if (shared) return shared.creatorId
-  const owned = me.memberships.find((m) => m.isOwner)
-  return owned?.creatorId ?? me.memberships[0]?.creatorId ?? null
+  if (owned[0]) return owned[0].creatorId
+  const shared = preferredSharedMembership(me, preferred)
+  return shared?.creatorId ?? me.memberships[0]?.creatorId ?? null
 }
 
-/** Where a signed-in person should land: a shared archive first, then their own interview. */
+/** Own archive first. Shared archives only when this person has no legacy of their own. */
 function resolveDestination(me: AccessMe): string {
+  if (!ownsArchive(me)) {
+    const pendingJoin = pendingJoinToken()
+    if (pendingJoin) return `/join?token=${pendingJoin}`
+    if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
+  } else {
+    clearPendingJoinToken()
+  }
+
   const cached = typeof localStorage !== 'undefined' ? localStorage.getItem(LAST_CREATOR_KEY) : null
   const picked = pickCreatorId(me, cached)
   if (picked) {
     const m = me.memberships.find((x) => x.creatorId === picked)
-    if (m && (!m.isOwner || membershipHasProgress(m))) return archiveScreen(picked)
+    if (m?.isOwner && membershipHasProgress(m)) return archiveScreen(picked)
+    if (m && !m.isOwner) return archiveScreen(picked)
   }
 
-  const activeOwned = me.memberships.filter((m) => m.isOwner).find(membershipHasProgress)
+  const activeOwned = ownedMemberships(me).find(membershipHasProgress)
   if (activeOwned) return archiveScreen(activeOwned.creatorId)
+  if (shouldStartInterview(me)) return '/interview'
 
   const shared = preferredSharedMembership(me, cached)
   if (shared) return archiveScreen(shared.creatorId)
-
-  const pendingJoin = pendingJoinToken()
-  if (pendingJoin) return `/join?token=${pendingJoin}`
-  if (me.pendingInvitations.length > 0) return `/join?token=${me.pendingInvitations[0].token}`
-  if (shouldStartInterview(me)) return '/interview'
   if (me.memberships.length > 0) return archiveScreen(me.memberships[0].creatorId)
   return '/interview'
 }
@@ -172,10 +187,10 @@ function resolveDestination(me: AccessMe): string {
 function interviewEscapeRoute(me: AccessMe): string {
   const dest = resolveDestination(me)
   if (!dest.startsWith('/interview')) return dest
+  const owned = ownedMemberships(me)[0]
+  if (owned) return archiveScreen(owned.creatorId)
   const shared = preferredSharedMembership(me)
   if (shared) return archiveScreen(shared.creatorId)
-  const owned = me.memberships.find((m) => m.isOwner)
-  if (owned) return archiveScreen(owned.creatorId)
   return '/'
 }
 
@@ -198,16 +213,20 @@ function PublicHome({ session }: { session: Session | null }) {
     if (!session) return
     let active = true
     const pendingJoin = pendingJoinToken()
-    if (pendingJoin) {
-      navigate(`/join?token=${pendingJoin}`, { replace: true })
-      return
-    }
     if (explicitNext) {
       navigate(explicitNext, { replace: true })
       return
     }
     accessApi.me()
-      .then((me) => { if (active) navigate(resolveDestination(me), { replace: true }) })
+      .then((me) => {
+        if (!active) return
+        if (pendingJoin && !ownsArchive(me)) {
+          navigate(`/join?token=${pendingJoin}`, { replace: true })
+          return
+        }
+        if (pendingJoin) clearPendingJoinToken()
+        navigate(resolveDestination(me), { replace: true })
+      })
       .catch(async (err) => {
         if (!active) return
         const msg = err instanceof Error ? err.message : ''
@@ -228,16 +247,20 @@ function SignInRoute({ session }: { session: Session | null }) {
     if (!session) return
     let active = true
     const pendingJoin = pendingJoinToken()
-    if (pendingJoin) {
-      navigate(`/join?token=${pendingJoin}`, { replace: true })
-      return
-    }
     if (explicitNext) {
       navigate(explicitNext, { replace: true })
       return
     }
     accessApi.me()
-      .then((me) => { if (active) navigate(resolveDestination(me), { replace: true }) })
+      .then((me) => {
+        if (!active) return
+        if (pendingJoin && !ownsArchive(me)) {
+          navigate(`/join?token=${pendingJoin}`, { replace: true })
+          return
+        }
+        if (pendingJoin) clearPendingJoinToken()
+        navigate(resolveDestination(me), { replace: true })
+      })
       .catch(() => { if (active) navigate('/overview', { replace: true }) })
     return () => { active = false }
   }, [session, navigate, explicitNext])
@@ -256,14 +279,24 @@ function ArchiveRoute({
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const creatorIdParam = params.get('c') || undefined
-  const [resolving, setResolving] = useState(!creatorIdParam)
+  const [resolving, setResolving] = useState(true)
 
   useEffect(() => {
-    if (!session || creatorIdParam) return
+    if (!session) return
     let active = true
     accessApi.me()
       .then((me) => {
         if (!active) return
+        if (creatorIdParam) {
+          const allowed = me.memberships.some((m) => m.creatorId === creatorIdParam)
+          if (!allowed) {
+            localStorage.removeItem(LAST_CREATOR_KEY)
+            navigate(resolveDestination(me), { replace: true })
+            return
+          }
+          setResolving(false)
+          return
+        }
         const cached = localStorage.getItem(LAST_CREATOR_KEY)
         const picked = pickCreatorId(me, cached)
         if (picked) {
@@ -283,7 +316,7 @@ function ArchiveRoute({
   }, [session, creatorIdParam, navigate])
 
   if (!session) return <Navigate to="/" replace />
-  if (resolving && !creatorIdParam) {
+  if (resolving) {
     return (
       <Centered>
         <span style={{ fontFamily: serif, fontSize: 17, color: T.ink2 }}>Opening your archive…</span>
@@ -675,6 +708,7 @@ export default function App() {
       if (event === 'SIGNED_IN' && s?.user?.id) {
         accessApi.me()
           .then((me) => {
+            if (ownsArchive(me)) clearPendingJoinToken()
             const cached = localStorage.getItem(LAST_CREATOR_KEY)
             if (cached && !me.memberships.some((m) => m.creatorId === cached)) {
               localStorage.removeItem(LAST_CREATOR_KEY)
