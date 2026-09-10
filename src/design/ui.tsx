@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { T, radius, sans, serif, shadow } from './tokens'
 
 /* ─────────────────────────────── icons ─────────────────────────────── */
@@ -209,10 +209,16 @@ export function Meta({ items, color = T.ink3 }: { items: (string | number | null
 export function ImageSlot({
   label, height = 160, src, style,
 }: { label: string; height?: number | string; src?: string | null; style?: CSSProperties }) {
-  if (src) {
+  const [broken, setBroken] = useState(false)
+  if (src && !broken) {
     return (
       <div style={{ height, borderRadius: radius.sm, overflow: 'hidden', background: T.paperDeep, ...style }}>
-        <img src={src} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img
+          src={src}
+          alt=""
+          onError={() => setBroken(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
       </div>
     )
   }

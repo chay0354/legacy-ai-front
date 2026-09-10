@@ -13,6 +13,7 @@ import {
 } from "../lib/interviewDepth";
 import { sanitizeForSessionLanguage, textMatchesSessionLanguage } from "../lib/languageScript";
 import { avatarApi, type CreatorGender, type CreatorPronouns } from "../lib/api";
+import { C, serif, sans } from "../design/tokens";
 
 /**
  * Legacy AI — Interview Session
@@ -69,6 +70,10 @@ export type ConductorContext = {
   gender?: CreatorGender | string | null;
   /** Explicit pronouns e.g. she/her — never inferred from name. */
   pronouns?: CreatorPronouns | string | null;
+  /** Stories from earlier stages — so interview 2+ is not a cold start. */
+  priorStories?: PriorTopic[];
+  /** guided = topic list; light = one follow-up; free = they lead. */
+  guidanceMode?: 'guided' | 'light' | 'free';
 };
 
 export interface AiVoiceInterview {
@@ -85,6 +90,7 @@ export interface AiVoiceInterview {
   updateInstructions: (instructions: string) => void;
   completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
   transitionToTopic: (instructions: string, questionIndex: number) => void;
+  waitForPlaybackIdle?: (timeoutMs?: number) => Promise<void>;
 }
 
 export interface InterviewSessionProps {
@@ -109,12 +115,17 @@ export interface InterviewSessionProps {
   interviewStage?: string;
   /** Locked speaking/transcript language (ISO-639-1). Defaults to English. */
   interviewLanguage?: string;
-  onAnswerCommit?: (answer: Answer & { questionIndex: number; skipped: boolean }) => void | Promise<void>;
+  onAnswerCommit?: (answer: Answer & { questionIndex: number; skipped: boolean }) =>
+    void | Promise<void | { questions?: Question[] }>;
   onComplete?: (answers: Answer[], meta?: { topicExclusions?: string[] }) => void | Promise<void>;
   onViewAvatar?: () => void;
   onViewLegacy?: () => void;
   onManageAccess?: () => void;
   onBack?: () => void;
+  /** Rendered inside the archive paper pane — no full-page chrome. */
+  embedded?: boolean;
+  /** Answers from earlier stages — cited when this stage opens. */
+  priorStories?: PriorTopic[];
   processing?: boolean;
   processingError?: string | null;
   onRetryPreservation?: () => void;
@@ -126,14 +137,7 @@ export interface InterviewSessionProps {
   } | null;
 }
 
-const C = {
-  paper: "#ece3d2", panel: "#f4ecdc", card: "#fbf6ec",
-  ink: "#2b241c", ink2: "#6e6253", ink3: "#9a8d79", line: "#ddccb0",
-  terra: "#c06a44", umber: "#7a5236", gold: "#b3902f", sage: "#71805c",
-};
-const serif = "'Newsreader', Georgia, serif";
-const sans  = "'Hanken Grotesk', system-ui, sans-serif";
-const mono  = "'Spline Sans Mono', ui-monospace, monospace";
+const mono = sans;
 
 const DEFAULT_QS: Question[] = [
   { q: "Tell me about the family you grew up in.",
@@ -155,10 +159,6 @@ function useInjectedHead() {
   useEffect(() => {
     const id = "legacy-ai-interview-head";
     if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap";
-    document.head.appendChild(link);
     const style = document.createElement("style");
     style.id = id;
     style.textContent = `
@@ -167,7 +167,7 @@ function useInjectedHead() {
       @keyframes la-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
       @keyframes la-rec { 0%,100%{opacity:1} 50%{opacity:.3} }
       @keyframes la-breathe { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.25);opacity:.55} }
-      .legacy-interview ::selection { background:#c06a44; color:#fbf6ec }
+      .legacy-interview ::selection { background:#b05e37; color:#f0e7d6 }
     `;
     document.head.appendChild(style);
   }, []);
@@ -201,6 +201,8 @@ export default function InterviewSession({
   onViewLegacy,
   onManageAccess = () => {},
   onBack,
+  embedded = false,
+  priorStories = [],
   processing = false,
   processingError = null,
   onRetryPreservation,
@@ -208,7 +210,9 @@ export default function InterviewSession({
 }: InterviewSessionProps) {
   useInjectedHead();
 
-  const QS    = questions;
+  const [liveQuestions, setLiveQuestions] = useState(questions);
+  useEffect(() => { setLiveQuestions(questions); }, [questions]);
+  const QS    = liveQuestions;
   const TOTAL = QS.length;
 
   const [started,    setStarted]    = useState(false);
@@ -230,6 +234,9 @@ export default function InterviewSession({
   const [pronouns, setPronouns] = useState<CreatorPronouns>(null);
   const [identityBusy, setIdentityBusy] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
+  const [guidanceMode, setGuidanceMode] = useState<'guided' | 'light' | 'free'>('guided');
+  const [changingIdentity, setChangingIdentity] = useState(false);
+  const guidanceModeRef = useRef<'guided' | 'light' | 'free'>('guided');
   const genderRef = useRef<CreatorGender>(null);
   const pronounsRef = useRef<CreatorPronouns>(null);
   const turnSeqRef = useRef(0);
@@ -318,7 +325,7 @@ export default function InterviewSession({
     }
   };
 
-  /** Last topic done — tear down voice immediately, then preserve. Never leave a live session hanging. */
+  /** Last topic done — let wrap-up audio finish, then preserve. */
   const endInterviewSession = async () => {
     if (finishingRef.current) return;
     finishingRef.current = true;
@@ -329,6 +336,9 @@ export default function InterviewSession({
       sttStopRef.current();
       sttStopRef.current = null;
     }
+    try {
+      await realtimeRef.current?.waitForPlaybackIdle?.(10000);
+    } catch { /* disconnect anyway */ }
     stopConversation();
     try {
       await onComplete(answersRef.current.filter(Boolean), {
@@ -400,11 +410,16 @@ export default function InterviewSession({
     digFor: QS[questionIndex]?.digFor || '',
     questionIndex,
     totalQuestions: TOTAL,
-    priorTopics: priorTopicsFor(questionIndex),
+    priorTopics: [
+      ...priorStories,
+      ...priorTopicsFor(questionIndex),
+    ],
+    priorStories,
     topicExclusions: topicExclusionsRef.current,
     language: interviewLanguage || 'en',
     gender: genderRef.current,
     pronouns: pronounsRef.current,
+    guidanceMode: guidanceModeRef.current,
   });
 
   const handleRealtimeAdvance = async (questionIndex: number, summary: string, callId: string) => {
@@ -467,35 +482,47 @@ export default function InterviewSession({
       userTurnsRef.current = 0;
       lastUserUtteranceRef.current = '';
 
+      let list = QS;
       if (onAnswerCommit) {
-        await onAnswerCommit({
+        const nextList = await onAnswerCommit({
           questionIndex,
           question: QS[questionIndex].q,
           answer: savedAnswer,
           mode: "voice",
           skipped: trulySkipped,
         });
+        if (nextList?.questions?.length) {
+          list = nextList.questions;
+          setLiveQuestions(list);
+        }
       }
 
-      if (questionIndex < TOTAL - 1) {
+      if (questionIndex < list.length - 1) {
         if (finishingRef.current) {
           finish({ ok: true, complete: true }, { continueResponse: false });
           return;
         }
         const next = questionIndex + 1;
+        const total = list.length;
         setQ(next);
         clearTopicTranscript();
-        const instructions = await fetchRealtimeInstructions(ctxFor(next));
+        const nextCtx = {
+          ...ctxFor(next),
+          anchorQuestion: list[next]?.q || '',
+          digFor: list[next]?.digFor || '',
+          totalQuestions: total,
+        };
+        const instructions = await fetchRealtimeInstructions(nextCtx);
         // Apply next-topic instructions before the model speaks again (avoids racing on old prompt).
         const langLock = ` Speak only in session language "${sessionLang}" — never Hebrew, Arabic, German, or any other language.`;
         finish(
           {
             ok: true,
             message: (trulySkipped
-              ? `They asked to leave this topic. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Acknowledge briefly (no follow-up on the skipped topic) and open the next topic warmly.`
+              ? `They asked to leave this topic. New instructions are loaded for topic ${next + 1} of ${total}. Acknowledge briefly (no follow-up on the skipped topic) and open the next topic warmly.`
               : skipped
-                ? `They asked to stop this topic. What they said is saved. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Acknowledge briefly — do NOT dig further — then open the next topic warmly.`
-                : `Topic saved. New instructions are loaded for topic ${next + 1} of ${TOTAL}. Transition warmly — a soft progress cue in plain language (topic ${next + 1} of ${TOTAL}), bridge from their story if it fits, then ask the next topic in your own words. Never say "next question" or sound like a checklist. Do not re-welcome them.`) + langLock,
+                ? `They asked to stop this topic. What they said is saved. New instructions are loaded for topic ${next + 1} of ${total}. Acknowledge briefly — do NOT dig further — then open the next topic warmly.`
+                : `Topic saved. New instructions are loaded for topic ${next + 1} of ${total}. Transition warmly — a soft progress cue in plain language (topic ${next + 1} of ${total}), bridge from their story if it fits, then ask the next topic in your own words. Never say "next question" or sound like a checklist. Do not re-welcome them.`) + langLock,
           },
           { instructions, nextQuestionIndex: next },
         );
@@ -536,25 +563,36 @@ export default function InterviewSession({
         mode: 'voice',
       };
 
+      let list = QS;
       if (onAnswerCommit) {
-        await onAnswerCommit({
+        const nextList = await onAnswerCommit({
           questionIndex,
           question: QS[questionIndex].q,
           answer: kept,
           mode: 'voice',
           skipped: !kept,
         });
+        if (nextList?.questions?.length) {
+          list = nextList.questions;
+          setLiveQuestions(list);
+        }
       }
 
       userTurnsRef.current = 0;
       lastUserUtteranceRef.current = '';
       clearTopicTranscript();
 
-      if (questionIndex < TOTAL - 1) {
+      if (questionIndex < list.length - 1) {
         const next = questionIndex + 1;
         setQ(next);
         if (aiVoiceMode && realtimeRef.current) {
-          const instructions = await fetchRealtimeInstructions(ctxFor(next));
+          const nextCtx = {
+            ...ctxFor(next),
+            anchorQuestion: list[next]?.q || '',
+            digFor: list[next]?.digFor || '',
+            totalQuestions: list.length,
+          };
+          const instructions = await fetchRealtimeInstructions(nextCtx);
           realtimeRef.current.transitionToTopic(instructions, next);
         } else {
           stopConversation();
@@ -755,19 +793,24 @@ export default function InterviewSession({
     const skipped = !answer.trim();
     answersRef.current[q] = { question: cur.q, answer, mode };
 
+    let list = QS;
     if (onAnswerCommit) {
-      await onAnswerCommit({
+      const nextList = await onAnswerCommit({
         questionIndex: q,
         question: cur.q,
         answer,
         mode,
         skipped,
       });
+      if (nextList?.questions?.length) {
+        list = nextList.questions;
+        setLiveQuestions(list);
+      }
     }
 
     if (sttStopRef.current) { sttStopRef.current(); sttStopRef.current = null; }
     stopConversation();
-    if (q < TOTAL - 1) {
+    if (q < list.length - 1) {
       const next = q + 1;
       setQ(next);
       clearTopicTranscript();
@@ -899,8 +942,10 @@ export default function InterviewSession({
   };
 
   /* controls */
-  const startVoice = () => {
+  const startVoice = (mode: 'guided' | 'light' | 'free' = 'guided') => {
     void (async () => {
+      setGuidanceMode(mode);
+      guidanceModeRef.current = mode;
       if (!(await ensureIdentityBeforeStart())) return;
       unlockAudioPlayback();
       finishingRef.current = false;
@@ -968,8 +1013,9 @@ export default function InterviewSession({
         : "One moment — the next question is coming up."
       : "Write as much or as little as you like.";
 
+  const markInitial = (subjectName.trim()[0] || "L").toUpperCase();
   const Mark = ({ size = 24, border, color, font = 13 }: { size?: number; border: string; color: string; font?: number }) => (
-    <div style={{ width: size, height: size, borderRadius: "50%", border: `1px solid ${border}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: font, color }}>H</div>
+    <div style={{ width: size, height: size, borderRadius: "50%", border: `1px solid ${border}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: serif, fontSize: font, color }}>{markInitial}</div>
   );
 
   const tab = (active: boolean): React.CSSProperties => ({
@@ -982,37 +1028,48 @@ export default function InterviewSession({
   });
 
   return (
-    <div className="legacy-interview" style={{
-      minHeight: "100vh", background: C.paper,
-      backgroundImage: "radial-gradient(1000px 560px at 50% -14%, rgba(255,251,242,.72), transparent 62%)",
+    <div className={`legacy-interview${embedded ? " is-embedded" : ""}`} style={{
+      minHeight: embedded ? undefined : "100vh", background: embedded ? "transparent" : C.paper,
+      backgroundImage: embedded ? "none" : "radial-gradient(1000px 560px at 50% -14%, rgba(255,251,242,.72), transparent 62%)",
       fontFamily: sans, color: C.ink, display: "flex", flexDirection: "column", WebkitFontSmoothing: "antialiased",
     }}>
       {/* TOP BAR */}
-      <div style={{ flex: "none", borderBottom: `1px solid ${C.line}` }}>
-        <div className="legacy-interview-top" style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{
+        flex: "none",
+        borderBottom: embedded ? "none" : `1px solid ${C.line}`,
+        background: embedded ? "#1e1712" : undefined,
+        margin: embedded ? "0 -8px 8px" : undefined,
+        padding: embedded ? "10px 16px 12px" : undefined,
+        borderRadius: embedded ? 4 : undefined,
+      }}>
+        <div className="legacy-interview-top" style={{ maxWidth: 920, margin: "0 auto", padding: embedded ? "0 0" : "0 28px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Mark border={C.umber} color={C.umber} />
-            <div className="legacy-interview-brand" style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
+            {!embedded && (
+              <>
+                <Mark border={C.umber} color={C.umber} />
+                <div className="legacy-interview-brand" style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
+              </>
+            )}
           </div>
-          <div className="legacy-interview-status" style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
+          <div className="legacy-interview-status" style={{ fontFamily: sans, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600, color: embedded ? "rgba(240,231,214,.62)" : C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
             {running ? (
               <>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.terra, animation: ambient && !paused ? "la-rec 1.4s ease-in-out infinite" : "none" }} />
                 <span style={{ color: C.terra }}>Topic {q + 1}/{TOTAL}</span>
-                <span style={{ color: C.line }}>·</span>
+                <span style={{ color: embedded ? "rgba(240,231,214,.28)" : C.line }}>·</span>
                 <span>{elapsed}</span>
               </>
-            ) : <span>{stageLabel} · {sessionLabel}</span>}
+            ) : <span>{stageLabel} · {sessionLabel}{guidanceMode === "free" ? " · free talk" : guidanceMode === "light" ? " · lighter" : ""}</span>}
           </div>
           <div style={{ minWidth: 78, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
             {running && (
-              <button onClick={togglePause} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 999 }}>{paused ? "Resume" : "Pause"}</button>
+              <button onClick={togglePause} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${embedded ? "rgba(240,231,214,.22)" : C.line}`, color: embedded ? "#f0e7d6" : C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 4 }}>{paused ? "Resume" : "Pause"}</button>
             )}
             {onBack && (
               <button
                 type="button"
                 onClick={onBack}
-                style={{ cursor: "pointer", background: C.card, border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 999, boxShadow: "0 2px 8px rgba(43,36,28,.06)", whiteSpace: "nowrap" }}
+                style={{ cursor: "pointer", background: embedded ? "rgba(240,231,214,.10)" : C.card, border: `1px solid ${embedded ? "rgba(240,231,214,.22)" : C.line}`, color: embedded ? "#f0e7d6" : C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 4, whiteSpace: "nowrap" }}
               >
                 Back to home
               </button>
@@ -1025,7 +1082,7 @@ export default function InterviewSession({
       </div>
 
       {/* MAIN */}
-      <div className="legacy-interview-main" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 28px 56px", boxSizing: "border-box" }}>
+      <div className="legacy-interview-main" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: embedded ? "24px 0 32px" : "40px 28px 56px", boxSizing: "border-box" }}>
 
         {/* INTRO */}
         {!started && !complete && (
@@ -1079,6 +1136,20 @@ export default function InterviewSession({
               </ul>
             )}
 
+            {pronouns && !changingIdentity ? (
+              <div style={{
+                marginTop: 26, width: "100%", maxWidth: 420, textAlign: "left",
+                padding: "14px 16px", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 4,
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+              }}>
+                <span style={{ fontSize: 14, color: C.ink2 }}>Using {pronouns}</span>
+                <button
+                  type="button"
+                  onClick={() => setChangingIdentity(true)}
+                  style={{ background: "none", border: "none", color: C.ink3, fontFamily: sans, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+                >Change</button>
+              </div>
+            ) : (
             <div style={{
               marginTop: 26,
               width: "100%",
@@ -1087,84 +1158,79 @@ export default function InterviewSession({
               padding: "16px 16px 14px",
               background: C.panel,
               border: `1px solid ${C.line}`,
-              borderRadius: 12,
+              borderRadius: 4,
             }}>
-              <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3 }}>
+              <div style={{ fontFamily: sans, fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, fontWeight: 600 }}>
                 How should we refer to you?
               </div>
               <p style={{ fontSize: 13, lineHeight: 1.45, color: C.ink2, margin: "8px 0 0" }}>
-                Required before starting — we never guess from your name (e.g. Yael is not assumed he/him).
+                Required before starting — we never guess from your name.
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-                <label style={{ fontSize: 13, color: C.ink2 }}>
-                  Gender
-                  <select
-                    disabled={identityBusy}
-                    value={gender || ""}
-                    onChange={(e) => {
-                      const g = (e.target.value || null) as CreatorGender;
-                      const p = pronouns || defaultPronounsForGender(g);
-                      setGender(g);
-                      setPronouns(p);
-                      genderRef.current = g;
-                      pronounsRef.current = p;
-                      void persistIdentity(g, p).catch(() => {});
-                    }}
-                    style={{
-                      width: "100%",
-                      marginTop: 6,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: `1px solid ${C.line}`,
-                      background: C.card,
-                      fontFamily: sans,
-                      fontSize: 14,
-                      color: C.ink,
-                    }}
-                  >
-                    <option value="">Not set</option>
-                    <option value="female">Female</option>
-                    <option value="male">Male</option>
-                  </select>
-                </label>
-                <label style={{ fontSize: 13, color: C.ink2 }}>
-                  Pronouns
-                  <select
-                    disabled={identityBusy}
-                    value={pronouns || ""}
-                    onChange={(e) => {
-                      const p = (e.target.value || null) as CreatorPronouns;
-                      setPronouns(p);
-                      pronounsRef.current = p;
-                      void persistIdentity(gender, p).catch(() => {});
-                    }}
-                    style={{
-                      width: "100%",
-                      marginTop: 6,
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: `1px solid ${C.line}`,
-                      background: C.card,
-                      fontFamily: sans,
-                      fontSize: 14,
-                      color: C.ink,
-                    }}
-                  >
-                    <option value="">Not set</option>
-                    <option value="she/her">she/her</option>
-                    <option value="he/him">he/him</option>
-                  </select>
-                </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: C.ink2, marginBottom: 8 }}>Gender</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {([["female", "Female"], ["male", "Male"]] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={identityBusy}
+                        onClick={() => {
+                          const g = value as CreatorGender;
+                          const p = pronouns || defaultPronounsForGender(g);
+                          setGender(g);
+                          setPronouns(p);
+                          genderRef.current = g;
+                          pronounsRef.current = p;
+                          void persistIdentity(g, p).catch(() => {});
+                        }}
+                        style={{
+                          flex: 1, padding: "10px 12px", borderRadius: 4, cursor: "pointer",
+                          fontFamily: sans, fontSize: 14, fontWeight: 600,
+                          background: gender === value ? accent : C.card,
+                          color: gender === value ? "#fbf6ec" : C.ink,
+                          border: `1px solid ${gender === value ? accent : C.line}`,
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, color: C.ink2, marginBottom: 8 }}>Pronouns</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {([["she/her", "she/her"], ["he/him", "he/him"]] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={identityBusy}
+                        onClick={() => {
+                          const p = value as CreatorPronouns;
+                          setPronouns(p);
+                          pronounsRef.current = p;
+                          void persistIdentity(gender, p).catch(() => {});
+                        }}
+                        style={{
+                          flex: 1, padding: "10px 12px", borderRadius: 4, cursor: "pointer",
+                          fontFamily: sans, fontSize: 14, fontWeight: 600,
+                          background: pronouns === value ? accent : C.card,
+                          color: pronouns === value ? "#fbf6ec" : C.ink,
+                          border: `1px solid ${pronouns === value ? accent : C.line}`,
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
+                </div>
               </div>
               {identityError && (
                 <div style={{ fontSize: 13, color: "#b04a3a", marginTop: 10 }}>{identityError}</div>
               )}
             </div>
+            )}
 
             <button
-              onClick={startVoice}
+              onClick={() => startVoice("guided")}
               disabled={identityBusy}
-              style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 34, background: accent, color: "#fbf6ec", border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: 999, boxShadow: "0 12px 28px rgba(192,106,68,.32)", display: "inline-flex", alignItems: "center", gap: 12, opacity: identityBusy ? 0.7 : 1 }}
+              style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 34, background: accent, color: "#fbf6ec", border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 12, opacity: identityBusy ? 0.7 : 1 }}
             >
               <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 2, height: 15 }}>
                 <span style={{ width: 3, height: 7, background: "#fbf6ec", borderRadius: 2 }} />
@@ -1173,7 +1239,9 @@ export default function InterviewSession({
               </span>
               {aiVoice ? "Start talking with your interviewer" : "Start the interview"}
             </button>
-            <button onClick={startText} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 16, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
+            <button onClick={() => startVoice("light")} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 14, background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "12px 20px", borderRadius: 4 }}>A lighter conversation</button>
+            <button onClick={() => startVoice("free")} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 10, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 600, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I just want to talk</button>
+            <button onClick={startText} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 12, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
             <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginTop: 30 }}>
               {TOTAL} topics · pause anytime · ask how far you are anytime
             </div>
@@ -1308,7 +1376,6 @@ export default function InterviewSession({
                     <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 20, lineHeight: 1.55, color: C.ink, margin: "20px 0 0", textAlign: "left", width: "100%" }}>
                       <span style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, display: "block", marginBottom: 8 }}>Your words so far</span>
                       {transcript}
-                      <span style={{ color: C.terra, animation: listening ? "la-blink 1s step-end infinite" : "none", opacity: listening ? 1 : 0 }}>▏</span>
                     </p>
                   )}
                 </div>
@@ -1386,7 +1453,6 @@ export default function InterviewSession({
                           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.terra, marginBottom: 5 }}>Interviewer</div>
                           <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 18, lineHeight: 1.45, margin: 0, color: C.ink, textWrap: "pretty" }}>
                             {partialAssistant}
-                            <span style={{ color: C.terra, animation: "la-blink 1s step-end infinite" }}>▏</span>
                           </p>
                         </div>
                       )}
@@ -1395,7 +1461,6 @@ export default function InterviewSession({
                           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginBottom: 5 }}>You</div>
                           <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 16, lineHeight: 1.45, margin: 0, color: C.ink, textWrap: "pretty" }}>
                             {partialUser}
-                            <span style={{ color: C.terra, animation: "la-blink 1s step-end infinite" }}>▏</span>
                           </p>
                         </div>
                       )}

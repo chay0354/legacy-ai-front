@@ -36,7 +36,8 @@ const ALL: SectionDef[] = [
   { key: 'people', label: NAV.people, icon: 'people', inNav: true },
   { key: 'wisdom', label: 'What you were told', icon: 'document', inNav: true },
   { key: 'ask', label: 'Ask the archive', icon: 'ask', inNav: true },
-  { key: 'access', label: NAV.access, icon: 'lock', inNav: true },
+  // Family Access is a route under the divider — not a second nav row.
+  { key: 'access', label: NAV.access, icon: 'lock', inNav: false },
 ]
 
 /** Which sections of the main screen this role may see. */

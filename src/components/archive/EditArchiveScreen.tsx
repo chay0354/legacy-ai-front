@@ -235,7 +235,7 @@ export default function EditArchiveScreen() {
             <Btn tone="quiet" icon="overview" onClick={() => navigate(`/overview${cQuery}`)}>
               View the archive
             </Btn>
-            <Btn icon="interview" onClick={() => navigate('/interview')}>{CTA.continueInterview}</Btn>
+            <Btn icon="interview" onClick={() => navigate(`/interview${cQuery}`)}>{CTA.continueInterview}</Btn>
           </>
         }
       />

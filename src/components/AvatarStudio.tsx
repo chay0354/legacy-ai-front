@@ -378,8 +378,8 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 
   const submit = async () => {
     if (!blob || busy) return
-    if (recordedSeconds < 5) {
-      setError('Record at least 5 seconds — aim for 30–90 seconds for best voice cloning.')
+    if (recordedSeconds < 30) {
+      setError('Record at least 30 seconds — 60–90 seconds in a quiet room clones much more reliably.')
       return
     }
     setBusy(true)
@@ -400,7 +400,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
     }
   }
 
-  const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= 5
+  const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= 30
 
   return (
     <div style={card}>
@@ -477,9 +477,9 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 
       {busy && <StudioProgress label="Cloning your voice…" />}
 
-      {blob && !recording && recordedSeconds < 5 && !busy && (
+      {blob && !recording && recordedSeconds < 30 && !busy && (
         <p style={{ fontFamily: sans, fontSize: 12, color: C.ink3, marginTop: 12 }}>
-          Record at least 5 seconds to continue (30+ seconds recommended for voice cloning).
+          Record at least 30 seconds to continue (60–90 seconds is best for voice cloning).
         </p>
       )}
 

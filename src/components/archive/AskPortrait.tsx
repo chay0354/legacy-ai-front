@@ -103,9 +103,14 @@ export default function AskPortrait({
         ) : !liveActive ? (
           <div style={{
             width: '100%', height: '100%', display: 'grid', placeItems: 'center',
-            background: `linear-gradient(184deg, ${T.oliveDeep} 0%, ${T.walnut} 100%)`,
+            background: `linear-gradient(160deg, ${T.paperDeep} 0%, ${T.card} 100%)`,
           }}>
-            <span style={{ fontFamily: serif, fontSize: 42, color: T.onDark }}>{initials(name)}</span>
+            <span style={{
+              width: 56, height: 56, borderRadius: radius.pill,
+              border: `1px solid ${T.cardEdge}`, background: T.card,
+              display: 'grid', placeItems: 'center',
+              fontFamily: serif, fontSize: 16, color: T.ink3, letterSpacing: '.04em',
+            }}>{initials(name)}</span>
           </div>
         ) : null}
 

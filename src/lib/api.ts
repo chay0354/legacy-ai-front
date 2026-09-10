@@ -218,6 +218,8 @@ export interface InterviewSessionData {
   resumeIndex: number;
   /** Subjects they asked not to discuss (from personality profile). */
   topicExclusions?: string[];
+  /** Earlier-stage answers so a later interview can cite them. */
+  priorStories?: { question: string; summary: string }[];
 }
 
 export interface CompleteResult {
@@ -444,7 +446,7 @@ export const interviewApi = {
   }) => apiFetch(`/api/interview/session/${sessionId}/answer`, {
     method: 'PUT',
     body: JSON.stringify(payload),
-  }),
+  }) as Promise<{ answer: SavedAnswer; questions?: { q: string; digFor?: string }[] }>,
 
   complete: (sessionId: string, payload: {
     durationSeconds: number;

@@ -130,6 +130,9 @@ export default function ArchiveHome() {
   const liveReady = ctx.assets?.liveReady === true
   const mayAsk = canAsk(role)
   const ask = stageAsk(level)
+  const interviewHref = creatorId
+    ? `/interview?c=${creatorId}${ask.stage ? `&stage=${ask.stage}` : ''}`
+    : ask.stage ? `/interview?stage=${ask.stage}` : '/interview'
 
   const toggleVoice = () => {
     if (!voiceUrl) return
@@ -191,13 +194,20 @@ export default function ArchiveHome() {
             {mayAsk && (
               <Btn tone="quiet" icon="ask" onClick={() => navigate(`/ask${cQuery}`)}>{ASK.write}</Btn>
             )}
-            {canSetUpLiveAvatar(role) && !liveReady && (
-              <Btn tone="quiet" icon="live" onClick={() => navigate(`/voice-and-photo${cQuery}`)}>
-                {ASK.setup}
-              </Btn>
-            )}
           </div>
-          <PrivacyNote>{STATUS.sourced}. {STATUS.unknown}</PrivacyNote>
+          <PrivacyNote>{STATUS.private}. {STATUS.onlyInvited}</PrivacyNote>
+          {canManageAccess(role) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <Body size={13.5} color={T.ink3}>
+                {Math.max(0, members.length - 1) === 0
+                  ? 'Only you can open this archive'
+                  : `${Math.max(0, members.length - 1)} invited family ${Math.max(0, members.length - 1) === 1 ? 'member' : 'members'}`}
+              </Body>
+              <Btn tone="quiet" size="sm" onClick={() => navigate(`/family-access${cQuery}`)}>
+                {Math.max(0, members.length - 1) === 0 ? 'Prepare family access' : CTA.manage}
+              </Btn>
+            </div>
+          )}
         </div>
       </header>
 
@@ -211,7 +221,7 @@ export default function ArchiveHome() {
             ? (
               <Btn
                 icon="interview"
-                onClick={() => navigate(ask.stage ? `/interview?stage=${ask.stage}` : `/family-access${cQuery}`)}
+                onClick={() => navigate(ask.stage ? interviewHref : `/family-access${cQuery}`)}
               >
                 {ask.cta}
               </Btn>
@@ -254,7 +264,7 @@ export default function ArchiveHome() {
                 <NextAction
                   eyebrow={ask.eyebrow} title={ask.title} note={ask.note} cta={ask.cta}
                   imageSrc={storyPhoto}
-                  onCta={() => navigate(ask.stage ? `/interview?stage=${ask.stage}` : `/family-access${cQuery}`)}
+                  onCta={() => navigate(ask.stage ? interviewHref : `/family-access${cQuery}`)}
                 />
               ) : (
                 <PhotoCollage

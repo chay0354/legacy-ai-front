@@ -105,7 +105,7 @@ export function NextAction({
         <Display size={22}>{title}</Display>
         <Body size={14} style={{ maxWidth: 340 }}>{note}</Body>
         <div style={{ marginTop: 'auto', paddingTop: 14 }}>
-          <Btn tone="secondary" onClick={onCta}>{cta}</Btn>
+          <Btn onClick={onCta}>{cta}</Btn>
         </div>
       </div>
       {imageSrc && (
@@ -220,7 +220,7 @@ export function PhotoCollage({
               gridArea: area, overflow: 'hidden', background: T.paperDeep, position: 'relative', minHeight: 0,
             }}>
               <img
-                src={p.imageUrl!} alt={p.title || p.caption || 'Photograph'}
+                src={p.imageUrl!} alt=""
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
               {showExtra && (

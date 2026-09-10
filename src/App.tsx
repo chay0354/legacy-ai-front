@@ -30,8 +30,9 @@ import SettingsScreen from './components/archive/SettingsScreen'
 import AskArchiveScreen from './components/archive/AskArchiveScreen'
 import VoiceAndPhotoScreen from './components/archive/VoiceAndPhotoScreen'
 import ArchiveWorkspace from './components/archive/ArchiveLayout'
+import { Loading } from './components/archive/parts'
 import { T, radius, sans, serif } from './design/tokens'
-import { BRAND } from './design/copy'
+import { BRAND, BRAND_SUB } from './design/copy'
 import { Body, Btn, Display, Eyebrow } from './design/ui'
 
 const LAST_CREATOR_KEY = 'legacy-ai:last-creator-id'
@@ -68,6 +69,37 @@ function Centered({ children }: { children: React.ReactNode }) {
       minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', background: T.paper, fontFamily: sans, color: T.ink,
       gap: 14, padding: '0 24px', textAlign: 'center',
+    }}>{children}</div>
+  )
+}
+
+/** Walnut stays on screen while auth or a route resolves — never a blank cream page. */
+function BootScreen({ label }: { label: string }) {
+  return (
+    <div className="archive-boot" style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: T.paper,
+    }}>
+      <div style={{
+        background: T.walnutDeep, padding: '18px 28px',
+        paddingTop: 'max(18px, env(safe-area-inset-top))',
+      }}>
+        <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark }}>{BRAND}</div>
+        <div style={{ marginTop: 5 }}>
+          <Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40 }}>
+        <span style={{ fontFamily: serif, fontSize: 17, color: T.ink2 }}>{label}</span>
+      </div>
+    </div>
+  )
+}
+
+function PaneNotice({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+      gap: 14, padding: '12px 0 24px', maxWidth: 560, textAlign: 'left',
     }}>{children}</div>
   )
 }
@@ -217,21 +249,22 @@ function PublicHome({ session }: { session: Session | null }) {
       navigate(explicitNext, { replace: true })
       return
     }
-    accessApi.me()
-      .then((me) => {
-        if (!active) return
-        if (pendingJoin && !ownsArchive(me)) {
-          navigate(`/join?token=${pendingJoin}`, { replace: true })
-          return
-        }
-        if (pendingJoin) clearPendingJoinToken()
-        navigate(resolveDestination(me), { replace: true })
-      })
-      .catch(async (err) => {
-        if (!active) return
-        const msg = err instanceof Error ? err.message : ''
-        if (isAuthError(msg)) await signOutAndClear()
-      })
+    if (pendingJoin) {
+      accessApi.me()
+        .then((me) => {
+          if (!active) return
+          if (!ownsArchive(me)) {
+            navigate(`/join?token=${pendingJoin}`, { replace: true })
+            return
+          }
+          clearPendingJoinToken()
+        })
+        .catch(async (err) => {
+          if (!active) return
+          const msg = err instanceof Error ? err.message : ''
+          if (isAuthError(msg)) await signOutAndClear()
+        })
+    }
     return () => { active = false }
   }, [session, navigate, explicitNext])
 
@@ -301,7 +334,9 @@ function ArchiveRoute({
         const picked = pickCreatorId(me, cached)
         if (picked) {
           localStorage.setItem(LAST_CREATOR_KEY, picked)
-          navigate(`${window.location.pathname}?c=${picked}`, { replace: true })
+          const next = new URLSearchParams(window.location.search)
+          next.set('c', picked)
+          navigate(`${window.location.pathname}?${next.toString()}`, { replace: true })
           return
         }
         navigate(resolveDestination(me), { replace: true })
@@ -316,19 +351,13 @@ function ArchiveRoute({
   }, [session, creatorIdParam, navigate])
 
   if (!session) return <Navigate to="/" replace />
-  if (resolving) {
-    return (
-      <Centered>
-        <span style={{ fontFamily: serif, fontSize: 17, color: T.ink2 }}>Opening your archive…</span>
-      </Centered>
-    )
-  }
+  if (resolving) return <BootScreen label="Opening your archive…" />
   return <>{render(creatorIdParam, session)}</>
 }
 
 /* ─────────────────────────────── Interview ───────────────────────── */
 
-function InterviewPage({ session, authReady }: { session: Session | null; authReady: boolean }) {
+function InterviewPage({ session }: { session: Session | null }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const requestedStage = params.get('stage') || undefined
@@ -344,15 +373,13 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
   const lastAnswersRef = useRef<Answer[]>([])
   const lastExclusionsRef = useRef<string[]>([])
   const [aiVoice, setAiVoice] = useState(false)
-  const [aiVoiceReady, setAiVoiceReady] = useState(false)
 
   useEffect(() => {
     if (!session?.user?.id) return
     let active = true
-    setAiVoiceReady(false)
     checkAiVoiceAvailable()
-      .then((ok) => { if (active) { setAiVoice(ok); setAiVoiceReady(true) } })
-      .catch(() => { if (active) { setAiVoice(false); setAiVoiceReady(true) } })
+      .then((ok) => { if (active) setAiVoice(ok) })
+      .catch(() => { if (active) setAiVoice(false) })
     return () => { active = false }
   }, [session?.user?.id])
 
@@ -398,20 +425,23 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
     return () => { active = false }
   }, [session?.user?.id, navigate, requestedStage])
 
-  if (!authReady) return <Centered><span style={{ fontFamily: serif, color: T.ink2 }}>Loading…</span></Centered>
   if (!session) return <Navigate to="/" replace />
 
   const displayName = sessionData?.creator.display_name || viewerFirstName(session)
 
   const handleAnswerCommit = async (payload: Answer & { questionIndex: number; skipped: boolean }) => {
     if (!sessionData) return
-    await interviewApi.saveAnswer(sessionData.session.id, {
+    const saved = await interviewApi.saveAnswer(sessionData.session.id, {
       questionIndex: payload.questionIndex,
       question: payload.question,
       answer: payload.answer,
       mode: payload.mode,
       skipped: payload.skipped,
     })
+    if (saved.questions?.length) {
+      setSessionData((prev) => prev ? { ...prev, questions: saved.questions! } : prev)
+      return { questions: saved.questions }
+    }
   }
 
   const handleComplete = async (answers: Answer[], meta?: { topicExclusions?: string[] }) => {
@@ -458,16 +488,12 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
     })
   }
 
-  if (redirecting) {
-    return <Centered><span style={{ fontFamily: serif, color: T.ink2 }}>Opening your archive…</span></Centered>
-  }
-  if (loading || !aiVoiceReady) {
-    return <Centered><span style={{ fontFamily: serif, color: T.ink2 }}>Preparing your interview…</span></Centered>
-  }
+  if (redirecting) return <Loading label="Opening your archive…" />
+  if (loading) return <Loading label="Preparing your interview…" />
 
   if (sessionData?.allStagesComplete) {
     return (
-      <Centered>
+      <PaneNotice>
         <Eyebrow>Archive setup</Eyebrow>
         <Display size={30}>Foundation, Enrichment, and Family Archive are all in place</Display>
         <Body size={15} style={{ maxWidth: 460 }}>
@@ -475,14 +501,14 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
           memories, and photographs at any time.
         </Body>
         <Btn onClick={() => navigate(archiveScreen(sessionData.creator.id))}>Open your archive</Btn>
-      </Centered>
+      </PaneNotice>
     )
   }
 
   if (error || !sessionData) {
     const authFailed = Boolean(error && isAuthError(error))
     return (
-      <Centered>
+      <PaneNotice>
         <Display size={26}>Could not open the interview</Display>
         <Body size={14.5} style={{ maxWidth: 460 }}>{error || 'Could not load the interview session.'}</Body>
         {error?.includes('legacy_creators') && (
@@ -511,12 +537,13 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
               })
           }}>Back to the archive</Btn>
         )}
-      </Centered>
+      </PaneNotice>
     )
   }
 
   return (
     <InterviewSession
+      embedded
       subjectName={displayName}
       sessionLabel={sessionData.session.label}
       stageLabel={sessionData.stageLabel}
@@ -531,6 +558,7 @@ function InterviewPage({ session, authReady }: { session: Session | null; authRe
         mode: a.answer_mode,
       }))}
       initialTopicExclusions={sessionData.topicExclusions || []}
+      priorStories={sessionData.priorStories || []}
       autoStart={(sessionData.savedAnswers?.length ?? 0) > 0}
       interviewStage={sessionData.stage}
       aiVoice={aiVoice}
@@ -723,7 +751,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  if (!authReady) return null
+  if (!authReady) return <BootScreen label="Opening your archive…" />
 
   const viewer = viewerFirstName(session)
 
@@ -771,8 +799,8 @@ export default function App() {
           } />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/ask" element={<AskArchiveScreen />} />
+          <Route path="/interview" element={<InterviewPage session={session} />} />
         </Route>
-        <Route path="/interview" element={<InterviewPage session={session} authReady={authReady} />} />
         <Route path="/join" element={<JoinPage session={session} />} />
 
         {/* previous routes → their new homes */}

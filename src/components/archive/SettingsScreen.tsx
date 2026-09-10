@@ -103,16 +103,10 @@ export default function SettingsScreen() {
                 ? <Btn tone="quiet" size="sm" onClick={() => navigate(`/family-access${cQuery}`)}>{CTA.manage}</Btn>
                 : <Body size={13} color={T.ink3}>Managed by the archive owner</Body>}
             </div>
-            {mayEdit && (
-              <div style={rowStyle}>
-                <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Add, correct, or remove entries</span>
-                <Btn tone="quiet" size="sm" onClick={() => navigate(`/edit${cQuery}`)}>Edit archive</Btn>
-              </div>
-            )}
             {canRunInterview(role) && (
               <div style={rowStyle}>
                 <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Continue the guided interview</span>
-                <Btn tone="quiet" size="sm" onClick={() => navigate('/interview')}>{CTA.continueInterview}</Btn>
+                <Btn tone="quiet" size="sm" onClick={() => navigate(`/interview${cQuery}`)}>{CTA.continueInterview}</Btn>
               </div>
             )}
             <div style={rowStyle}>

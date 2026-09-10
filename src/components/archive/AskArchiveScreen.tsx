@@ -174,13 +174,8 @@ export default function AskArchiveScreen() {
             {canChat && (
               <Btn tone="quiet" icon="ask" onClick={focusAsk}>{ASK.write}</Btn>
             )}
-            {mayEdit && !liveReady && (
-              <Btn tone="quiet" icon="live" onClick={() => navigate(`/voice-and-photo${cQuery}`)}>
-                {ASK.setup}
-              </Btn>
-            )}
           </div>
-          <PrivacyNote>{STATUS.sourced}. {STATUS.unknown}</PrivacyNote>
+          <PrivacyNote>{STATUS.sourced}</PrivacyNote>
         </div>
       </div>
 
@@ -249,7 +244,7 @@ export default function AskArchiveScreen() {
             ? 'Begin with a guided interview, then add stories, voice, and photographs.'
             : 'When entries are added, they will appear here.'}
           cta={mayInterview ? 'Begin interview' : undefined}
-          onCta={mayInterview ? () => navigate('/interview') : undefined}
+          onCta={mayInterview ? () => navigate(`/interview${cQuery}`) : undefined}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

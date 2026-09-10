@@ -4,7 +4,7 @@ import {
 } from 'react'
 import {
   accessApi, avatarApi, interviewApi,
-  type AvatarAssetsResponse, type MemberRow, type Role,
+  type AvatarAssetsResponse, type MemberRow, type Membership, type Role,
 } from '../../lib/api'
 import type { LegacyProfile } from '../../lib/mapAvatarData'
 import { ACTIONS, can, normalizeRole, resolveViewerRole } from '../../lib/permissions'
@@ -32,6 +32,7 @@ export interface ArchiveContext {
   profile: (LegacyProfile & { role?: Role }) | null
   assets: AvatarAssetsResponse | null
   members: MemberRow[]
+  memberships: Membership[]
   role: Role
   creatorId?: string
   creatorName: string
@@ -51,6 +52,7 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
   const [profile, setProfile] = useState<(LegacyProfile & { role?: Role }) | null>(null)
   const [assets, setAssets] = useState<AvatarAssetsResponse | null>(null)
   const [members, setMembers] = useState<MemberRow[]>([])
+  const [memberships, setMemberships] = useState<Membership[]>([])
   const [tick, setTick] = useState(0)
   const reload = useCallback(() => setTick((n) => n + 1), [])
   const profileRef = useRef(profile)
@@ -65,6 +67,7 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
         setProfile(null)
         setAssets(null)
         setMembers([])
+        setMemberships([])
       }
       setLoading(true)
     }
@@ -85,6 +88,7 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
         )
         setProfile({ ...p, role })
         setAssets(a)
+        setMemberships(me?.memberships || [])
         if (cid && (can(role, ACTIONS.MANAGE_ACCESS) || can(role, ACTIONS.INVITE_USER))) {
           accessApi.members(cid)
             .then((m) => { if (active) setMembers(m.members) })
@@ -101,7 +105,7 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
   }, [creatorIdParam, tick])
 
   const role = (normalizeRole(profile?.role) || 'member') as Role
-  const creatorName = profile?.creator?.display_name || 'Your'
+  const creatorName = profile?.creator?.display_name || 'This archive'
   const level = profile?.creator?.avatar_level ?? 0
   const setupPct = profile?.creator?.completion_score ?? 0
 
@@ -153,7 +157,7 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
   }, [profile, assets, members])
 
   return {
-    loading, error, profile, assets, members, role,
+    loading, error, profile, assets, members, memberships, role,
     creatorId: profile?.creator?.id || creatorIdParam,
     creatorName,
     portraitUrl: assets?.urls?.portrait || assets?.previewUrl || null,

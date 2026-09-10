@@ -31,6 +31,7 @@ function routeFromPath(pathname: string): ArchiveRouteKey | undefined {
   if (pathname.startsWith('/family-access')) return 'access'
   if (pathname.startsWith('/settings')) return 'settings'
   if (pathname.startsWith('/ask')) return 'ask'
+  if (pathname.startsWith('/interview')) return 'interview'
   return undefined
 }
 
@@ -72,9 +73,11 @@ export default function ArchiveWorkspace({
           creatorId={creatorId}
           creatorName={ctx.creatorName}
           portraitUrl={ctx.portraitUrl}
+          memberships={ctx.memberships}
           activeSection={activeSection}
           activeRoute={activeRoute}
           onSection={goSection}
+          band={false}
         >
           <div key={activeRoute || 'main'} className="archive-pane">
             {ctx.loading && !ctx.profile

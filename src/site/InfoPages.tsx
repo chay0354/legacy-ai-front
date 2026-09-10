@@ -9,17 +9,25 @@ function PageHead({
   eyebrow, title, standfirst,
 }: { eyebrow: string; title: string; standfirst?: string }) {
   return (
-    <div style={{ padding: '58px 44px 34px', maxWidth: 1180, margin: '0 auto' }}>
-      <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Eyebrow>{eyebrow}</Eyebrow>
-        <Display size={46}>{title}</Display>
-        {standfirst && <Body size={17.5} style={{ maxWidth: 620 }}>{standfirst}</Body>}
+    <div className="site-page-head" style={{ background: T.walnut }}>
+      <div className="site-page-head-inner" style={{ padding: '48px 44px 42px', maxWidth: 1180, margin: '0 auto' }}>
+        <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Eyebrow color="rgba(179,144,47,.9)">{eyebrow}</Eyebrow>
+          <Display size={46} color={T.onDark} style={{ fontSize: 'clamp(28px, 6vw, 46px)' }}>{title}</Display>
+          {standfirst && <Body size={17.5} color={T.onDark2} style={{ maxWidth: 620 }}>{standfirst}</Body>}
+        </div>
       </div>
     </div>
   )
 }
 
 const wrap: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '0 44px 80px' }
+
+const STEP_MEDIA: Record<number, { label: string; height: number }> = {
+  0: { label: 'A table, a notebook, an afternoon', height: 140 },
+  1: { label: 'Letters and old prints', height: 140 },
+  3: { label: 'A hallway of framed photos', height: 140 },
+}
 
 /* ─────────────────────────── How it works ─────────────────────────── */
 export function HowItWorksPage() {
@@ -31,29 +39,32 @@ export function HowItWorksPage() {
         title="A guided conversation that becomes a private family archive."
         standfirst="Five steps, at your pace. You can stop after any one of them and pick it up months later."
       />
-      <div style={wrap}>
+      <div className="site-wrap" style={wrap}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {HOW_IT_WORKS.map((s, i) => (
-            <div key={s.n} style={{
-              display: 'grid', gridTemplateColumns: '72px minmax(0,1fr) minmax(0,.8fr)',
+            <div key={s.n} className="how-step" style={{
+              display: 'grid',
+              gridTemplateColumns: STEP_MEDIA[i]
+                ? '72px minmax(0,1fr) minmax(0,.8fr)'
+                : '72px minmax(0,1fr)',
               gap: 30, padding: '30px 0',
               borderTop: `1px solid ${i === 0 ? T.line : T.lineSoft}`,
               alignItems: 'start',
             }}>
-              <span style={{ fontFamily: serif, fontSize: 22, color: T.gold, letterSpacing: '.08em' }}>{s.n}</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <span className="how-step-num" style={{ fontFamily: serif, fontSize: 22, color: T.gold, letterSpacing: '.08em' }}>{s.n}</span>
+              <div className="how-step-copy" style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <Display size={26}>{s.title}</Display>
                 <Body size={15.5} style={{ maxWidth: 520 }}>{s.body}</Body>
               </div>
-              <div style={{ paddingTop: 4 }}>
-                {i === 0 && <ImageSlot label="A table, a notebook, an afternoon" height={140} />}
-                {i === 1 && <ImageSlot label="Letters and old prints" height={140} />}
-                {i === 3 && <ImageSlot label="A hallway of framed photos" height={140} />}
-              </div>
+              {STEP_MEDIA[i] && (
+                <div className="how-step-media" style={{ paddingTop: 4 }}>
+                  <ImageSlot label={STEP_MEDIA[i].label} height={STEP_MEDIA[i].height} />
+                </div>
+              )}
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 40, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="how-step-cta site-btn-row" style={{ marginTop: 40, display: 'flex', gap: 12, flexWrap: 'wrap', marginLeft: 102 }}>
           <Btn size="lg" onClick={() => navigate('/signin?new=1')}>{CTA.start}</Btn>
           <Btn size="lg" tone="quiet" onClick={() => navigate('/the-archive')}>See what an archive holds</Btn>
         </div>
@@ -80,10 +91,10 @@ export function TheArchivePage() {
         title="A private archive of the stories only you can tell."
         standfirst="Everything you record is organized into sections you can read, correct, and add to for as long as you like."
       />
-      <div style={wrap}>
-        <div style={{
+      <div className="site-wrap" style={wrap}>
+        <div className="archive-section-grid" style={{
           display: 'grid', gap: 16,
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
         }}>
           {SECTIONS.map((s) => (
             <Panel key={s.label} pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -94,10 +105,11 @@ export function TheArchivePage() {
           ))}
         </div>
 
-        <div style={{
+        <div className="archive-wont-card" style={{
           marginTop: 40, background: T.walnut, borderRadius: radius.md,
           padding: '40px 42px', display: 'grid', gap: 36,
           gridTemplateColumns: 'minmax(280px,1fr) minmax(260px,.85fr)', alignItems: 'center',
+          boxSizing: 'border-box',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Eyebrow color="rgba(179,144,47,.9)">What the archive will not do</Eyebrow>
@@ -110,8 +122,9 @@ export function TheArchivePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {TRUST.slice(0, 4).map((line) => (
               <span key={line} style={{
-                display: 'flex', gap: 10, alignItems: 'center',
+                display: 'flex', gap: 10, alignItems: 'flex-start',
                 fontFamily: sans, fontSize: 15, color: T.onDark,
+                lineHeight: 1.45, overflowWrap: 'anywhere',
               }}>
                 <Icon name="check" size={16} color="rgba(179,144,47,.9)" strokeWidth={1.4} />
                 {line}
@@ -166,10 +179,10 @@ export function PricingPage() {
         title="One archive, kept for as long as you want it."
         standfirst="Final pricing is being set. The structure below is what it will follow."
       />
-      <div style={wrap}>
-        <div style={{
+      <div className="site-wrap" style={wrap}>
+        <div className="pricing-grid" style={{
           display: 'grid', gap: 18,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', maxWidth: 860,
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
         }}>
           {PLANS.map((p) => (
             <Panel
@@ -197,8 +210,8 @@ export function PricingPage() {
                   </span>
                 ))}
               </div>
-              <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-                <Btn tone={p.primary ? 'primary' : 'quiet'} onClick={() => navigate('/signin?new=1')}>
+              <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
+                <Btn onClick={() => navigate('/signin?new=1')}>
                   {CTA.begin}
                 </Btn>
               </div>
@@ -224,8 +237,8 @@ export function AboutPage() {
         title="Why this exists"
         standfirst="Most families discover what they wanted to ask a few years too late. This is a way to answer those questions while it is still easy to."
       />
-      <div style={wrap}>
-        <div style={{
+      <div className="site-wrap" style={wrap}>
+        <div className="about-split" style={{
           display: 'grid', gap: 40,
           gridTemplateColumns: 'minmax(320px, 1.15fr) minmax(260px, .8fr)', alignItems: 'start',
         }}>

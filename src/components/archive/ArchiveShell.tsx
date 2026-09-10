@@ -1,14 +1,14 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { T, paperTexture, radius, sans, serif } from '../../design/tokens'
 import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
-import type { Role } from '../../lib/api'
+import type { Membership, Role } from '../../lib/api'
 import {
-  canEditArchive, canManageAccess, canRunInterview, sectionNavLabel, sectionsForRole, type SectionKey,
+  canEditArchive, canManageAccess, canRunInterview, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
 
-export type ArchiveRouteKey = 'edit' | 'settings' | 'access' | 'ask'
+export type ArchiveRouteKey = 'edit' | 'settings' | 'access' | 'ask' | 'interview'
 
 function Monogram({ name, size = 30 }: { name: string; size?: number }) {
   const initials = name.split(/\s+/).map((w) => w[0]?.toUpperCase() || '').join('').slice(0, 2) || '—'
@@ -72,13 +72,14 @@ export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
  * settings) sit below a divider, and every item is gated by role.
  */
 export default function ArchiveShell({
-  role, creatorId, creatorName, portraitUrl, children,
+  role, creatorId, creatorName, portraitUrl, memberships = [], children,
   activeSection, onSection, activeRoute, band = true, contentMax = 1180,
 }: {
   role: Role
   creatorId?: string
   creatorName: string
   portraitUrl?: string | null
+  memberships?: Membership[]
   children: ReactNode
   /** Highlighted band on the main screen (scroll spy). Undefined when off it. */
   activeSection?: SectionKey
@@ -88,10 +89,14 @@ export default function ArchiveShell({
   contentMax?: number
 }) {
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
   const cQuery = creatorId ? `?c=${creatorId}` : ''
   const sections = sectionsForRole(role).filter((s) => s.inNav)
   const firstName = creatorName.split(' ')[0] || creatorName
   const mayEdit = canEditArchive(role)
+  const ownThis = isOwner(role)
+  const archiveLabel = ownThis || firstName === 'This' ? 'Your archive' : `${firstName}’s archive`
+  const otherArchives = memberships.filter((m) => m.creatorId && m.creatorId !== creatorId)
   const readingBand = sections.some((s) => s.key === activeSection)
     ? activeSection
     : sections[0]?.key
@@ -113,17 +118,29 @@ export default function ArchiveShell({
     <div className="archive-shell" style={{
       minHeight: '100dvh', display: 'flex', background: T.paper, color: T.ink,
     }}>
+      <div className="archive-mobile-bar">
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <span style={{ fontFamily: serif, fontSize: 20, color: T.onDark }}>{BRAND}</span>
+        </Link>
+        <button
+          type="button"
+          className="archive-mobile-menu-btn"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+        >{menuOpen ? 'Close' : 'Menu'}</button>
+      </div>
+      {menuOpen && <button type="button" className="archive-nav-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
       <nav
-        className="archive-sidebar"
+        className={`archive-sidebar${menuOpen ? ' is-open' : ''}`}
         style={{
           width: 244, flex: '0 0 244px',
-          background: `linear-gradient(184deg, ${T.oliveDeep} 0%, ${T.olive} 42%, #29221a 100%)`,
+          background: T.walnutDeep,
           borderRight: '1px solid rgba(20,15,11,.5)',
           display: 'flex', flexDirection: 'column',
           position: 'sticky', top: 0, height: '100dvh',
         }}
       >
-        <Link to="/" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
+        <Link to="/" className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
           <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark, letterSpacing: '.01em' }}>{BRAND}</div>
           <div style={{ marginTop: 5 }}>
             <Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow>
@@ -137,12 +154,13 @@ export default function ArchiveShell({
         <div className="archive-nav-scroll" style={{
           padding: '6px 14px 0', display: 'flex', flexDirection: 'column', gap: 2,
           overflowY: 'auto', overscrollBehavior: 'contain',
+          flex: 1, minHeight: 0,
         }}>
           {sections.map((s) => {
             const active = !activeRoute && readingBand === s.key
             return (
               <button
-                key={s.key} type="button" onClick={() => onSection(s.key)}
+                key={s.key} type="button" onClick={() => { onSection(s.key); setMenuOpen(false) }}
                 style={itemStyle(active)}
               >
                 <Icon name={s.icon} size={18} color={iconColor(active)} />
@@ -155,26 +173,53 @@ export default function ArchiveShell({
         <div style={{ padding: '14px 14px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Divider tone="dark" style={{ margin: '0 12px 12px' }} />
           {canRunInterview(role) && (
-            <Link to="/interview" style={itemStyle(false)}>
-              <Icon name="interview" size={18} color={iconColor(false)} />
+            <Link to={`/interview${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'interview')}>
+              <Icon name="interview" size={18} color={iconColor(activeRoute === 'interview')} />
               {NAV.interview}
             </Link>
           )}
           {canManageAccess(role) && (
-            <Link to={`/family-access${cQuery}`} style={itemStyle(activeRoute === 'access')}>
+            <Link to={`/family-access${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'access')}>
               <Icon name="lock" size={18} color={iconColor(activeRoute === 'access')} />
               {NAV.access}
             </Link>
           )}
-          <Link to={`/settings${cQuery}`} style={itemStyle(activeRoute === 'settings')}>
+          <Link to={`/settings${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'settings')}>
             <Icon name="settings" size={18} color={iconColor(activeRoute === 'settings')} />
             {NAV.settings}
           </Link>
         </div>
 
         {/* bottom-left archive identity — the owner's way into the edit surface */}
-        <div style={{ marginTop: 'auto', padding: 14 }}>
+        <div style={{ flex: '0 0 auto', padding: 14 }}>
           <Divider tone="dark" style={{ marginBottom: 14 }} />
+          {otherArchives.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 10 }}>
+              <div style={{ padding: '0 12px 6px' }}>
+                <Eyebrow color={T.onDark3}>Other archives</Eyebrow>
+              </div>
+              {otherArchives.map((m) => {
+                const label = m.isOwner
+                  ? 'Your archive'
+                  : `${(m.displayName || 'Shared').split(' ')[0]}’s archive`
+                return (
+                  <button
+                    key={m.creatorId}
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('legacy-ai:last-creator-id', m.creatorId)
+                      navigate(`/overview?c=${m.creatorId}`)
+                      setMenuOpen(false)
+                    }}
+                    style={itemStyle(false)}
+                  >
+                    <Icon name="folder" size={16} color={iconColor(false)} />
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           {mayEdit ? (
             <Link
               to={`/edit${cQuery}`}
@@ -198,7 +243,7 @@ export default function ArchiveShell({
                 <span style={{
                   fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{firstName}’s Archive</span>
+                }}>{archiveLabel}</span>
                 <span style={{ fontFamily: sans, fontSize: 12, color: 'rgba(179,144,47,.9)' }}>
                   Edit archive
                 </span>
@@ -220,7 +265,7 @@ export default function ArchiveShell({
                 <span style={{
                   fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{firstName}’s Archive</span>
+                }}>{archiveLabel}</span>
                 <span style={{ fontFamily: sans, fontSize: 12, color: T.onDark3 }}>
                   {canManageAccess(role) ? 'You help look after this' : 'Shared with you'}
                 </span>
@@ -233,7 +278,7 @@ export default function ArchiveShell({
       {/* paper workspace */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
         <div style={{ flex: 1, background: paperTexture, backgroundColor: T.paper }}>
-          <div style={{ maxWidth: contentMax, margin: '0 auto', padding: '38px 40px 46px' }}>
+          <div className="archive-paper" style={{ maxWidth: contentMax, margin: '0 auto', padding: '38px 40px 46px' }}>
             {children}
           </div>
         </div>

@@ -57,6 +57,8 @@ export type RealtimeVoiceInterview = {
   completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
   /** Move to the next topic without tearing down the Realtime session (skip). */
   transitionToTopic: (instructions: string, questionIndex: number) => void;
+  /** Resolves when current assistant audio has finished playing (or timeout). */
+  waitForPlaybackIdle: (timeoutMs?: number) => Promise<void>;
 };
 
 export async function checkAiVoiceAvailable(): Promise<boolean> {
@@ -143,6 +145,27 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   let userIsSpeaking = false;
   /** True only while output_audio_buffer is actively playing (not merely response.created). */
   let outputAudioActive = false;
+  let playbackIdleWaiters: Array<() => void> = [];
+  let pendingAdvanceWork: (() => void) | null = null;
+
+  function notifyPlaybackIdle() {
+    const waiters = playbackIdleWaiters;
+    playbackIdleWaiters = [];
+    for (const w of waiters) w();
+    if (pendingAdvanceWork) {
+      const fn = pendingAdvanceWork;
+      pendingAdvanceWork = null;
+      fn();
+    }
+  }
+
+  function runWhenPlaybackQuiet(fn: () => void) {
+    if (!outputAudioActive) {
+      fn();
+      return;
+    }
+    pendingAdvanceWork = fn;
+  }
   let unmuteTimer: ReturnType<typeof setTimeout> | null = null;
   let afterUserSpeechFlushTimer: ReturnType<typeof setTimeout> | null = null;
   /** OpenAI rejects overlapping response.create — queue until the active response finishes. */
@@ -669,6 +692,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       touchActivity('assistant');
       setAssistantSpeaking(false);
       if (userPaused || awaitFreshAudioAfterResume) muteLocalPlayback();
+      notifyPlaybackIdle();
     }
 
     // Assistant speech → on-screen transcript (stream deltas, then finalize).
@@ -816,17 +840,19 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
           completeFunctionCallSilent(advanceCallId, { ok: true, message: 'Already moved on.' }, true);
         } else {
           setAwaitingFunctionOutput(true);
-          void handlers.onAdvance(summary, advanceCallId, conductingQuestionIndex).catch((err) => {
-            console.warn('[realtime] onAdvance failed', err);
-            completeFunctionCallSilent(
-              advanceCallId,
-              {
-                ok: false,
-                continue: true,
-                message: 'Could not save that topic just now. Stay on this topic and continue warmly.',
-              },
-              true,
-            );
+          runWhenPlaybackQuiet(() => {
+            void handlers.onAdvance(summary, advanceCallId, conductingQuestionIndex).catch((err) => {
+              console.warn('[realtime] onAdvance failed', err);
+              completeFunctionCallSilent(
+                advanceCallId,
+                {
+                  ok: false,
+                  continue: true,
+                  message: 'Could not save that topic just now. Stay on this topic and continue warmly.',
+                },
+                true,
+              );
+            });
           });
         }
       } else if (type === 'response.failed' && !userPaused) {
@@ -1167,6 +1193,16 @@ Do NOT restart the welcome/intro. Do NOT advance topics. Do NOT call complete_an
       requestResponseCreate();
     },
 
+    waitForPlaybackIdle(timeoutMs = 8000) {
+      if (!outputAudioActive) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        const timer = setTimeout(() => resolve(), timeoutMs);
+        playbackIdleWaiters.push(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    },
     transitionToTopic(instructions, questionIndex) {
       topicEpoch += 1;
       conductingQuestionIndex = questionIndex;
