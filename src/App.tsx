@@ -362,6 +362,11 @@ function ArchiveRoute({
       setResolving(false)
       return
     }
+    // Never bounce a workspace visit back to marketing pricing — show the paywall in place.
+    if (url.pathname === '/pricing' && /^\/(overview|interview|edit|ask|settings|family-access|voice-and-photo|unlock)/.test(window.location.pathname)) {
+      setResolving(false)
+      return
+    }
     navigate(dest, { replace: true })
   }, [navigate])
 

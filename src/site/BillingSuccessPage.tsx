@@ -40,7 +40,7 @@ export default function BillingSuccessPage() {
           window.clearTimeout(timer)
           setPhase('ready')
           const boughtAddon = params.get('addon') === '1'
-          navigate(boughtAddon ? '/settings' : billing.canViewArchive ? '/overview' : '/interview', { replace: true })
+          navigate(boughtAddon ? '/settings' : '/interview', { replace: true })
           return
         }
         setError('Payment is at Stripe, but the plan did not open. Try again.')

@@ -280,6 +280,14 @@ export function PricingPage() {
         standfirst="Preserve is the interview only. Monthly and Set up open the stories, people, and live avatar."
       />
       <div className="site-wrap" style={wrap}>
+        {error && (
+          <div style={{
+            maxWidth: 860, marginBottom: 22, padding: '14px 16px',
+            border: `1px solid ${T.sienna}`, borderRadius: radius.sm, background: T.card,
+          }}>
+            <Body size={14.5} color="#b04a3a">{error}</Body>
+          </div>
+        )}
         {ready && signedIn && !billing?.paid && (
           <div style={{
             maxWidth: 860, marginBottom: 22, padding: '14px 16px',
@@ -334,7 +342,6 @@ export function PricingPage() {
             </Panel>
           ))}
         </div>
-        {error && <Body size={14} color="#b04a3a" style={{ marginTop: 18 }}>{error}</Body>}
         <Body size={14} color={T.ink3} style={{ marginTop: 26, maxWidth: 620 }}>
           Preserve keeps the recording closed until you pay Monthly or Set up. Extra minutes
           ($29.99 for 30) appear in Settings after you have an active Monthly or Set up plan,
