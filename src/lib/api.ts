@@ -104,8 +104,30 @@ export interface PendingInvitation {
   creatorDisplayName: string | null;
 }
 
+export interface BillingStatus {
+  plan: 'none' | 'archive' | 'family';
+  status: string;
+  paid: boolean;
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEnd?: string | null;
+  maxOwnedArchives?: number;
+}
+
+export interface BillingPlan {
+  id: 'archive' | 'family';
+  name: string;
+  cadence: string;
+  amount: number;
+  currency: string;
+  interval: string;
+  displayPrice: string;
+  lines: string[];
+  primary: boolean;
+}
+
 export interface AccessMe {
   user: { id: string; email: string | null; name: string | null };
+  billing?: BillingStatus;
   memberships: Membership[];
   pendingInvitations: PendingInvitation[];
 }
@@ -506,4 +528,30 @@ export const interviewApi = {
 
   deleteGalleryItem: (id: string) =>
     apiFetch(`/api/interview/gallery/${id}`, { method: 'DELETE' }) as Promise<{ success: boolean; id: string }>,
+};
+
+export const billingApi = {
+  plans: () =>
+    fetch(apiUrl('/api/billing/plans')).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+      return data as { plans: BillingPlan[]; configured: boolean };
+    }),
+
+  status: () => apiFetch('/api/billing/status') as Promise<BillingStatus>,
+
+  checkout: (plan: 'archive' | 'family') =>
+    apiFetch('/api/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    }) as Promise<{ url: string; sessionId: string; plan: string }>,
+
+  portal: () =>
+    apiFetch('/api/billing/portal', { method: 'POST' }) as Promise<{ url: string }>,
+
+  sync: (sessionId: string) =>
+    apiFetch('/api/billing/sync', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
+    }) as Promise<BillingStatus>,
 };

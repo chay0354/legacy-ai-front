@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams,
 } from 'react-router-dom'
@@ -22,6 +22,8 @@ import { ACTIONS, can, normalizeRole } from './lib/permissions'
 
 import HomePage from './site/HomePage'
 import { AboutPage, HowItWorksPage, PricingPage, TheArchivePage } from './site/InfoPages'
+import BillingSuccessPage from './site/BillingSuccessPage'
+import PaywallCard from './components/PaywallCard'
 import AuthPage from './site/AuthPage'
 import ArchiveHome from './components/archive/ArchiveHome'
 import EditArchiveScreen from './components/archive/EditArchiveScreen'
@@ -172,6 +174,12 @@ function isInterviewBlockedError(msg: string | null | undefined) {
   return Boolean(msg && /only for people preserving their own legacy/i.test(msg))
 }
 
+function isPaymentRequiredError(err: unknown) {
+  const code = (err as { code?: string } | null)?.code
+  const msg = err instanceof Error ? err.message : ''
+  return code === 'PAYMENT_REQUIRED' || /choose a plan|active plan|payment required/i.test(msg)
+}
+
 function pickCreatorId(me: AccessMe, preferred?: string | null): string | null {
   const byId = (id: string) => me.memberships.find((m) => m.creatorId === id)
   const owned = ownedMemberships(me)
@@ -207,7 +215,7 @@ function resolveDestination(me: AccessMe): string {
 
   const activeOwned = ownedMemberships(me).find(membershipHasProgress)
   if (activeOwned) return archiveScreen(activeOwned.creatorId)
-  if (shouldStartInterview(me)) return '/interview'
+  if (shouldStartInterview(me)) return me.billing && !me.billing.paid ? '/pricing' : '/interview'
 
   const shared = preferredSharedMembership(me, cached)
   if (shared) return archiveScreen(shared.creatorId)
@@ -314,6 +322,21 @@ function ArchiveRoute({
   const creatorIdParam = params.get('c') || undefined
   const [resolving, setResolving] = useState(true)
 
+  /**
+   * Sending someone to the page they are already on would leave the boot screen up forever —
+   * a first-time owner has no archive row yet, and loading the workspace is what creates it.
+   */
+  const leaveOrStay = useCallback((me: AccessMe) => {
+    const dest = resolveDestination(me)
+    const url = new URL(dest, window.location.origin)
+    const here = new URLSearchParams(window.location.search).get('c') || ''
+    if (url.pathname === window.location.pathname && (url.searchParams.get('c') || '') === here) {
+      setResolving(false)
+      return
+    }
+    navigate(dest, { replace: true })
+  }, [navigate])
+
   useEffect(() => {
     if (!session) return
     let active = true
@@ -324,7 +347,7 @@ function ArchiveRoute({
           const allowed = me.memberships.some((m) => m.creatorId === creatorIdParam)
           if (!allowed) {
             localStorage.removeItem(LAST_CREATOR_KEY)
-            navigate(resolveDestination(me), { replace: true })
+            leaveOrStay(me)
             return
           }
           setResolving(false)
@@ -339,7 +362,7 @@ function ArchiveRoute({
           navigate(`${window.location.pathname}?${next.toString()}`, { replace: true })
           return
         }
-        navigate(resolveDestination(me), { replace: true })
+        leaveOrStay(me)
       })
       .catch(async (e) => {
         if (!active) return
@@ -348,7 +371,7 @@ function ArchiveRoute({
         else setResolving(false)
       })
     return () => { active = false }
-  }, [session, creatorIdParam, navigate])
+  }, [session, creatorIdParam, navigate, leaveOrStay])
 
   if (!session) return <Navigate to="/" replace />
   if (resolving) return <BootScreen label="Opening your archive…" />
@@ -365,6 +388,7 @@ function InterviewPage({ session }: { session: Session | null }) {
 
   const [loading, setLoading] = useState(true)
   const [redirecting, setRedirecting] = useState(false)
+  const [needsPayment, setNeedsPayment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionData, setSessionData] = useState<InterviewSessionData | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -388,6 +412,7 @@ function InterviewPage({ session }: { session: Session | null }) {
     let active = true
     setLoading(true)
     setRedirecting(false)
+    setNeedsPayment(false)
 
     accessApi.me()
       .then((me) => {
@@ -409,6 +434,10 @@ function InterviewPage({ session }: { session: Session | null }) {
         if (!active) return
         const msg = e instanceof Error ? e.message : 'Could not open the interview.'
         if (isAuthError(msg)) { await signOutAndClear(); return }
+        if (isPaymentRequiredError(e)) {
+          setNeedsPayment(true)
+          return
+        }
         if (isInterviewBlockedError(msg)) {
           setRedirecting(true)
           try {
@@ -490,6 +519,13 @@ function InterviewPage({ session }: { session: Session | null }) {
 
   if (redirecting) return <Loading label="Opening your archive…" />
   if (loading) return <Loading label="Preparing your interview…" />
+  if (needsPayment) {
+    return (
+      <PaneNotice>
+        <PaywallCard />
+      </PaneNotice>
+    )
+  }
 
   if (sessionData?.allStagesComplete) {
     return (
@@ -763,6 +799,7 @@ export default function App() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/the-archive" element={<TheArchivePage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/billing/success" element={<BillingSuccessPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/signin" element={<SignInRoute session={session} />} />
 

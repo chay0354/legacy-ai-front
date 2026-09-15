@@ -1,9 +1,11 @@
-import type { CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SitePage } from './SiteChrome'
 import { T, radius, sans, serif } from '../design/tokens'
 import { CTA, HOW_IT_WORKS, NAV, TRUST } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, ImageSlot, Panel } from '../design/ui'
+import { billingApi, type BillingPlan, type BillingStatus } from '../lib/api'
+import { supabase } from '../lib/supabase'
 
 function PageHead({
   eyebrow, title, standfirst,
@@ -142,51 +144,147 @@ export function TheArchivePage() {
 }
 
 /* ────────────────────────────── Pricing ──────────────────────────── */
-const PLANS = [
+const FALLBACK_PLANS: BillingPlan[] = [
   {
+    id: 'archive',
     name: 'The Archive',
-    price: '[price TBD]',
-    cadence: 'one archive, kept',
+    displayPrice: '$19',
+    cadence: 'per month, one archive',
+    amount: 1900,
+    currency: 'usd',
+    interval: 'month',
+    primary: true,
     lines: [
       'Guided interview across all three stages',
       'Unlimited stories and entries',
-      'Voice memories and photographs',
+      'Voice memories, photographs, and a live avatar',
       'Family access for the people you invite',
       'Edit or remove anything, at any time',
     ],
-    primary: true,
   },
   {
+    id: 'family',
     name: 'Family',
-    price: '[price TBD]',
-    cadence: 'for more than one archive',
+    displayPrice: '$39',
+    cadence: 'per month, more than one archive',
+    amount: 3900,
+    currency: 'usd',
+    interval: 'month',
+    primary: false,
     lines: [
       'Everything in The Archive',
       'Two or more archives, kept separately',
       'Administrator help for a parent or relative',
       'Shared family access settings',
     ],
-    primary: false,
   },
 ]
 
 export function PricingPage() {
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const [plans, setPlans] = useState<BillingPlan[]>(FALLBACK_PLANS)
+  const [billing, setBilling] = useState<BillingStatus | null>(null)
+  const [signedIn, setSignedIn] = useState(false)
+  const [ready, setReady] = useState(false)
+  // A ?checkout= arrival is already on its way to Stripe — keep the buttons quiet meanwhile.
+  const [busy, setBusy] = useState<string | null>(() => {
+    const p = params.get('checkout')
+    return p === 'archive' || p === 'family' ? p : null
+  })
+  const [error, setError] = useState<string | null>(null)
+  const autoStarted = useRef(false)
+
+  useEffect(() => {
+    let active = true
+    billingApi.plans()
+      .then((r) => { if (active && r.plans?.length) setPlans(r.plans) })
+      .catch(() => { /* keep fallback copy */ })
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return
+      setSignedIn(Boolean(session))
+      if (session) {
+        const b = await billingApi.status().catch(() => null)
+        if (!active) return
+        setBilling(b)
+      }
+      setReady(true)
+    })
+    return () => { active = false }
+  }, [])
+
+  const startCheckout = async (plan: 'archive' | 'family') => {
+    if (!signedIn) {
+      navigate(`/signin?new=1&next=${encodeURIComponent(`/pricing?checkout=${plan}`)}`)
+      return
+    }
+    if (billing?.paid && billing.plan === plan) {
+      navigate('/overview')
+      return
+    }
+    setBusy(plan)
+    setError(null)
+    try {
+      const { url } = await billingApi.checkout(plan)
+      if (!url) throw new Error('Checkout did not return a payment page')
+      window.location.href = url
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not start checkout')
+      setBusy(null)
+    }
+  }
+
+  /**
+   * Sign-up sends the chosen plan back here as ?checkout=. Drop the parameter before
+   * leaving for Stripe, so returning with the browser back button does not reopen it.
+   */
+  useEffect(() => {
+    if (!ready || autoStarted.current) return
+    const plan = params.get('checkout')
+    if (plan !== 'archive' && plan !== 'family') return
+    autoStarted.current = true
+    const rest = new URLSearchParams(params)
+    rest.delete('checkout')
+    setParams(rest, { replace: true })
+    void startCheckout(plan)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, signedIn])
+
+  const ctaFor = (p: BillingPlan) => {
+    if (billing?.paid && billing.plan === p.id) return 'Current plan'
+    if (billing?.paid && p.id === 'family') return 'Upgrade to Family'
+    if (busy === p.id) return 'Opening checkout…'
+    return signedIn ? `Continue with ${p.name}` : CTA.begin
+  }
+
   return (
     <SitePage>
       <PageHead
         eyebrow="Pricing"
         title="One archive, kept for as long as you want it."
-        standfirst="Final pricing is being set. The structure below is what it will follow."
+        standfirst="Pay monthly. If you stop, you keep what you recorded — you just cannot add new interviews or live calls."
       />
       <div className="site-wrap" style={wrap}>
+        {ready && signedIn && !billing?.paid && (
+          <div style={{
+            maxWidth: 860, marginBottom: 22, padding: '14px 16px',
+            border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <Eyebrow>Your account is ready</Eyebrow>
+            <Body size={14.5}>
+              Choose a plan to begin the interview. You can cancel whenever you like, and what you
+              record stays readable either way.
+            </Body>
+          </div>
+        )}
         <div className="pricing-grid" style={{
           display: 'grid', gap: 18,
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
         }}>
-          {PLANS.map((p) => (
+          {plans.map((p) => (
             <Panel
-              key={p.name}
+              key={p.id}
               pad="30px 30px 32px"
               style={{
                 display: 'flex', flexDirection: 'column', gap: 14,
@@ -195,7 +293,7 @@ export function PricingPage() {
             >
               <Eyebrow color={p.primary ? T.sienna : T.ink3}>{p.name}</Eyebrow>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontFamily: serif, fontSize: 34, color: T.ink }}>{p.price}</span>
+                <span style={{ fontFamily: serif, fontSize: 34, color: T.ink }}>{p.displayPrice}</span>
                 <span style={{ fontFamily: sans, fontSize: 13.5, color: T.ink3 }}>{p.cadence}</span>
               </div>
               <Divider tone="gold" />
@@ -211,16 +309,20 @@ export function PricingPage() {
                 ))}
               </div>
               <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
-                <Btn onClick={() => navigate('/signin?new=1')}>
-                  {CTA.begin}
+                <Btn
+                  disabled={Boolean(busy) || (billing?.paid && billing.plan === p.id)}
+                  onClick={() => void startCheckout(p.id)}
+                >
+                  {ctaFor(p)}
                 </Btn>
               </div>
             </Panel>
           ))}
         </div>
+        {error && <Body size={14} color="#b04a3a" style={{ marginTop: 18 }}>{error}</Body>}
         <Body size={14} color={T.ink3} style={{ marginTop: 26, maxWidth: 620 }}>
           Your archive stays yours. If you stop paying, you keep access to read and export what you
-          recorded — nothing is deleted without your instruction.
+          recorded — nothing is deleted without your instruction. Invited family never pays separately.
         </Body>
       </div>
     </SitePage>

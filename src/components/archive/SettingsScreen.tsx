@@ -1,26 +1,60 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useArchiveContext } from './data'
 import type { ArchiveOutlet } from './ArchiveLayout'
 import { SectionHeader } from './parts'
 import { canEditArchive, canManageAccess, canRunInterview, isOwner } from './sections'
 import { supabase } from '../../lib/supabase'
-import { clearAuthTokenCache } from '../../lib/api'
+import { billingApi, clearAuthTokenCache, type BillingStatus } from '../../lib/api'
 import { T, radius, sans } from '../../design/tokens'
 import { CTA, TRUST, archiveSetupLabel, countsLine } from '../../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel, PrivacyNote } from '../../design/ui'
+
+function renewalNote(iso?: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `, renewing ${d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}`
+}
 
 /** Account, profile, privacy, sign out. Never a second edit surface. */
 export default function SettingsScreen() {
   const { viewerEmail, viewerName } = useOutletContext<ArchiveOutlet>()
   const navigate = useNavigate()
   const ctx = useArchiveContext()
+  const owner = isOwner(ctx.role)
+  const [billing, setBilling] = useState<BillingStatus | null>(null)
+  const [billingLoaded, setBillingLoaded] = useState(false)
+  const [billingBusy, setBillingBusy] = useState(false)
+  const [billingError, setBillingError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!owner) return
+    let active = true
+    billingApi.status()
+      .then((b) => { if (active) setBilling(b) })
+      .catch(() => { /* billing optional on family-only accounts */ })
+      .finally(() => { if (active) setBillingLoaded(true) })
+    return () => { active = false }
+  }, [owner])
 
   if (!ctx.profile) return null
 
   const { role, creatorId, profile, counts, setupPct } = ctx
   const name = profile.creator?.display_name || 'This archive'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
-  const owner = isOwner(role)
+
+  const openPortal = async () => {
+    setBillingBusy(true)
+    setBillingError(null)
+    try {
+      const { url } = await billingApi.portal()
+      window.location.href = url
+    } catch (e) {
+      setBillingError(e instanceof Error ? e.message : 'Could not open billing')
+      setBillingBusy(false)
+    }
+  }
   const mayEdit = canEditArchive(role)
   const profileName = owner ? name : (viewerName || viewerEmail || 'Your account')
 
@@ -114,6 +148,37 @@ export default function SettingsScreen() {
               <Btn tone="quiet" size="sm" onClick={() => void signOut()}>Sign out</Btn>
             </div>
           </Panel>
+
+          {owner && (
+            <Panel pad="22px 24px">
+              <Display size={20} style={{ marginBottom: 6 }}>Plan and billing</Display>
+              <Body size={13.5} style={{ marginTop: 8 }}>
+                {!billingLoaded
+                  ? 'Checking your plan…'
+                  : billing?.paid
+                    ? `You are on ${billing.plan === 'family' ? 'Family' : 'The Archive'}${
+                      billing.cancelAtPeriodEnd
+                        ? ' — ending after this period'
+                        : renewalNote(billing.currentPeriodEnd)}.`
+                    : 'The interview, live avatar, and invitations need an active plan.'}
+              </Body>
+              {billingLoaded && (
+                <div style={rowStyle}>
+                  <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>
+                    {billing?.paid ? 'Change plan or payment' : 'Choose a plan'}
+                  </span>
+                  {billing?.paid ? (
+                    <Btn tone="quiet" size="sm" disabled={billingBusy} onClick={() => void openPortal()}>
+                      {billingBusy ? 'Opening…' : 'Manage billing'}
+                    </Btn>
+                  ) : (
+                    <Btn tone="quiet" size="sm" onClick={() => navigate('/pricing')}>See pricing</Btn>
+                  )}
+                </div>
+              )}
+              {billingError && <Body size={13} color="#b04a3a">{billingError}</Body>}
+            </Panel>
+          )}
         </div>
 
         <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

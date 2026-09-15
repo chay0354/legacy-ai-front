@@ -1,9 +1,10 @@
-import { useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { requestPasswordReset, signInWithPassword, signUpWithPassword } from '../lib/auth'
 import { T, radius, sans, serif } from '../design/tokens'
 import { BRAND, BRAND_SUB, CTA, HERO } from '../design/copy'
 import { Body, Btn, Display, Eyebrow, Icon } from '../design/ui'
+import { billingApi, type BillingPlan } from '../lib/api'
 
 const input: CSSProperties = {
   width: '100%', boxSizing: 'border-box', background: T.card,
@@ -20,6 +21,20 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [plan, setPlan] = useState<BillingPlan | null>(null)
+
+  // Someone who picked a plan on /pricing arrives here first — name it so the step makes sense.
+  const chosenPlan = /checkout=(archive|family)/.exec(params.get('next') || '')?.[1] || null
+  useEffect(() => {
+    if (!chosenPlan) return
+    let active = true
+    billingApi.plans()
+      .then((r) => {
+        if (active) setPlan(r.plans?.find((p) => p.id === chosenPlan) || null)
+      })
+      .catch(() => { /* the step still works without the price */ })
+    return () => { active = false }
+  }, [chosenPlan])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -124,10 +139,25 @@ export default function AuthPage() {
             </Display>
             <Body size={14.5}>
               {mode === 'signup'
-                ? 'One account holds one archive. You choose who is ever invited into it.'
+                ? 'Your account holds your archive. You choose who is ever invited into it.'
                 : 'Your archive is where you left it.'}
             </Body>
           </div>
+
+          {chosenPlan && (
+            <div style={{
+              border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
+              padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              <Eyebrow>Next step</Eyebrow>
+              <Body size={14}>
+                {plan
+                  ? `${plan.name} — ${plan.displayPrice} ${plan.cadence}.`
+                  : chosenPlan === 'family' ? 'The Family plan.' : 'The Archive plan.'}
+                {' '}Payment comes after your account, on Stripe’s secure page.
+              </Body>
+            </div>
+          )}
 
           {notice && <Body size={13.5} color={T.olive}>{notice}</Body>}
           {error && <Body size={13.5} color={T.siennaDeep}>{error}</Body>}
