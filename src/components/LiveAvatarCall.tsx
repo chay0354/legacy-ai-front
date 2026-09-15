@@ -52,8 +52,11 @@ function friendlyAnamError(e: unknown): string {
   if (/timed out/i.test(msg)) {
     return `${msg}. Tap Try again.`
   }
+  if (/MINUTES_REQUIRED|minutes are used|add 30 minutes/i.test(msg) || (e as { code?: string } | null)?.code === 'MINUTES_REQUIRED') {
+    return 'Your minutes are used. Open Settings and add 30 minutes to keep calling.'
+  }
   if (/402|plan|usage limit|Spend cap/i.test(msg)) {
-    return 'Live session limit reached. Wait a moment and try again.'
+    return 'This live call needs an active Monthly or Set up plan.'
   }
   if (/Anam|HeyGen|OpenAI|ElevenLabs/i.test(msg)) {
     return 'Could not start the live call. Please try again in a moment.'

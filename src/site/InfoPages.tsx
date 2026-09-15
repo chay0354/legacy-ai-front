@@ -193,20 +193,6 @@ const FALLBACK_PLANS: BillingPlan[] = [
       'Pay Monthly or Set up when you want to see the archive',
     ],
   },
-  {
-    id: 'addon',
-    name: '30 min add',
-    displayPrice: '$29.99',
-    cadence: 'one time extra minutes',
-    amount: 2999,
-    currency: 'usd',
-    interval: 'once',
-    primary: false,
-    kind: 'addon',
-    lines: [
-      'Add 30 minutes to an active Monthly or Set up plan',
-    ],
-  },
 ]
 
 export function PricingPage() {
@@ -219,7 +205,7 @@ export function PricingPage() {
   // A ?checkout= arrival is already on its way to Stripe — keep the buttons quiet meanwhile.
   const [busy, setBusy] = useState<string | null>(() => {
     const p = params.get('checkout')
-    return p && ['setup', 'monthly', 'preserve', 'addon', 'archive', 'family'].includes(p) ? p : null
+    return p && ['setup', 'monthly', 'preserve', 'archive', 'family'].includes(p) ? p : null
   })
   const [error, setError] = useState<string | null>(null)
   const autoStarted = useRef(false)
@@ -247,7 +233,7 @@ export function PricingPage() {
       navigate(`/signin?new=1&next=${encodeURIComponent(`/pricing?checkout=${plan}`)}`)
       return
     }
-    if (plan !== 'addon' && billing?.paid && billing.plan === plan && billing.canViewArchive) {
+    if (billing?.paid && billing.plan === plan && billing.canViewArchive) {
       navigate('/overview')
       return
     }
@@ -270,7 +256,7 @@ export function PricingPage() {
   useEffect(() => {
     if (!ready || autoStarted.current) return
     const plan = params.get('checkout')
-    if (!plan || !['setup', 'monthly', 'preserve', 'addon', 'archive', 'family'].includes(plan)) return
+    if (!plan || !['setup', 'monthly', 'preserve', 'archive', 'family'].includes(plan)) return
     autoStarted.current = true
     const rest = new URLSearchParams(params)
     rest.delete('checkout')
@@ -280,7 +266,7 @@ export function PricingPage() {
   }, [ready, signedIn])
 
   const ctaFor = (p: BillingPlan) => {
-    if (p.id !== 'addon' && billing?.paid && billing.plan === p.id) return 'Current plan'
+    if (billing?.paid && billing.plan === p.id) return 'Current plan'
     if (billing?.paid && !billing.canViewArchive && p.canViewArchive) return `Open the archive with ${p.name}`
     if (busy === p.id) return 'Opening checkout…'
     return signedIn ? `Continue with ${p.name}` : CTA.begin
@@ -311,7 +297,7 @@ export function PricingPage() {
           display: 'grid', gap: 18,
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
         }}>
-          {plans.map((p) => (
+          {plans.filter((p) => p.id !== 'addon' && p.kind !== 'addon').map((p) => (
             <Panel
               key={p.id}
               pad="30px 30px 32px"
@@ -339,7 +325,7 @@ export function PricingPage() {
               </div>
               <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
                 <Btn
-                  disabled={Boolean(busy) || (p.id !== 'addon' && Boolean(billing?.paid && billing.plan === p.id && billing.canViewArchive))}
+                  disabled={Boolean(busy) || Boolean(billing?.paid && billing.plan === p.id && billing.canViewArchive)}
                   onClick={() => void startCheckout(p.id)}
                 >
                   {ctaFor(p)}
@@ -350,8 +336,10 @@ export function PricingPage() {
         </div>
         {error && <Body size={14} color="#b04a3a" style={{ marginTop: 18 }}>{error}</Body>}
         <Body size={14} color={T.ink3} style={{ marginTop: 26, maxWidth: 620 }}>
-          Preserve keeps the recording closed until you pay Monthly or Set up. Nothing is deleted
-          without your instruction. Invited family never pays separately.
+          Preserve keeps the recording closed until you pay Monthly or Set up. Extra minutes
+          ($29.99 for 30) appear in Settings after you have an active Monthly or Set up plan,
+          or when those minutes run out. Nothing is deleted without your instruction. Invited
+          family never pays separately.
         </Body>
       </div>
     </SitePage>

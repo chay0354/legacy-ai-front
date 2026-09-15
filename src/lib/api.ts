@@ -116,8 +116,12 @@ export interface BillingStatus {
   source?: string | null;
   notes?: string | null;
   minutesRemaining?: number;
+  usesMinutes?: boolean;
+  minutesExhausted?: boolean;
   canInterview?: boolean;
   canViewArchive?: boolean;
+  canBuyAddon?: boolean;
+  addon?: { id: string; name: string; displayPrice: string; minutes: number; amount: number } | null;
 }
 
 export interface BillingPlan {

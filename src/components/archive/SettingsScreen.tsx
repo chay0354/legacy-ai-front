@@ -35,6 +35,7 @@ export default function SettingsScreen() {
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [billingLoaded, setBillingLoaded] = useState(false)
   const [billingBusy, setBillingBusy] = useState(false)
+  const [addonBusy, setAddonBusy] = useState(false)
   const [billingError, setBillingError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -52,6 +53,19 @@ export default function SettingsScreen() {
   const { role, creatorId, profile, counts, setupPct } = ctx
   const name = profile.creator?.display_name || 'This archive'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
+
+  const buyAddon = async () => {
+    setAddonBusy(true)
+    setBillingError(null)
+    try {
+      const { url } = await billingApi.checkout('addon')
+      if (!url) throw new Error('Checkout did not return a payment page')
+      window.location.href = url
+    } catch (e) {
+      setBillingError(e instanceof Error ? e.message : 'Could not start checkout')
+      setAddonBusy(false)
+    }
+  }
 
   const openPortal = async () => {
     setBillingBusy(true)
@@ -170,7 +184,11 @@ export default function SettingsScreen() {
                         billing.cancelAtPeriodEnd
                           ? ' — ending after this period'
                           : renewalNote(billing.currentPeriodEnd)}${
-                        billing.minutesRemaining ? ` · ${billing.minutesRemaining} minutes left` : ''}.`
+                        billing.usesMinutes
+                          ? (billing.minutesRemaining ?? 0) > 0
+                            ? ` · ${billing.minutesRemaining} minutes left`
+                            : ' · no minutes left'
+                          : ''}.`
                       : 'You are on Preserve. The interview is open. Pay Monthly or Set up to see the archive.'
                     : 'Choose Preserve to record the interview, or Monthly / Set up to open the archive.'}
               </Body>
@@ -186,6 +204,18 @@ export default function SettingsScreen() {
                   ) : (
                     <Btn tone="quiet" size="sm" onClick={() => navigate('/pricing')}>See pricing</Btn>
                   )}
+                </div>
+              )}
+              {billing?.canBuyAddon && (
+                <div style={rowStyle}>
+                  <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>
+                    {billing.minutesExhausted
+                      ? 'Minutes are used — add 30 minutes to keep interviewing and calling'
+                      : `Add 30 minutes${billing.addon?.displayPrice ? ` — ${billing.addon.displayPrice}` : ' — $29.99'}`}
+                  </span>
+                  <Btn tone={billing.minutesExhausted ? 'primary' : 'quiet'} size="sm" disabled={addonBusy} onClick={() => void buyAddon()}>
+                    {addonBusy ? 'Opening checkout…' : 'Add 30 minutes'}
+                  </Btn>
                 </div>
               )}
               {billingError && <Body size={13} color="#b04a3a">{billingError}</Body>}

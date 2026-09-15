@@ -190,6 +190,12 @@ function billingAllowsArchive(me: AccessMe) {
   return b.paid && b.plan !== 'preserve'
 }
 
+function isMinutesRequiredError(err: unknown) {
+  const code = (err as { code?: string } | null)?.code
+  const msg = err instanceof Error ? err.message : ''
+  return code === 'MINUTES_REQUIRED' || /minutes are used|add 30 minutes/i.test(msg)
+}
+
 function isPaymentRequiredError(err: unknown) {
   const code = (err as { code?: string } | null)?.code
   const msg = err instanceof Error ? err.message : ''
@@ -411,6 +417,7 @@ function InterviewPage({ session }: { session: Session | null }) {
   const [loading, setLoading] = useState(true)
   const [redirecting, setRedirecting] = useState(false)
   const [needsPayment, setNeedsPayment] = useState(false)
+  const [needsMinutes, setNeedsMinutes] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sessionData, setSessionData] = useState<InterviewSessionData | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -436,6 +443,7 @@ function InterviewPage({ session }: { session: Session | null }) {
     setLoading(true)
     setRedirecting(false)
     setNeedsPayment(false)
+    setNeedsMinutes(false)
 
     accessApi.me()
       .then((me) => {
@@ -458,6 +466,10 @@ function InterviewPage({ session }: { session: Session | null }) {
         if (!active) return
         const msg = e instanceof Error ? e.message : 'Could not open the interview.'
         if (isAuthError(msg)) { await signOutAndClear(); return }
+        if (isMinutesRequiredError(e)) {
+          setNeedsMinutes(true)
+          return
+        }
         if (isPaymentRequiredError(e)) {
           setNeedsPayment(true)
           return
@@ -547,6 +559,17 @@ function InterviewPage({ session }: { session: Session | null }) {
 
   if (redirecting) return <Loading label="Opening your archive…" />
   if (loading) return <Loading label="Preparing your interview…" />
+  if (needsMinutes) {
+    return (
+      <PaneNotice>
+        <PaywallCard
+          kind="minutes"
+          title="Your minutes are used"
+          note="Add 30 minutes to continue the interview and live calls. This only appears on an active Monthly or Set up plan."
+        />
+      </PaneNotice>
+    )
+  }
   if (needsPayment) {
     return (
       <PaneNotice>

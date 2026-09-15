@@ -39,7 +39,8 @@ export default function BillingSuccessPage() {
         if (billing.paid) {
           window.clearTimeout(timer)
           setPhase('ready')
-          navigate(billing.canViewArchive ? '/overview' : '/interview', { replace: true })
+          const boughtAddon = params.get('addon') === '1'
+          navigate(boughtAddon ? '/settings' : billing.canViewArchive ? '/overview' : '/interview', { replace: true })
           return
         }
         setError('Payment is at Stripe, but the plan did not open. Try again.')
@@ -71,7 +72,8 @@ export default function BillingSuccessPage() {
               : 'We could not open the plan.'}
         </Display>
         <Body size={16} color={T.ink2}>
-          {phase === 'ready' ? 'Taking you to the interview.'
+          {phase === 'ready'
+            ? (params.get('addon') === '1' ? 'Those minutes are on your plan.' : 'Taking you through.')
             : phase === 'confirming' ? 'This should only take a moment.'
               : 'If you were charged, try again. You will not be charged twice.'}
         </Body>

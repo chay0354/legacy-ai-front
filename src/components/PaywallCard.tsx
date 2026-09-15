@@ -6,13 +6,14 @@ import { Body, Btn, Display, Eyebrow } from '../design/ui'
 
 const INTERVIEW_PLANS: BillingPlanId[] = ['preserve', 'monthly', 'setup']
 const UNLOCK_PLANS: BillingPlanId[] = ['monthly', 'setup']
+const MINUTES_PLANS: BillingPlanId[] = ['addon']
 
 export default function PaywallCard({
   kind = 'interview',
   title = 'Choose a plan to continue',
   note = 'Preserve lets you record the interview. Monthly or Set up opens the archive so you can see what was kept.',
 }: {
-  kind?: 'interview' | 'unlock'
+  kind?: 'interview' | 'unlock' | 'minutes'
   title?: string
   note?: string
 }) {
@@ -29,7 +30,7 @@ export default function PaywallCard({
     return () => { active = false }
   }, [])
 
-  const ids = kind === 'unlock' ? UNLOCK_PLANS : INTERVIEW_PLANS
+  const ids = kind === 'unlock' ? UNLOCK_PLANS : kind === 'minutes' ? MINUTES_PLANS : INTERVIEW_PLANS
 
   const label = (id: BillingPlanId) => {
     const p = plans.find((x) => x.id === id)
@@ -37,6 +38,7 @@ export default function PaywallCard({
     if (id === 'preserve') return 'Preserve — $6.99'
     if (id === 'monthly') return 'Monthly — $69.90'
     if (id === 'setup') return 'Set up — $699'
+    if (id === 'addon') return 'Add 30 minutes — $29.99'
     return id
   }
 
@@ -72,13 +74,13 @@ export default function PaywallCard({
       </div>
       <button
         type="button"
-        onClick={() => navigate('/pricing')}
+        onClick={() => navigate(kind === 'minutes' ? '/settings' : '/pricing')}
         style={{
           background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
           fontFamily: sans, fontSize: 13.5, color: T.ink3, textDecoration: 'underline',
         }}
       >
-        Compare plans
+        {kind === 'minutes' ? 'Back to settings' : 'Compare plans'}
       </button>
       {error && <Body size={13.5} color="#b04a3a">{error}</Body>}
     </div>
