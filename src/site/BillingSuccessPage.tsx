@@ -39,7 +39,7 @@ export default function BillingSuccessPage() {
         if (billing.paid) {
           window.clearTimeout(timer)
           setPhase('ready')
-          navigate('/interview', { replace: true })
+          navigate(billing.canViewArchive ? '/overview' : '/interview', { replace: true })
           return
         }
         setError('Payment is at Stripe, but the plan did not open. Try again.')
@@ -66,7 +66,7 @@ export default function BillingSuccessPage() {
       }}>
         <Eyebrow>Billing</Eyebrow>
         <Display size={38}>
-          {phase === 'ready' ? 'Your archive is open.'
+          {phase === 'ready' ? 'Your plan is open.'
             : phase === 'confirming' ? 'Opening your plan…'
               : 'We could not open the plan.'}
         </Display>

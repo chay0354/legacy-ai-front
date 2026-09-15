@@ -21,6 +21,9 @@ const input: CSSProperties = {
 }
 
 function planLabel(plan?: string | null) {
+  if (plan === 'setup') return 'Set up'
+  if (plan === 'monthly') return 'Monthly'
+  if (plan === 'preserve') return 'Preserve'
   if (plan === 'family') return 'Family'
   if (plan === 'archive') return 'The Archive'
   return 'None'
@@ -199,11 +202,17 @@ function UserDetail({
         </div>
         <Eyebrow>Change the plan</Eyebrow>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('monthly', () => adminApi.setPlan(u.id, 'monthly', { lifetime: true, notes }))}>
+            Comp Monthly
+          </Btn>
+          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('setup', () => adminApi.setPlan(u.id, 'setup', { lifetime: true, notes }))}>
+            Comp Set up
+          </Btn>
+          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('preserve', () => adminApi.setPlan(u.id, 'preserve', { lifetime: true, notes }))}>
+            Comp Preserve
+          </Btn>
           <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('archive', () => adminApi.setPlan(u.id, 'archive', { lifetime: true, notes }))}>
             Comp The Archive
-          </Btn>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('family', () => adminApi.setPlan(u.id, 'family', { lifetime: true, notes }))}>
-            Comp Family
           </Btn>
           <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('revoke', () => adminApi.revoke(u.id, notes || 'Revoked from admin desk'))}>
             {busy === 'revoke' ? 'Revoking…' : 'Revoke access'}
@@ -311,6 +320,8 @@ export default function AdminPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [grantBusy, setGrantBusy] = useState(false)
+  const [grantNote, setGrantNote] = useState<string | null>(null)
 
   const refresh = () => {
     setError(null)
@@ -381,7 +392,25 @@ export default function AdminPage() {
                 style={{ ...input, maxWidth: 360 }}
               />
               <Btn tone="quiet" onClick={() => refresh()}>Search</Btn>
+              <Btn
+                tone="quiet"
+                disabled={grantBusy}
+                onClick={() => {
+                  setGrantBusy(true)
+                  setGrantNote(null)
+                  adminApi.grantMissingPlans()
+                    .then((r) => {
+                      setGrantNote(`Opened a plan for ${r.granted} account${r.granted === 1 ? '' : 's'}. ${r.already} already had one.`)
+                      refresh()
+                    })
+                    .catch((e) => setError(e instanceof Error ? e.message : 'Could not grant plans'))
+                    .finally(() => setGrantBusy(false))
+                }}
+              >
+                {grantBusy ? 'Opening plans…' : 'Give every account a plan'}
+              </Btn>
             </div>
+            {grantNote && <Body size={14} color={T.olive}>{grantNote}</Body>}
             {error && <Body size={13.5} color={T.siennaDeep}>{error}</Body>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {users.map((u) => (

@@ -146,36 +146,65 @@ export function TheArchivePage() {
 /* ────────────────────────────── Pricing ──────────────────────────── */
 const FALLBACK_PLANS: BillingPlan[] = [
   {
-    id: 'archive',
-    name: 'The Archive',
-    displayPrice: '$19',
-    cadence: 'per month, one archive',
-    amount: 1900,
+    id: 'setup',
+    name: 'Set up',
+    displayPrice: '$699.00',
+    cadence: 'one time · includes first 3 months',
+    amount: 69900,
     currency: 'usd',
-    interval: 'month',
-    primary: true,
+    interval: 'once',
+    primary: false,
+    canViewArchive: true,
     lines: [
-      'Guided interview across all three stages',
-      'Unlimited stories and entries',
-      'Voice memories, photographs, and a live avatar',
-      'Family access for the people you invite',
-      'Edit or remove anything, at any time',
+      'Everything in Monthly, prepaid for three months',
+      'Interview, archive, live avatar, and family access',
+      '180 minutes included',
     ],
   },
   {
-    id: 'family',
-    name: 'Family',
-    displayPrice: '$39',
-    cadence: 'per month, more than one archive',
-    amount: 3900,
+    id: 'monthly',
+    name: 'Monthly',
+    displayPrice: '$69.90',
+    cadence: 'per month · 60 minutes',
+    amount: 6990,
     currency: 'usd',
     interval: 'month',
-    primary: false,
+    primary: true,
+    canViewArchive: true,
     lines: [
-      'Everything in The Archive',
-      'Two or more archives, kept separately',
-      'Administrator help for a parent or relative',
-      'Shared family access settings',
+      'Guided interview and a full archive you can read',
+      'Live avatar and family invitations',
+      '60 minutes each month',
+    ],
+  },
+  {
+    id: 'preserve',
+    name: 'Preserve',
+    displayPrice: '$6.99',
+    cadence: 'one time · interview only',
+    amount: 699,
+    currency: 'usd',
+    interval: 'once',
+    primary: false,
+    canViewArchive: false,
+    lines: [
+      'Record the guided interview',
+      'We keep what you share',
+      'Pay Monthly or Set up when you want to see the archive',
+    ],
+  },
+  {
+    id: 'addon',
+    name: '30 min add',
+    displayPrice: '$29.99',
+    cadence: 'one time extra minutes',
+    amount: 2999,
+    currency: 'usd',
+    interval: 'once',
+    primary: false,
+    kind: 'addon',
+    lines: [
+      'Add 30 minutes to an active Monthly or Set up plan',
     ],
   },
 ]
@@ -190,7 +219,7 @@ export function PricingPage() {
   // A ?checkout= arrival is already on its way to Stripe — keep the buttons quiet meanwhile.
   const [busy, setBusy] = useState<string | null>(() => {
     const p = params.get('checkout')
-    return p === 'archive' || p === 'family' ? p : null
+    return p && ['setup', 'monthly', 'preserve', 'addon', 'archive', 'family'].includes(p) ? p : null
   })
   const [error, setError] = useState<string | null>(null)
   const autoStarted = useRef(false)
@@ -213,12 +242,12 @@ export function PricingPage() {
     return () => { active = false }
   }, [])
 
-  const startCheckout = async (plan: 'archive' | 'family') => {
+  const startCheckout = async (plan: BillingPlan['id']) => {
     if (!signedIn) {
       navigate(`/signin?new=1&next=${encodeURIComponent(`/pricing?checkout=${plan}`)}`)
       return
     }
-    if (billing?.paid && billing.plan === plan) {
+    if (plan !== 'addon' && billing?.paid && billing.plan === plan && billing.canViewArchive) {
       navigate('/overview')
       return
     }
@@ -241,18 +270,18 @@ export function PricingPage() {
   useEffect(() => {
     if (!ready || autoStarted.current) return
     const plan = params.get('checkout')
-    if (plan !== 'archive' && plan !== 'family') return
+    if (!plan || !['setup', 'monthly', 'preserve', 'addon', 'archive', 'family'].includes(plan)) return
     autoStarted.current = true
     const rest = new URLSearchParams(params)
     rest.delete('checkout')
     setParams(rest, { replace: true })
-    void startCheckout(plan)
+    void startCheckout(plan as BillingPlan['id'])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, signedIn])
 
   const ctaFor = (p: BillingPlan) => {
-    if (billing?.paid && billing.plan === p.id) return 'Current plan'
-    if (billing?.paid && p.id === 'family') return 'Upgrade to Family'
+    if (p.id !== 'addon' && billing?.paid && billing.plan === p.id) return 'Current plan'
+    if (billing?.paid && !billing.canViewArchive && p.canViewArchive) return `Open the archive with ${p.name}`
     if (busy === p.id) return 'Opening checkout…'
     return signedIn ? `Continue with ${p.name}` : CTA.begin
   }
@@ -261,8 +290,8 @@ export function PricingPage() {
     <SitePage>
       <PageHead
         eyebrow="Pricing"
-        title="One archive, kept for as long as you want it."
-        standfirst="Pay monthly. If you stop, you keep what you recorded — you just cannot add new interviews or live calls."
+        title="Record now. Open the archive when you are ready."
+        standfirst="Preserve is the interview only. Monthly and Set up open the stories, people, and live avatar."
       />
       <div className="site-wrap" style={wrap}>
         {ready && signedIn && !billing?.paid && (
@@ -273,8 +302,8 @@ export function PricingPage() {
           }}>
             <Eyebrow>Your account is ready</Eyebrow>
             <Body size={14.5}>
-              Choose a plan to begin the interview. You can cancel whenever you like, and what you
-              record stays readable either way.
+              Choose Preserve to record the interview, or Monthly / Set up if you want to see the
+              archive afterwards.
             </Body>
           </div>
         )}
@@ -310,7 +339,7 @@ export function PricingPage() {
               </div>
               <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
                 <Btn
-                  disabled={Boolean(busy) || (billing?.paid && billing.plan === p.id)}
+                  disabled={Boolean(busy) || (p.id !== 'addon' && Boolean(billing?.paid && billing.plan === p.id && billing.canViewArchive))}
                   onClick={() => void startCheckout(p.id)}
                 >
                   {ctaFor(p)}
@@ -321,8 +350,8 @@ export function PricingPage() {
         </div>
         {error && <Body size={14} color="#b04a3a" style={{ marginTop: 18 }}>{error}</Body>}
         <Body size={14} color={T.ink3} style={{ marginTop: 26, maxWidth: 620 }}>
-          Your archive stays yours. If you stop paying, you keep access to read and export what you
-          recorded — nothing is deleted without your instruction. Invited family never pays separately.
+          Preserve keeps the recording closed until you pay Monthly or Set up. Nothing is deleted
+          without your instruction. Invited family never pays separately.
         </Body>
       </div>
     </SitePage>

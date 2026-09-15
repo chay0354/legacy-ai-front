@@ -1,5 +1,5 @@
 import {
-  createContext, useCallback, useContext, useMemo, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import ArchiveShell, { type ArchiveRouteKey } from './ArchiveShell'
@@ -59,6 +59,12 @@ export default function ArchiveWorkspace({
 
   const attach = useCallback((fn: Scroller | null) => { scroller.current = fn }, [])
   const nav = useMemo<SectionNav>(() => ({ setActive: setActiveSection, attach }), [attach])
+
+  useEffect(() => {
+    if (ctx.profile?.locked && !location.pathname.startsWith('/interview')) {
+      navigate('/unlock', { replace: true })
+    }
+  }, [ctx.profile?.locked, location.pathname, navigate])
 
   const goSection = useCallback((key: SectionKey) => {
     if (scroller.current) scroller.current(key)

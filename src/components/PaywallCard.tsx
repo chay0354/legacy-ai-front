@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { billingApi, type BillingPlan } from '../lib/api'
+import { billingApi, type BillingPlan, type BillingPlanId } from '../lib/api'
 import { T, sans } from '../design/tokens'
 import { Body, Btn, Display, Eyebrow } from '../design/ui'
 
-const FALLBACK_LABEL: Record<string, string> = {
-  archive: 'The Archive',
-  family: 'Family',
-}
+const INTERVIEW_PLANS: BillingPlanId[] = ['preserve', 'monthly', 'setup']
+const UNLOCK_PLANS: BillingPlanId[] = ['monthly', 'setup']
 
 export default function PaywallCard({
+  kind = 'interview',
   title = 'Choose a plan to continue',
-  note = 'The interview, live avatar, and family invitations are part of a paid archive. Reading what you already recorded stays available if you stop later.',
+  note = 'Preserve lets you record the interview. Monthly or Set up opens the archive so you can see what was kept.',
 }: {
+  kind?: 'interview' | 'unlock'
   title?: string
   note?: string
 }) {
   const navigate = useNavigate()
-  const [busy, setBusy] = useState<'archive' | 'family' | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [plans, setPlans] = useState<BillingPlan[]>([])
 
@@ -29,13 +29,18 @@ export default function PaywallCard({
     return () => { active = false }
   }, [])
 
-  const label = (id: 'archive' | 'family') => {
+  const ids = kind === 'unlock' ? UNLOCK_PLANS : INTERVIEW_PLANS
+
+  const label = (id: BillingPlanId) => {
     const p = plans.find((x) => x.id === id)
-    if (!p) return FALLBACK_LABEL[id]
-    return `${p.name} — ${p.displayPrice} / ${p.interval}`
+    if (p) return `${p.name} — ${p.displayPrice}`
+    if (id === 'preserve') return 'Preserve — $6.99'
+    if (id === 'monthly') return 'Monthly — $69.90'
+    if (id === 'setup') return 'Set up — $699'
+    return id
   }
 
-  const start = async (plan: 'archive' | 'family') => {
+  const start = async (plan: BillingPlanId) => {
     setBusy(plan)
     setError(null)
     try {
@@ -54,12 +59,16 @@ export default function PaywallCard({
       <Display size={30}>{title}</Display>
       <Body size={15}>{note}</Body>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <Btn disabled={Boolean(busy)} onClick={() => void start('archive')}>
-          {busy === 'archive' ? 'Opening checkout…' : label('archive')}
-        </Btn>
-        <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void start('family')}>
-          {busy === 'family' ? 'Opening checkout…' : label('family')}
-        </Btn>
+        {ids.map((id, i) => (
+          <Btn
+            key={id}
+            tone={i === 0 ? 'primary' : 'quiet'}
+            disabled={Boolean(busy)}
+            onClick={() => void start(id)}
+          >
+            {busy === id ? 'Opening checkout…' : label(id)}
+          </Btn>
+        ))}
       </div>
       <button
         type="button"

@@ -121,6 +121,8 @@ export interface InterviewSessionProps {
   onViewAvatar?: () => void;
   onViewLegacy?: () => void;
   onManageAccess?: () => void;
+  /** Preserve: interview is done, but the archive stays closed until they pay. */
+  archiveLocked?: boolean;
   onBack?: () => void;
   /** Rendered inside the archive paper pane — no full-page chrome. */
   embedded?: boolean;
@@ -199,6 +201,7 @@ export default function InterviewSession({
   onComplete = (a) => console.log("interview complete", a),
   onViewAvatar,
   onViewLegacy,
+  archiveLocked = false,
   onManageAccess = () => {},
   onBack,
   embedded = false,
@@ -1492,9 +1495,11 @@ export default function InterviewSession({
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 20, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   {processingError
                     ? processingError
-                    : extractionResult
-                      ? "We've extracted your stories, relationships, and wisdom. Your legacy dashboard is updated."
-                      : "This is your legacy. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
+                    : archiveLocked
+                      ? "We kept what you recorded. To see the stories, people, and wisdom, you need to pay."
+                      : extractionResult
+                        ? "We've extracted your stories, relationships, and wisdom. Your legacy dashboard is updated."
+                        : "This is your legacy. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
                 </p>
                 {processingError && onRetryPreservation && (
                   <button
@@ -1505,7 +1510,7 @@ export default function InterviewSession({
                     {processing ? "Preserving…" : "Try preserving again"}
                   </button>
                 )}
-                {extractionResult && (
+                {extractionResult && !archiveLocked && (
                   <div style={{ marginTop: 28, padding: "24px 28px", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, textAlign: "left", width: "100%", boxSizing: "border-box" }}>
                     {extractionResult.session_summary && (
                       <p style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.55, color: C.ink, margin: 0 }}>{extractionResult.session_summary}</p>
@@ -1535,11 +1540,13 @@ export default function InterviewSession({
                 <div style={{ display: "flex", gap: 13, marginTop: 34, flexWrap: "wrap", justifyContent: "center" }}>
                   {(onViewLegacy != null || onViewAvatar != null) && (
                     <button onClick={onViewLegacy ?? onViewAvatar} style={{ cursor: "pointer", background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 999 }}>
-                      Open your archive →
+                      {archiveLocked ? "See what you need to pay →" : "Open your archive →"}
                     </button>
                   )}
-                  <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Invite family</button>
-                  {onViewLegacy != null && onViewAvatar != null && (
+                  {!archiveLocked && (
+                    <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Invite family</button>
+                  )}
+                  {!archiveLocked && onViewLegacy != null && onViewAvatar != null && (
                     <button onClick={onViewAvatar} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Ask the archive</button>
                   )}
                 </div>

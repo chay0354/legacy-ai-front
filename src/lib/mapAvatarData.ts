@@ -46,6 +46,8 @@ export interface AvatarData {
 }
 
 export interface LegacyProfile {
+  locked?: boolean
+  lockReason?: string
   creator: {
     id?: string
     display_name?: string

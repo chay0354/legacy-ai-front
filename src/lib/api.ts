@@ -104,8 +104,10 @@ export interface PendingInvitation {
   creatorDisplayName: string | null;
 }
 
+export type BillingPlanId = 'none' | 'setup' | 'monthly' | 'preserve' | 'addon' | 'archive' | 'family';
+
 export interface BillingStatus {
-  plan: 'none' | 'archive' | 'family';
+  plan: BillingPlanId;
   status: string;
   paid: boolean;
   cancelAtPeriodEnd?: boolean;
@@ -113,10 +115,13 @@ export interface BillingStatus {
   maxOwnedArchives?: number;
   source?: string | null;
   notes?: string | null;
+  minutesRemaining?: number;
+  canInterview?: boolean;
+  canViewArchive?: boolean;
 }
 
 export interface BillingPlan {
-  id: 'archive' | 'family';
+  id: Exclude<BillingPlanId, 'none'>;
   name: string;
   cadence: string;
   amount: number;
@@ -125,6 +130,9 @@ export interface BillingPlan {
   displayPrice: string;
   lines: string[];
   primary: boolean;
+  kind?: 'plan' | 'addon';
+  canInterview?: boolean;
+  canViewArchive?: boolean;
 }
 
 export interface AccessMe {
@@ -542,7 +550,7 @@ export const billingApi = {
 
   status: () => apiFetch('/api/billing/status') as Promise<BillingStatus>,
 
-  checkout: (plan: 'archive' | 'family') =>
+  checkout: (plan: BillingPlanId) =>
     apiFetch('/api/billing/checkout', {
       method: 'POST',
       body: JSON.stringify({ plan }),

@@ -10,6 +10,15 @@ import { T, radius, sans } from '../../design/tokens'
 import { CTA, TRUST, archiveSetupLabel, countsLine } from '../../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel, PrivacyNote } from '../../design/ui'
 
+function planName(plan?: string | null) {
+  if (plan === 'setup') return 'Set up'
+  if (plan === 'monthly') return 'Monthly'
+  if (plan === 'preserve') return 'Preserve'
+  if (plan === 'family') return 'Family'
+  if (plan === 'archive') return 'The Archive'
+  return 'a plan'
+}
+
 function renewalNote(iso?: string | null) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -156,11 +165,14 @@ export default function SettingsScreen() {
                 {!billingLoaded
                   ? 'Checking your plan…'
                   : billing?.paid
-                    ? `You are on ${billing.plan === 'family' ? 'Family' : 'The Archive'}${
-                      billing.cancelAtPeriodEnd
-                        ? ' — ending after this period'
-                        : renewalNote(billing.currentPeriodEnd)}.`
-                    : 'The interview, live avatar, and invitations need an active plan.'}
+                    ? billing.canViewArchive
+                      ? `You are on ${planName(billing.plan)}${
+                        billing.cancelAtPeriodEnd
+                          ? ' — ending after this period'
+                          : renewalNote(billing.currentPeriodEnd)}${
+                        billing.minutesRemaining ? ` · ${billing.minutesRemaining} minutes left` : ''}.`
+                      : 'You are on Preserve. The interview is open. Pay Monthly or Set up to see the archive.'
+                    : 'Choose Preserve to record the interview, or Monthly / Set up to open the archive.'}
               </Body>
               {billingLoaded && (
                 <div style={rowStyle}>

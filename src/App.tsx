@@ -25,6 +25,7 @@ import { AboutPage, HowItWorksPage, PricingPage, TheArchivePage } from './site/I
 import BillingSuccessPage from './site/BillingSuccessPage'
 import AdminPage from './site/AdminPage'
 import PaywallCard from './components/PaywallCard'
+import UnlockArchiveScreen from './components/UnlockArchiveScreen'
 import AuthPage from './site/AuthPage'
 import ArchiveHome from './components/archive/ArchiveHome'
 import EditArchiveScreen from './components/archive/EditArchiveScreen'
@@ -175,6 +176,20 @@ function isInterviewBlockedError(msg: string | null | undefined) {
   return Boolean(msg && /only for people preserving their own legacy/i.test(msg))
 }
 
+function billingAllowsInterview(me: AccessMe) {
+  const b = me.billing
+  if (!b) return true
+  if (typeof b.canInterview === 'boolean') return b.canInterview
+  return b.paid
+}
+
+function billingAllowsArchive(me: AccessMe) {
+  const b = me.billing
+  if (!b) return true
+  if (typeof b.canViewArchive === 'boolean') return b.canViewArchive
+  return b.paid && b.plan !== 'preserve'
+}
+
 function isPaymentRequiredError(err: unknown) {
   const code = (err as { code?: string } | null)?.code
   const msg = err instanceof Error ? err.message : ''
@@ -210,13 +225,19 @@ function resolveDestination(me: AccessMe): string {
   const picked = pickCreatorId(me, cached)
   if (picked) {
     const m = me.memberships.find((x) => x.creatorId === picked)
-    if (m?.isOwner && membershipHasProgress(m)) return archiveScreen(picked)
+    if (m?.isOwner && membershipHasProgress(m)) {
+      return billingAllowsArchive(me) ? archiveScreen(picked) : '/unlock'
+    }
     if (m && !m.isOwner) return archiveScreen(picked)
   }
 
   const activeOwned = ownedMemberships(me).find(membershipHasProgress)
-  if (activeOwned) return archiveScreen(activeOwned.creatorId)
-  if (shouldStartInterview(me)) return me.billing && !me.billing.paid ? '/pricing' : '/interview'
+  if (activeOwned) {
+    return billingAllowsArchive(me) ? archiveScreen(activeOwned.creatorId) : '/unlock'
+  }
+  if (shouldStartInterview(me)) {
+    return billingAllowsInterview(me) ? '/interview' : '/pricing'
+  }
 
   const shared = preferredSharedMembership(me, cached)
   if (shared) return archiveScreen(shared.creatorId)
@@ -398,6 +419,7 @@ function InterviewPage({ session }: { session: Session | null }) {
   const lastAnswersRef = useRef<Answer[]>([])
   const lastExclusionsRef = useRef<string[]>([])
   const [aiVoice, setAiVoice] = useState(false)
+  const [archiveLocked, setArchiveLocked] = useState(false)
 
   useEffect(() => {
     if (!session?.user?.id) return
@@ -428,6 +450,7 @@ function InterviewPage({ session }: { session: Session | null }) {
           navigate(interviewEscapeRoute(me), { replace: true })
           return null
         }
+        setArchiveLocked(!billingAllowsArchive(me))
         return interviewApi.getSession(requestedStage ? { stage: requestedStage } : undefined)
       })
       .then((data) => { if (active && data != null) setSessionData(data) })
@@ -508,6 +531,10 @@ function InterviewPage({ session }: { session: Session | null }) {
   }
 
   const goToArchive = () => {
+    if (archiveLocked) {
+      navigate('/unlock', { replace: true })
+      return
+    }
     if (!sessionData?.creator.id) { navigate('/overview'); return }
     navigate(archiveScreen(sessionData.creator.id), {
       replace: true,
@@ -537,7 +564,9 @@ function InterviewPage({ session }: { session: Session | null }) {
           Your archive reflects everything you have shared so far. You can still add entries, voice
           memories, and photographs at any time.
         </Body>
-        <Btn onClick={() => navigate(archiveScreen(sessionData.creator.id))}>Open your archive</Btn>
+        <Btn onClick={() => navigate(archiveLocked ? '/unlock' : archiveScreen(sessionData.creator.id))}>
+          {archiveLocked ? 'See what you need to pay' : 'Open your archive'}
+        </Btn>
       </PaneNotice>
     )
   }
@@ -603,9 +632,10 @@ function InterviewPage({ session }: { session: Session | null }) {
       stt={aiVoice ? null : browserStt}
       onAnswerCommit={handleAnswerCommit}
       onComplete={handleComplete}
-      onViewAvatar={() => navigate(`/ask?c=${sessionData.creator.id}`)}
+      onViewAvatar={archiveLocked ? undefined : () => navigate(`/ask?c=${sessionData.creator.id}`)}
       onViewLegacy={goToArchive}
-      onManageAccess={() => navigate(`/family-access?c=${sessionData.creator.id}`)}
+      archiveLocked={archiveLocked}
+      onManageAccess={archiveLocked ? undefined : () => navigate(`/family-access?c=${sessionData.creator.id}`)}
       onBack={() => navigate(archiveScreen(sessionData.creator.id))}
       processing={processing}
       processingError={processingError}
@@ -800,6 +830,7 @@ export default function App() {
         <Route path="/how-it-works" element={<HowItWorksPage />} />
         <Route path="/the-archive" element={<TheArchivePage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/unlock" element={<UnlockArchiveScreen />} />
         <Route path="/billing/success" element={<BillingSuccessPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/signin" element={<SignInRoute session={session} />} />
