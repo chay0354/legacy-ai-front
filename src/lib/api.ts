@@ -111,6 +111,8 @@ export interface BillingStatus {
   cancelAtPeriodEnd?: boolean;
   currentPeriodEnd?: string | null;
   maxOwnedArchives?: number;
+  source?: string | null;
+  notes?: string | null;
 }
 
 export interface BillingPlan {

@@ -23,6 +23,7 @@ import { ACTIONS, can, normalizeRole } from './lib/permissions'
 import HomePage from './site/HomePage'
 import { AboutPage, HowItWorksPage, PricingPage, TheArchivePage } from './site/InfoPages'
 import BillingSuccessPage from './site/BillingSuccessPage'
+import AdminPage from './site/AdminPage'
 import PaywallCard from './components/PaywallCard'
 import AuthPage from './site/AuthPage'
 import ArchiveHome from './components/archive/ArchiveHome'
@@ -802,6 +803,7 @@ export default function App() {
         <Route path="/billing/success" element={<BillingSuccessPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/signin" element={<SignInRoute session={session} />} />
+        <Route path="/admin" element={<AdminPage />} />
 
         {/* the archive — one shell; sidebar does not remount */}
         <Route
