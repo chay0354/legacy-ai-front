@@ -41,6 +41,7 @@ export interface ArchiveContext {
   setupPct: number
   counts: ArchiveCounts
   activity: ArchiveActivity[]
+  locked: boolean
   reload: () => void
 }
 
@@ -161,7 +162,9 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
     creatorId: profile?.creator?.id || creatorIdParam,
     creatorName,
     portraitUrl: assets?.urls?.portrait || assets?.previewUrl || null,
-    level, setupPct, counts, activity, reload,
+    level, setupPct, counts, activity,
+    locked: Boolean(profile?.locked),
+    reload,
   }
 }
 

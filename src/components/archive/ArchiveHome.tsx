@@ -76,6 +76,10 @@ export default function ArchiveHome() {
     sectionNav.setActive(key)
   }, [sectionNav])
 
+  useEffect(() => {
+    if (ctx.locked) navigate('/unlock', { replace: true })
+  }, [ctx.locked, navigate])
+
   // Lend the sidebar this screen's scroll function while it is mounted.
   useEffect(() => {
     sectionNav.attach(scrollTo)
@@ -109,7 +113,7 @@ export default function ArchiveHome() {
     return () => observer.disconnect()
   }, [ctx.profile, ctx.role, sectionNav])
 
-  if (!ctx.profile) return null
+  if (!ctx.profile || ctx.locked) return null
 
   const { profile, role, creatorId, counts, level, setupPct, activity, members } = ctx
   const cQuery = creatorId ? `?c=${creatorId}` : ''

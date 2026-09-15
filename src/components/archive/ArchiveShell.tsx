@@ -73,7 +73,7 @@ export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
  */
 export default function ArchiveShell({
   role, creatorId, creatorName, portraitUrl, memberships = [], children,
-  activeSection, onSection, activeRoute, band = true, contentMax = 1180,
+  activeSection, onSection, activeRoute, band = true, contentMax = 1180, locked = false,
 }: {
   role: Role
   creatorId?: string
@@ -87,6 +87,7 @@ export default function ArchiveShell({
   activeRoute?: ArchiveRouteKey
   band?: boolean
   contentMax?: number
+  locked?: boolean
 }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -148,7 +149,7 @@ export default function ArchiveShell({
         </Link>
 
         <div style={{ padding: '0 26px 6px' }}>
-          <Eyebrow color={T.onDark3}>In this archive</Eyebrow>
+          <Eyebrow color={T.onDark3}>{locked ? 'Preserve' : 'In this archive'}</Eyebrow>
         </div>
 
         <div className="archive-nav-scroll" style={{
@@ -156,7 +157,7 @@ export default function ArchiveShell({
           overflowY: 'auto', overscrollBehavior: 'contain',
           flex: 1, minHeight: 0,
         }}>
-          {sections.map((s) => {
+          {!locked && sections.map((s) => {
             const active = !activeRoute && readingBand === s.key
             return (
               <button
@@ -168,6 +169,16 @@ export default function ArchiveShell({
               </button>
             )
           })}
+          {locked && (
+            <button
+              type="button"
+              onClick={() => { navigate('/unlock'); setMenuOpen(false) }}
+              style={itemStyle(false)}
+            >
+              <Icon name="lock" size={18} color={iconColor(false)} />
+              Open the archive
+            </button>
+          )}
         </div>
 
         <div style={{ padding: '14px 14px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -178,15 +189,19 @@ export default function ArchiveShell({
               {NAV.interview}
             </Link>
           )}
-          {canManageAccess(role) && (
+          {!locked && canManageAccess(role) && (
             <Link to={`/family-access${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'access')}>
               <Icon name="lock" size={18} color={iconColor(activeRoute === 'access')} />
               {NAV.access}
             </Link>
           )}
-          <Link to={`/settings${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'settings')}>
+          <Link
+            to={locked ? '/unlock' : `/settings${cQuery}`}
+            onClick={() => setMenuOpen(false)}
+            style={itemStyle(activeRoute === 'settings')}
+          >
             <Icon name="settings" size={18} color={iconColor(activeRoute === 'settings')} />
-            {NAV.settings}
+            {locked ? 'See plans' : NAV.settings}
           </Link>
         </div>
 
@@ -220,7 +235,29 @@ export default function ArchiveShell({
               })}
             </div>
           )}
-          {mayEdit ? (
+          {locked ? (
+            <button
+              type="button"
+              onClick={() => { navigate('/unlock'); setMenuOpen(false) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', width: '100%',
+                borderRadius: radius.sm, background: 'rgba(240,231,214,.05)',
+                border: `1px solid ${T.darkLine}`, cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <Monogram name={creatorName} />
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{
+                  fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{archiveLabel}</span>
+                <span style={{ fontFamily: sans, fontSize: 12, color: 'rgba(179,144,47,.9)' }}>
+                  Locked on Preserve
+                </span>
+              </span>
+              <Icon name="lock" size={15} color={T.onDark3} style={{ marginLeft: 'auto' }} />
+            </button>
+          ) : mayEdit ? (
             <Link
               to={`/edit${cQuery}`}
               style={{

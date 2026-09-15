@@ -82,7 +82,8 @@ export default function ArchiveWorkspace({
           memberships={ctx.memberships}
           activeSection={activeSection}
           activeRoute={activeRoute}
-          onSection={goSection}
+          onSection={ctx.locked ? () => navigate('/unlock') : goSection}
+          locked={ctx.locked}
           band={false}
         >
           <div key={activeRoute || 'main'} className="archive-pane">

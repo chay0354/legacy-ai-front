@@ -231,9 +231,10 @@ function resolveDestination(me: AccessMe): string {
   const picked = pickCreatorId(me, cached)
   if (picked) {
     const m = me.memberships.find((x) => x.creatorId === picked)
-    if (m?.isOwner && membershipHasProgress(m)) {
-      return billingAllowsArchive(me) ? archiveScreen(picked) : '/unlock'
+    if (m?.isOwner && !billingAllowsArchive(me)) {
+      return membershipHasProgress(m) ? '/unlock' : '/interview'
     }
+    if (m?.isOwner && membershipHasProgress(m)) return archiveScreen(picked)
     if (m && !m.isOwner) return archiveScreen(picked)
   }
 
@@ -253,6 +254,10 @@ function resolveDestination(me: AccessMe): string {
 
 /** Never send a blocked user back to /interview (avoids redirect loops). */
 function interviewEscapeRoute(me: AccessMe): string {
+  if (!billingAllowsArchive(me) && billingAllowsInterview(me)) {
+    const owned = ownedMemberships(me)[0]
+    return owned && membershipHasProgress(owned) ? '/unlock' : '/interview'
+  }
   const dest = resolveDestination(me)
   if (!dest.startsWith('/interview')) return dest
   const owned = ownedMemberships(me)[0]
@@ -383,12 +388,22 @@ function ArchiveRoute({
             leaveOrStay(me)
             return
           }
+          const owned = me.memberships.find((m) => m.creatorId === creatorIdParam)
+          if (owned?.isOwner && !billingAllowsArchive(me) && !window.location.pathname.startsWith('/interview')) {
+            navigate(membershipHasProgress(owned) ? '/unlock' : '/interview', { replace: true })
+            return
+          }
           setResolving(false)
           return
         }
         const cached = localStorage.getItem(LAST_CREATOR_KEY)
         const picked = pickCreatorId(me, cached)
         if (picked) {
+          const owned = me.memberships.find((m) => m.creatorId === picked)
+          if (owned?.isOwner && !billingAllowsArchive(me) && !window.location.pathname.startsWith('/interview')) {
+            navigate(membershipHasProgress(owned) ? '/unlock' : '/interview', { replace: true })
+            return
+          }
           localStorage.setItem(LAST_CREATOR_KEY, picked)
           const next = new URLSearchParams(window.location.search)
           next.set('c', picked)
@@ -664,7 +679,7 @@ function InterviewPage({ session }: { session: Session | null }) {
       onViewLegacy={goToArchive}
       archiveLocked={archiveLocked}
       onManageAccess={archiveLocked ? undefined : () => navigate(`/family-access?c=${sessionData.creator.id}`)}
-      onBack={() => navigate(archiveScreen(sessionData.creator.id))}
+      onBack={() => navigate(archiveLocked ? '/unlock' : archiveScreen(sessionData.creator.id))}
       processing={processing}
       processingError={processingError}
       onRetryPreservation={() => {
