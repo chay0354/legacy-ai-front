@@ -6,8 +6,9 @@ import {
   type CreatorGender,
   type CreatorPronouns,
 } from '../lib/api'
-import { ANAM_LANGUAGES, normalizeAnamLanguage } from '../lib/anamLanguages'
-import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { ANAM_LANGUAGES, guessAnamLanguage, normalizeAnamLanguage } from '../lib/anamLanguages'
+import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImage'
 import { bindMediaStream } from '../lib/playMedia'
 
 const C = {
@@ -264,7 +265,7 @@ function Intro({
 
       <ul style={{ fontSize: 14, lineHeight: 1.9, color: C.ink2, marginTop: 16 }}>
         <li>Choose your speaking language, then record a voice sample → cloned automatically</li>
-        <li>A clear <strong>front-facing</strong> photo (face + shoulders) → built into your live avatar</li>
+        <li>A clear <strong>front-facing</strong> photo with space around your head and shoulders — a tight close-up warps the face</li>
         <li>Then family can talk with you face to face in real time</li>
       </ul>
       <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
@@ -292,7 +293,7 @@ function StudioProgress({ label }: { label: string }) {
 /* ------------------------------- Voice step ------------------------------ */
 function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: AvatarAssets | null; onDone: () => void | Promise<void> }) {
   const [language, setLanguage] = useState(() =>
-    normalizeAnamLanguage(typeof assets?.metadata?.anam_language === 'string' ? assets.metadata.anam_language : 'en'),
+    guessAnamLanguage(typeof assets?.metadata?.anam_language === 'string' ? assets.metadata.anam_language : null),
   )
   const [recording, setRecording] = useState(false)
   const [blob, setBlob] = useState<Blob | null>(null)
@@ -325,7 +326,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
         setError('Voice recording is not supported in this browser. Try Chrome or Edge on desktop.')
         return
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: CLONE_AUDIO_CONSTRAINTS })
       const { recorder: rec, mimeType } = createMediaRecorder(stream)
       chunksRef.current = []
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
@@ -436,7 +437,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
           ))}
         </select>
         <span style={{ display: 'block', fontSize: 12.5, color: C.ink3, marginTop: 8, lineHeight: 1.45, maxWidth: 480 }}>
-          Only languages Anam supports. Record in this language so Live Call matches your accent.
+          Record in this language — cloning English when you speak Hebrew (or the other way around) makes the live voice sound like someone else.
         </span>
       </label>
 
@@ -500,50 +501,12 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 }
 
 /* ------------------------------- Photo step ------------------------------ */
-/** Anam Cara best practices: square ≥1152px with head, shoulders, and upper chest. */
-const PORTRAIT_MIN_PX = 1152
-const PORTRAIT_TARGET_PX = 1536
-const PORTRAIT_HARD_MIN_PX = 720
-
 const PHOTO_TIPS = [
-  'Center your face inside the oval outline',
-  'Look straight at the camera — both eyes visible',
-  'Keep head, shoulders, and upper chest in frame',
-  'Neutral expression, even lighting, plain background',
+  'Sit a little farther back — head, shoulders, and upper chest in frame',
+  'Leave space around your head (do not fill the whole square with your face)',
+  'Look straight at the camera — both eyes visible, mouth relaxed',
+  'Even lighting, plain background, hands out of frame',
 ]
-
-function portraitOutputSize(sourcePx: number): number {
-  if (sourcePx < PORTRAIT_HARD_MIN_PX) return sourcePx
-  return Math.min(Math.max(sourcePx, PORTRAIT_MIN_PX), PORTRAIT_TARGET_PX)
-}
-
-function loadImage(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Could not read that image'))
-    img.src = URL.createObjectURL(file)
-  })
-}
-
-async function normalizePortrait(file: File): Promise<Blob> {
-  const img = await loadImage(file)
-  const crop = Math.min(img.width, img.height)
-  if (crop < PORTRAIT_HARD_MIN_PX) {
-    URL.revokeObjectURL(img.src)
-    throw new Error('That photo is too small. Use a clearer, closer photo of your face.')
-  }
-  const out = portraitOutputSize(crop)
-  const canvas = document.createElement('canvas')
-  canvas.width = out
-  canvas.height = out
-  const ctx = canvas.getContext('2d')!
-  ctx.drawImage(img, (img.width - crop) / 2, (img.height - crop) / 2, crop, crop, 0, 0, out, out)
-  URL.revokeObjectURL(img.src)
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not process photo'))), 'image/jpeg', 0.95)
-  })
-}
 
 function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: () => void | Promise<void>; onBack: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -655,34 +618,21 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   const capture = () => {
     const v = videoRef.current
     if (!v || !v.videoWidth) return
-    const vw = v.videoWidth
-    const vh = v.videoHeight
-    const crop = Math.min(vw, vh)
-    const out = portraitOutputSize(crop)
-    if (crop < PORTRAIT_HARD_MIN_PX) {
-      setError('Camera resolution is too low. Try a different camera or move closer in better light.')
-      return
-    }
-    const canvas = document.createElement('canvas')
-    canvas.width = out
-    canvas.height = out
-    const ctx = canvas.getContext('2d')!
-    // Mirror to match the preview the user saw.
-    ctx.translate(out, 0)
-    ctx.scale(-1, 1)
-    ctx.drawImage(v, (vw - crop) / 2, (vh - crop) / 2, crop, crop, 0, 0, out, out)
-    canvas.toBlob((b) => {
-      if (!b) return
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-      const next = URL.createObjectURL(b)
-      urlRef.current = next
-      setShot(b)
-      setUrl(next)
-      setHint(crop < PORTRAIT_MIN_PX
-        ? 'Captured. Check that your face fills the oval and your shoulders are visible.'
-        : 'Looks good — confirm your face is centered before continuing.')
-      stopCamera()
-    }, 'image/jpeg', 0.95)
+    void (async () => {
+      try {
+        // Full frame + margins (not a tight center-crop). Mirror to match the preview.
+        const shotBlob = await capturePortraitFromVideo(v, { mirror: true })
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+        const next = URL.createObjectURL(shotBlob)
+        urlRef.current = next
+        setShot(shotBlob)
+        setUrl(next)
+        setHint('Check that there is space around your head and your shoulders are visible — a tight face crop warps the live avatar.')
+        stopCamera()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not capture that photo.')
+      }
+    })()
   }
 
   const retake = () => {
@@ -736,8 +686,8 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 520 }}>
-        Position your face inside the oval — like an ID verification photo. Looking straight at the camera
-        with head and shoulders in frame gives the best likeness. You can also upload a photo from your phone.
+        Sit back so your head and shoulders have space around them — a close-up face crop is what makes
+        the live avatar look warped. Look straight at the camera. You can also upload a photo from your phone.
       </p>
 
       <ul style={{ listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -797,15 +747,15 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
               <defs>
                 <mask id="kyc-face-mask">
                   <rect width="360" height="360" fill="white" />
-                  <ellipse cx="180" cy="155" rx="108" ry="132" fill="black" />
+                  <ellipse cx="180" cy="148" rx="86" ry="104" fill="black" />
                 </mask>
               </defs>
               <rect width="360" height="360" fill="rgba(10,8,6,.62)" mask="url(#kyc-face-mask)" />
               <ellipse
                 cx="180"
-                cy="155"
-                rx="108"
-                ry="132"
+                cy="148"
+                rx="86"
+                ry="104"
                 fill="none"
                 stroke="rgba(251,246,236,.95)"
                 strokeWidth="2.5"
@@ -835,7 +785,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
                 textShadow: '0 1px 4px rgba(0,0,0,.55)',
               }}
             >
-              Align your face in the oval
+              Face in the oval — leave space around your head
             </div>
             <div
               style={{
@@ -959,8 +909,9 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
-        We're building your live avatar from your photo and cloning your voice. This usually takes about a minute.
-        Live Call will only start once your own voice clone succeeds — we never use a stock voice.
+        We&apos;re building your live avatar from your photo and cloning your voice. This usually takes about a minute.
+        If a previous version looked warped or didn&apos;t sound like you, retake the photo a little farther back
+        and re-record in the language you actually speak — then generate again.
       </p>
 
       {status === 'generating' && <StudioProgress label={phase} />}

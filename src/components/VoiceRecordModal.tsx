@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { blobToWav, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
 
 const C = {
   card: '#fbf6ec',
@@ -70,7 +70,7 @@ export default function VoiceRecordModal({
     setPreviewUrl(null)
     setRecordedSeconds(0)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: CLONE_AUDIO_CONSTRAINTS })
       const { recorder: rec, mimeType } = createMediaRecorder(stream)
       chunksRef.current = []
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }

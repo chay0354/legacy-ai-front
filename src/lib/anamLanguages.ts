@@ -75,3 +75,13 @@ export function normalizeAnamLanguage(code?: string | null): AnamLanguageCode {
   if (CODE_SET.has(base)) return base as AnamLanguageCode
   return 'en'
 }
+
+/** Prefer the browser locale so a Hebrew speaker is not cloned as English by default. */
+export function guessAnamLanguage(fallback?: string | null): AnamLanguageCode {
+  if (typeof navigator === 'undefined') return normalizeAnamLanguage(fallback)
+  return normalizeAnamLanguage(
+    fallback
+    || navigator.languages?.[0]
+    || navigator.language,
+  )
+}

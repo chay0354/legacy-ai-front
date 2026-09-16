@@ -8,6 +8,7 @@ import MemoryEditorModal, { type MemoryFormValues } from '../MemoryEditorModal'
 import GalleryUploadModal from '../GalleryUploadModal'
 import VoiceRecordModal from '../VoiceRecordModal'
 import { avatarApi, interviewApi, uploadMedia } from '../../lib/api'
+import { normalizePortrait } from '../../lib/portraitImage'
 import { supabase } from '../../lib/supabase'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { CTA, TRUST } from '../../design/copy'
@@ -98,8 +99,8 @@ export default function EditArchiveScreen() {
     setIdentityError(null)
     setIdentityNotice(null)
     try {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/jpeg/, 'jpg')
-      const path = await uploadMedia(creatorId, 'portrait', file, ext, file.type)
+      const normalized = await normalizePortrait(file)
+      const path = await uploadMedia(creatorId, 'portrait', normalized, 'jpg', 'image/jpeg')
       await avatarApi.saveAssets({ portraitPath: path })
       setIdentityNotice('Photograph saved.')
       ctx.reload()

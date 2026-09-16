@@ -86,7 +86,7 @@ export default function AskPortrait({
       padding: 10, boxShadow: shadow.panel,
     }}>
       <div style={{
-        width: '100%', aspectRatio: '4 / 5', background: T.paperDeep,
+        width: '100%', aspectRatio: '2 / 3', background: T.paperDeep,
         position: 'relative', overflow: 'hidden', borderRadius: radius.sm,
       }}>
         {src ? (

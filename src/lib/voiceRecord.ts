@@ -9,6 +9,14 @@ export function pickMime(candidates: string[]): string | undefined {
   return candidates.find((t) => MediaRecorder.isTypeSupported(t))
 }
 
+/** Capture a clean clone sample — keep timbre (no browser noise-suppression). */
+export const CLONE_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: false,
+  autoGainControl: true,
+  channelCount: 1,
+}
+
 export function createMediaRecorder(stream: MediaStream): { recorder: MediaRecorder; mimeType: string } {
   const mime = pickMime(['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'])
   try {
@@ -19,8 +27,8 @@ export function createMediaRecorder(stream: MediaStream): { recorder: MediaRecor
   return { recorder: new MediaRecorder(stream), mimeType: 'audio/webm' }
 }
 
-/** Encode a browser recording as 16-bit PCM mono WAV for reliable playback + storage. */
-export async function blobToWav(blob: Blob, targetRate = 16000): Promise<Blob> {
+/** Encode as 16-bit PCM mono WAV. 44.1 kHz keeps timbre for Anam + ElevenLabs clones. */
+export async function blobToWav(blob: Blob, targetRate = 44100): Promise<Blob> {
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
   const ctx = new AudioCtx()
   try {

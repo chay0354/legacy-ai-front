@@ -1189,7 +1189,7 @@ function PortraitCard({
 
   return (
     <div id="portrait-live" style={{ background: C.card, border: `1px solid ${C.line}`, padding: 12, boxShadow: "0 22px 50px rgba(43,36,28,.14)", borderRadius: 3 }}>
-      <div style={{ width: "100%", aspectRatio: "4 / 5", background: "#e4d8c2", position: "relative", overflow: "hidden" }}>
+      <div style={{ width: "100%", aspectRatio: "2 / 3", background: "#e4d8c2", position: "relative", overflow: "hidden" }}>
         {portraitSrc ? (
           <img
             src={portraitSrc}
