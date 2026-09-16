@@ -620,14 +620,13 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
     if (!v || !v.videoWidth) return
     void (async () => {
       try {
-        // Full frame + margins (not a tight center-crop). Mirror to match the preview.
         const shotBlob = await capturePortraitFromVideo(v, { mirror: true })
         if (urlRef.current) URL.revokeObjectURL(urlRef.current)
         const next = URL.createObjectURL(shotBlob)
         urlRef.current = next
         setShot(shotBlob)
         setUrl(next)
-        setHint('Check that there is space around your head and your shoulders are visible — a tight face crop warps the live avatar.')
+        setHint('Looks good — confirm your face is centered before continuing.')
         stopCamera()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not capture that photo.')
