@@ -114,20 +114,18 @@ export default function AskPortrait({
           </div>
         ) : null}
 
-        {/* press the photograph to start talking */}
         {!liveActive && liveReady && canChat && (
           <button
             type="button" onClick={onStartLive} title={ASK.talk} aria-label={ASK.talk}
             style={{
               position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-              border: 'none', padding: 0, cursor: 'pointer',
-              background: 'linear-gradient(180deg, rgba(30,23,18,0) 40%, rgba(30,23,18,.42) 100%)',
+              border: 'none', padding: 0, cursor: 'pointer', background: 'transparent',
             }}
           >
             <span style={{
               width: 58, height: 58, borderRadius: radius.pill, display: 'grid', placeItems: 'center',
-              background: 'rgba(30,23,18,.55)', border: '1px solid rgba(240,231,214,.38)',
-              backdropFilter: 'blur(2px)',
+              background: T.ink, border: `1px solid ${T.cardEdge}`,
+              boxShadow: '0 8px 22px rgba(30,23,18,.28)',
             }}>
               <Icon name="play" size={22} color={T.onDark} strokeWidth={1.1} style={{ marginLeft: 3 }} />
             </span>
