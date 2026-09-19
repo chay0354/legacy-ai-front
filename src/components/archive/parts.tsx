@@ -17,7 +17,7 @@ export function SectionHeader({
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
         <Eyebrow>{eyebrow}</Eyebrow>
-        <Display size={33}>{title}</Display>
+        <Display as="h1" size={33}>{title}</Display>
         {note && <Body size={15} style={{ maxWidth: 560 }}>{note}</Body>}
       </div>
       {actions && <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>{actions}</div>}

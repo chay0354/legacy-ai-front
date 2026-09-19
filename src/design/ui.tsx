@@ -1,5 +1,5 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
-import { T, radius, sans, serif, shadow } from './tokens'
+import { useState, type CSSProperties, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { T, layout, radius, sans, serif, shadow } from './tokens'
 
 /* ─────────────────────────────── icons ─────────────────────────────── */
 /** Thin, minimal, useful line icons. No sparkles, robots, hearts, trophies. */
@@ -56,18 +56,20 @@ export function Eyebrow({
 }
 
 export function Display({
-  children, size = 34, italic, color = T.ink, weight = 400, style,
+  children, size = 34, italic, color = T.ink, weight = 400, style, as = 'h2',
 }: {
   children: ReactNode; size?: number; italic?: boolean; color?: string
   weight?: number; style?: CSSProperties
+  as?: 'h1' | 'h2' | 'h3' | 'p'
 }) {
+  const Tag = as
   return (
-    <h2 style={{
+    <Tag style={{
       fontFamily: serif, fontSize: size, fontWeight: weight, lineHeight: 1.12,
       letterSpacing: '-.012em', color, margin: 0,
       fontStyle: italic ? 'italic' : 'normal', textWrap: 'pretty',
       ...style,
-    }}>{children}</h2>
+    }}>{children}</Tag>
   )
 }
 
@@ -100,7 +102,7 @@ export function Panel({
     <section className={className} style={{
       background: onDark ? T.walnut : T.card,
       border: `1px solid ${onDark ? T.darkLine : T.cardEdge}`,
-      borderRadius: radius.md,
+      borderRadius: radius.card,
       padding: pad,
       boxShadow: onDark ? shadow.dark : shadow.panel,
       ...style,
@@ -114,13 +116,14 @@ export function Divider({ tone = 'line', style }: { tone?: 'line' | 'gold' | 'da
 }
 
 /* ─────────────────────────────── controls ──────────────────────────── */
-type BtnTone = 'primary' | 'secondary' | 'quiet' | 'onDark'
+type BtnTone = 'primary' | 'secondary' | 'quiet' | 'tertiary' | 'onDark'
 
 const BTN: Record<BtnTone, CSSProperties> = {
-  primary: { background: T.sienna, color: '#fdf8ef', border: `1px solid ${T.sienna}` },
-  secondary: { background: T.olive, color: T.onDark, border: `1px solid ${T.olive}` },
-  quiet: { background: 'transparent', color: T.ink2, border: `1px solid ${T.line}` },
-  onDark: { background: 'rgba(240,231,214,.10)', color: T.onDark, border: `1px solid ${T.darkLine}` },
+  primary: { background: T.sienna, color: T.onPrimary, border: `1px solid ${T.sienna}` },
+  secondary: { background: 'transparent', color: T.ink, border: `1px solid ${T.ink}` },
+  quiet: { background: 'transparent', color: T.ink, border: `1px solid ${T.line}` },
+  tertiary: { background: 'transparent', color: T.siennaDeep, border: '1px solid transparent' },
+  onDark: { background: 'transparent', color: T.onDark, border: `1px solid ${T.darkLine}` },
 }
 
 export function Btn({
@@ -136,22 +139,71 @@ export function Btn({
   style?: CSSProperties
   title?: string
 }) {
-  const pad = size === 'lg' ? '14px 26px' : size === 'sm' ? '8px 14px' : '11px 20px'
-  const fontSize = size === 'lg' ? 15 : size === 'sm' ? 13 : 14
+  const pad = size === 'lg' ? '12px 24px' : size === 'sm' ? '10px 14px' : '11px 20px'
+  const fontSize = size === 'lg' ? 15 : size === 'sm' ? 14 : 14
   return (
     <button
       type={type} onClick={onClick} disabled={disabled} title={title}
+      className="la-btn"
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8, padding: pad,
-        borderRadius: radius.sm, fontFamily: sans, fontWeight: 600, fontSize,
-        cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.55 : 1,
-        transition: 'opacity .18s ease, transform .18s ease',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: pad,
+        minHeight: layout.controlHeight, borderRadius: radius.control,
+        fontFamily: sans, fontWeight: 600, fontSize,
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.45 : 1,
+        color: disabled ? T.disabled : undefined,
+        transition: 'opacity .18s ease, background .18s ease, border-color .18s ease',
         ...BTN[tone], ...style,
       }}
     >
       {icon && <Icon name={icon} size={fontSize + 3} strokeWidth={1.4} />}
       {children}
     </button>
+  )
+}
+
+export function Select({
+  label, value, onChange, children, disabled, error, id,
+  ...rest
+}: {
+  label?: string
+  value: string
+  onChange: (value: string) => void
+  children: ReactNode
+  disabled?: boolean
+  error?: string
+  id?: string
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange' | 'children'>) {
+  const selectId = id || (label ? `la-select-${label.replace(/\s+/g, '-').toLowerCase()}` : undefined)
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+      {label && <Eyebrow color={error ? T.error : T.status}>{label}</Eyebrow>}
+      <span style={{ position: 'relative', display: 'block' }}>
+        <select
+          id={selectId}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          aria-invalid={Boolean(error)}
+          {...rest}
+          style={{
+            appearance: 'none', WebkitAppearance: 'none', width: '100%',
+            minHeight: layout.controlHeight, padding: '10px 36px 10px 12px',
+            background: T.paper, color: disabled ? T.disabled : T.ink,
+            border: `1px solid ${error ? T.error : T.line}`,
+            borderRadius: radius.control, fontFamily: sans, fontSize: 14,
+            cursor: disabled ? 'default' : 'pointer',
+          }}
+        >
+          {children}
+        </select>
+        <span aria-hidden style={{
+          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+          pointerEvents: 'none', color: T.status, fontSize: 11,
+        }}>▾</span>
+      </span>
+      {error && <span style={{ fontFamily: sans, fontSize: 13, color: T.error }}>{error}</span>}
+    </label>
   )
 }
 
@@ -188,10 +240,10 @@ export function Meter({ pct, tone = T.sienna, height = 4 }: { pct: number; tone?
 }
 
 export function PrivacyNote({ children, onDark }: { children?: ReactNode; onDark?: boolean }) {
-  const color = onDark ? T.onDark2 : T.ink3
+  const color = onDark ? T.onDark2 : T.status
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: sans, fontSize: 13, color }}>
-      <Icon name="lock" size={15} strokeWidth={1.3} color={onDark ? T.onDark3 : T.ink3} />
+      <Icon name="lock" size={15} strokeWidth={1.3} color={color} />
       {children || 'Private by default'}
     </span>
   )

@@ -31,6 +31,7 @@ import ArchiveHome from './components/archive/ArchiveHome'
 import EditArchiveScreen from './components/archive/EditArchiveScreen'
 import FamilyAccessScreen from './components/archive/FamilyAccessScreen'
 import SettingsScreen from './components/archive/SettingsScreen'
+import BillingScreen from './components/archive/BillingScreen'
 import AskArchiveScreen from './components/archive/AskArchiveScreen'
 import VoiceAndPhotoScreen from './components/archive/VoiceAndPhotoScreen'
 import ArchiveWorkspace from './components/archive/ArchiveLayout'
@@ -232,7 +233,8 @@ function resolveDestination(me: AccessMe): string {
   if (picked) {
     const m = me.memberships.find((x) => x.creatorId === picked)
     if (m?.isOwner && !billingAllowsArchive(me)) {
-      return membershipHasProgress(m) ? '/unlock' : '/interview'
+      if (me.billing?.hasSetup && !billingAllowsInterview(me)) return '/billing'
+      return membershipHasProgress(m) ? '/unlock' : (billingAllowsInterview(me) ? '/interview' : '/pricing')
     }
     if (m?.isOwner && membershipHasProgress(m)) return archiveScreen(picked)
     if (m && !m.isOwner) return archiveScreen(picked)
@@ -243,7 +245,8 @@ function resolveDestination(me: AccessMe): string {
     return billingAllowsArchive(me) ? archiveScreen(activeOwned.creatorId) : '/unlock'
   }
   if (shouldStartInterview(me)) {
-    return billingAllowsInterview(me) ? '/interview' : '/pricing'
+    if (billingAllowsInterview(me)) return '/interview'
+    return me.billing?.hasSetup ? '/billing' : '/pricing'
   }
 
   const shared = preferredSharedMembership(me, cached)
@@ -360,6 +363,10 @@ function ArchiveRoute({
    * a first-time owner has no archive row yet, and loading the workspace is what creates it.
    */
   const leaveOrStay = useCallback((me: AccessMe) => {
+    if (window.location.pathname.startsWith('/billing')) {
+      setResolving(false)
+      return
+    }
     const dest = resolveDestination(me)
     const url = new URL(dest, window.location.origin)
     const here = new URLSearchParams(window.location.search).get('c') || ''
@@ -368,7 +375,7 @@ function ArchiveRoute({
       return
     }
     // Never bounce a workspace visit back to marketing pricing — show the paywall in place.
-    if (url.pathname === '/pricing' && /^\/(overview|interview|edit|ask|settings|family-access|voice-and-photo|unlock)/.test(window.location.pathname)) {
+    if (url.pathname === '/pricing' && /^\/(overview|interview|edit|ask|settings|billing|family-access|voice-and-photo|unlock)/.test(window.location.pathname)) {
       setResolving(false)
       return
     }
@@ -389,8 +396,13 @@ function ArchiveRoute({
             return
           }
           const owned = me.memberships.find((m) => m.creatorId === creatorIdParam)
-          if (owned?.isOwner && !billingAllowsArchive(me) && !window.location.pathname.startsWith('/interview')) {
-            navigate(membershipHasProgress(owned) ? '/unlock' : '/interview', { replace: true })
+          if (owned?.isOwner && !billingAllowsArchive(me) && !window.location.pathname.startsWith('/interview') && !window.location.pathname.startsWith('/billing')) {
+            navigate(
+              me.billing?.hasSetup && !billingAllowsInterview(me)
+                ? '/billing'
+                : membershipHasProgress(owned) ? '/unlock' : '/interview',
+              { replace: true },
+            )
             return
           }
           setResolving(false)
@@ -400,8 +412,13 @@ function ArchiveRoute({
         const picked = pickCreatorId(me, cached)
         if (picked) {
           const owned = me.memberships.find((m) => m.creatorId === picked)
-          if (owned?.isOwner && !billingAllowsArchive(me) && !window.location.pathname.startsWith('/interview')) {
-            navigate(membershipHasProgress(owned) ? '/unlock' : '/interview', { replace: true })
+          if (owned?.isOwner && !billingAllowsArchive(me) && !window.location.pathname.startsWith('/interview') && !window.location.pathname.startsWith('/billing')) {
+            navigate(
+              me.billing?.hasSetup && !billingAllowsInterview(me)
+                ? '/billing'
+                : membershipHasProgress(owned) ? '/unlock' : '/interview',
+              { replace: true },
+            )
             return
           }
           localStorage.setItem(LAST_CREATOR_KEY, picked)
@@ -479,7 +496,10 @@ function InterviewPage({ session }: { session: Session | null }) {
           return null
         }
         setArchiveLocked(!billingAllowsArchive(me))
-        return interviewApi.getSession(requestedStage ? { stage: requestedStage } : undefined)
+        return interviewApi.getSession({
+          stage: requestedStage,
+          mode: params.get('mode') === 'memory' ? 'memory' : undefined,
+        })
       })
       .then((data) => { if (active && data != null) setSessionData(data) })
       .catch(async (e) => {
@@ -508,7 +528,7 @@ function InterviewPage({ session }: { session: Session | null }) {
       })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [session?.user?.id, navigate, requestedStage])
+  }, [session?.user?.id, navigate, requestedStage, params])
 
   if (!session) return <Navigate to="/" replace />
 
@@ -585,7 +605,7 @@ function InterviewPage({ session }: { session: Session | null }) {
         <PaywallCard
           kind="minutes"
           title="Your minutes are used"
-          note="Add 30 minutes to continue the interview and live calls. This only appears on an active Monthly or Set up plan."
+          note="Add 30 minutes to continue the interview and live calls. Extra minutes are for an active Package or Monthly plan."
         />
       </PaneNotice>
     )
@@ -599,17 +619,26 @@ function InterviewPage({ session }: { session: Session | null }) {
   }
 
   if (sessionData?.allStagesComplete) {
+    const cid = sessionData.creator.id
     return (
       <PaneNotice>
         <Eyebrow>Archive setup</Eyebrow>
         <Display size={30}>Foundation, Enrichment, and Family Archive are all in place</Display>
         <Body size={15} style={{ maxWidth: 460 }}>
-          Your archive reflects everything you have shared so far. You can still add entries, voice
-          memories, and photographs at any time.
+          The structured interviews are done. Add another memory anytime — talk, write, or add a photograph.
         </Body>
-        <Btn onClick={() => navigate(archiveLocked ? '/unlock' : archiveScreen(sessionData.creator.id))}>
-          {archiveLocked ? 'See what you need to pay' : 'Open your archive'}
-        </Btn>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+          {!archiveLocked && (
+            <>
+              <Btn onClick={() => navigate(`/interview?c=${cid}&mode=memory`)}>Talk</Btn>
+              <Btn tone="quiet" onClick={() => navigate(`/edit?c=${cid}`)}>Review answers</Btn>
+              <Btn tone="quiet" onClick={() => navigate(`/overview?c=${cid}`)}>Write or add a photo</Btn>
+            </>
+          )}
+          <Btn tone="quiet" onClick={() => navigate(archiveLocked ? '/unlock' : archiveScreen(cid))}>
+            {archiveLocked ? 'See what you need to pay' : 'Open your archive'}
+          </Btn>
+        </div>
       </PaneNotice>
     )
   }
@@ -678,6 +707,13 @@ function InterviewPage({ session }: { session: Session | null }) {
       onViewAvatar={archiveLocked ? undefined : () => navigate(`/ask?c=${sessionData.creator.id}`)}
       onViewLegacy={goToArchive}
       archiveLocked={archiveLocked}
+      onAddMemory={
+        archiveLocked
+        || !(sessionData.stage === 'memory' || sessionData.stage === 'legacy' || (sessionData.creator.avatar_level ?? 0) >= 3)
+          ? undefined
+          : () => navigate(`/interview?c=${sessionData.creator.id}&mode=memory`)
+      }
+      onReviewAnswers={archiveLocked ? undefined : () => navigate(`/edit?c=${sessionData.creator.id}`)}
       onManageAccess={archiveLocked ? undefined : () => navigate(`/family-access?c=${sessionData.creator.id}`)}
       onBack={() => navigate(archiveLocked ? '/unlock' : archiveScreen(sessionData.creator.id))}
       processing={processing}
@@ -911,6 +947,7 @@ export default function App() {
             </RequireAction>
           } />
           <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/billing" element={<BillingScreen />} />
           <Route path="/ask" element={<AskArchiveScreen />} />
           <Route path="/interview" element={<InterviewPage session={session} />} />
         </Route>

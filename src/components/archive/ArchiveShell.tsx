@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { T, paperTexture, radius, sans, serif } from '../../design/tokens'
 import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
@@ -8,7 +8,7 @@ import {
   canEditArchive, canManageAccess, canRunInterview, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
 
-export type ArchiveRouteKey = 'edit' | 'settings' | 'access' | 'ask' | 'interview'
+export type ArchiveRouteKey = 'edit' | 'settings' | 'billing' | 'access' | 'ask' | 'interview'
 
 function Monogram({ name, size = 30 }: { name: string; size?: number }) {
   const initials = name.split(/\s+/).map((w) => w[0]?.toUpperCase() || '').join('').slice(0, 2) || '—'
@@ -91,12 +91,31 @@ export default function ArchiveShell({
 }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuBtn = useRef<HTMLButtonElement>(null)
+  const drawerWasOpen = useRef(false)
   const cQuery = creatorId ? `?c=${creatorId}` : ''
   const sections = sectionsForRole(role).filter((s) => s.inNav)
-  const firstName = creatorName.split(' ')[0] || creatorName
+  const identityReady = Boolean(creatorName && creatorName !== 'This archive')
+  const firstName = identityReady ? (creatorName.split(' ')[0] || creatorName) : ''
   const mayEdit = canEditArchive(role)
   const ownThis = isOwner(role)
-  const archiveLabel = ownThis || firstName === 'This' ? 'Your archive' : `${firstName}’s archive`
+  const archiveLabel = !identityReady
+    ? (ownThis ? 'Your archive' : 'Opening…')
+    : ownThis ? 'Your archive' : `${firstName}’s archive`
+  const relationship = ownThis
+    ? 'Owner'
+    : canManageAccess(role) ? 'You help look after this' : 'Shared with you'
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('la-drawer-open', menuOpen)
+    document.body.classList.toggle('la-drawer-open', menuOpen)
+    if (drawerWasOpen.current && !menuOpen) menuBtn.current?.focus()
+    drawerWasOpen.current = menuOpen
+    return () => {
+      document.documentElement.classList.remove('la-drawer-open')
+      document.body.classList.remove('la-drawer-open')
+    }
+  }, [menuOpen])
   const otherArchives = memberships.filter((m) => m.creatorId && m.creatorId !== creatorId)
   const readingBand = sections.some((s) => s.key === activeSection)
     ? activeSection
@@ -104,7 +123,7 @@ export default function ArchiveShell({
 
   const itemStyle = (active: boolean): CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 11, width: '100%',
-    padding: '9px 12px', borderRadius: radius.sm, textDecoration: 'none',
+    minHeight: 44, padding: '10px 12px', borderRadius: radius.control, textDecoration: 'none',
     background: active ? 'rgba(240,231,214,.10)' : 'transparent',
     boxShadow: active ? `inset 2px 0 0 ${T.sienna}` : 'none',
     fontFamily: sans, fontSize: 14, fontWeight: active ? 600 : 400,
@@ -124,9 +143,11 @@ export default function ArchiveShell({
           <span style={{ fontFamily: serif, fontSize: 20, color: T.onDark }}>{BRAND}</span>
         </Link>
         <button
+          ref={menuBtn}
           type="button"
           className="archive-mobile-menu-btn"
           aria-expanded={menuOpen}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           onClick={() => setMenuOpen((v) => !v)}
         >{menuOpen ? 'Close' : 'Menu'}</button>
       </div>
@@ -135,7 +156,7 @@ export default function ArchiveShell({
         className={`archive-sidebar${menuOpen ? ' is-open' : ''}`}
         style={{
           width: 244, flex: '0 0 244px',
-          background: T.walnutDeep,
+          background: T.walnut,
           borderRight: '1px solid rgba(20,15,11,.5)',
           display: 'flex', flexDirection: 'column',
           position: 'sticky', top: 0, height: '100dvh',
@@ -149,7 +170,7 @@ export default function ArchiveShell({
         </Link>
 
         <div style={{ padding: '0 26px 6px' }}>
-          <Eyebrow color={T.onDark3}>{locked ? 'Preserve' : 'In this archive'}</Eyebrow>
+          <Eyebrow color={T.onDark3}>{locked ? 'Archive locked' : 'In this archive'}</Eyebrow>
         </div>
 
         <div className="archive-nav-scroll" style={{
@@ -195,14 +216,22 @@ export default function ArchiveShell({
               {NAV.access}
             </Link>
           )}
-          <Link
-            to={locked ? '/unlock' : `/settings${cQuery}`}
-            onClick={() => setMenuOpen(false)}
-            style={itemStyle(activeRoute === 'settings')}
-          >
-            <Icon name="settings" size={18} color={iconColor(activeRoute === 'settings')} />
-            {locked ? 'See plans' : NAV.settings}
-          </Link>
+          {isOwner(role) && (
+            <Link to={`/billing${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'billing')}>
+              <Icon name="settings" size={18} color={iconColor(activeRoute === 'billing')} />
+              {NAV.billing}
+            </Link>
+          )}
+          {!locked && (
+            <Link
+              to={`/settings${cQuery}`}
+              onClick={() => setMenuOpen(false)}
+              style={itemStyle(activeRoute === 'settings')}
+            >
+              <Icon name="settings" size={18} color={iconColor(activeRoute === 'settings')} />
+              {NAV.settings}
+            </Link>
+          )}
         </div>
 
         {/* bottom-left archive identity — the owner's way into the edit surface */}
@@ -252,7 +281,7 @@ export default function ArchiveShell({
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{archiveLabel}</span>
                 <span style={{ fontFamily: sans, fontSize: 12, color: 'rgba(179,144,47,.9)' }}>
-                  Locked on Preserve
+                  Archive locked
                 </span>
               </span>
               <Icon name="lock" size={15} color={T.onDark3} style={{ marginLeft: 'auto' }} />
@@ -267,7 +296,7 @@ export default function ArchiveShell({
                 border: `1px solid ${T.darkLine}`,
               }}
             >
-              {portraitUrl
+              {portraitUrl && identityReady
                 ? <img
                     src={portraitUrl} alt=""
                     style={{
@@ -275,36 +304,36 @@ export default function ArchiveShell({
                       flex: '0 0 auto', border: `1px solid ${T.darkLine}`,
                     }}
                   />
-                : <Monogram name={creatorName} />}
-              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <span style={{
-                  fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{archiveLabel}</span>
-                <span style={{ fontFamily: sans, fontSize: 12, color: 'rgba(179,144,47,.9)' }}>
-                  Edit archive
-                </span>
-              </span>
-              <Icon name="pen" size={15} color={T.onDark3} style={{ marginLeft: 'auto' }} />
-            </Link>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px' }}>
-              {portraitUrl
-                ? <img
-                    src={portraitUrl} alt=""
-                    style={{
-                      width: 30, height: 30, borderRadius: radius.pill, objectFit: 'cover',
-                      flex: '0 0 auto', border: `1px solid ${T.darkLine}`,
-                    }}
-                  />
-                : <Monogram name={creatorName} />}
+                : <Monogram name={identityReady ? creatorName : '—'} />}
               <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <span style={{
                   fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{archiveLabel}</span>
                 <span style={{ fontFamily: sans, fontSize: 12, color: T.onDark3 }}>
-                  {canManageAccess(role) ? 'You help look after this' : 'Shared with you'}
+                  Review and edit entries
+                </span>
+              </span>
+              <Icon name="pen" size={15} color={T.onDark3} style={{ marginLeft: 'auto' }} />
+            </Link>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px' }}>
+              {portraitUrl && identityReady
+                ? <img
+                    src={portraitUrl} alt=""
+                    style={{
+                      width: 30, height: 30, borderRadius: radius.pill, objectFit: 'cover',
+                      flex: '0 0 auto', border: `1px solid ${T.darkLine}`,
+                    }}
+                  />
+                : <Monogram name={identityReady ? creatorName : '—'} />}
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{
+                  fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{archiveLabel}</span>
+                <span style={{ fontFamily: sans, fontSize: 12, color: T.onDark3 }}>
+                  {relationship}
                 </span>
               </span>
             </div>

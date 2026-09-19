@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
@@ -12,8 +12,10 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
   const location = useLocation()
   const [open, setOpen] = useState(false)
   const [session, setSession] = useState<Session | null>(null)
+  const menuBtn = useRef<HTMLButtonElement>(null)
+  const drawerWasOpen = useRef(false)
   const fg = onDark ? T.onDark : T.ink
-  const fg2 = onDark ? 'rgba(240,231,214,.74)' : T.ink2
+  const fg2 = onDark ? T.onDark2 : T.ink2
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -22,6 +24,17 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
   }, [])
 
   useEffect(() => { setOpen(false) }, [location.pathname])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('la-drawer-open', open)
+    document.body.classList.toggle('la-drawer-open', open)
+    if (drawerWasOpen.current && !open) menuBtn.current?.focus()
+    drawerWasOpen.current = open
+    return () => {
+      document.documentElement.classList.remove('la-drawer-open')
+      document.body.classList.remove('la-drawer-open')
+    }
+  }, [open])
 
   const primaryTo = session ? '/overview' : '/signin?new=1'
   const primaryLabel = session ? 'Open archive' : CTA.begin
@@ -76,6 +89,7 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
       </div>
 
       <button
+        ref={menuBtn}
         type="button"
         className="site-header-menu-btn"
         aria-label={open ? 'Close menu' : 'Open menu'}
@@ -91,7 +105,7 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
       {open && (
         <div className="site-header-drawer" style={{
           position: 'absolute', left: 0, right: 0, top: '100%',
-          background: T.walnutDeep, borderTop: `1px solid ${T.darkLine}`,
+          background: T.walnut, borderTop: `1px solid ${T.darkLine}`,
           padding: '18px 24px 28px', display: 'flex', flexDirection: 'column', gap: 14,
         }}>
           {SITE_NAV.map((item) => (
@@ -162,7 +176,7 @@ export function SiteFooter() {
           <Link
             to="/how-it-works"
             style={{
-              fontFamily: sans, fontSize: 14, fontWeight: 600, color: T.sienna,
+              fontFamily: sans, fontSize: 14, fontWeight: 600, color: T.onDark,
               textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7,
             }}
           >

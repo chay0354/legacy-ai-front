@@ -1,15 +1,15 @@
 /**
  * Legacy AI — visual tokens. Direction: Warm Editorial Heirloom.
  *
- * Colour roles (from the product + website direction handoff):
- *   paper / stone  reading surfaces, transcripts, entries, forms — paper, not blank beige
- *   walnut         hero atmosphere, voice panels, quotes, editorial bands — a room, not a black panel
- *   olive          side navigation, active states, privacy indicators, secondary buttons
- *   sienna         primary CTAs, progress, the important next step — used sparingly
- *   gold           dividers, chapter numbers, quote marks, quiet heirloom details — sparingly
+ * One walnut family for every structural dark. The homepage hero gradient
+ * (#17110D → #4A3323) is the only documented exception.
  *
- * Target value balance: ~50% paper, ~25% walnut/olive structure,
- * ~15% photography/material, ~10% sienna/gold accent.
+ * Roles, not page-specific colors:
+ *   paper / card     reading surfaces
+ *   walnut           headers, product shell, drawer, footer, dark bands
+ *   sienna           primary action
+ *   ink / status     body and informative copy (4.5:1 on paper)
+ *   gold             quiet emphasis on dark — never body copy on cream
  */
 
 export const T = {
@@ -22,10 +22,13 @@ export const T = {
 
   ink: '#241c15',
   ink2: '#5e5346',
-  ink3: '#8c8071',
+  /** Informative / status / privacy — 4.5:1 on paper. Do not use for disabled. */
+  ink3: '#5c5246',
+  status: '#5c5246',
 
   walnut: '#2b211a',
-  walnutDeep: '#1e1712',
+  walnutDeep: '#17110d',
+  walnutMid: '#4a3323',
   walnutSoft: '#3b2d24',
 
   olive: '#3c4433',
@@ -37,23 +40,56 @@ export const T = {
   gold: '#b3902f',
 
   onDark: '#f0e7d6',
-  onDark2: 'rgba(240,231,214,.68)',
-  onDark3: 'rgba(240,231,214,.44)',
-  darkLine: 'rgba(240,231,214,.15)',
+  onDark2: 'rgba(240,231,214,.86)',
+  onDark3: 'rgba(240,231,214,.70)',
+  darkLine: 'rgba(240,231,214,.18)',
+
+  focus: '#b05e37',
+  error: '#8f3d2c',
+  success: '#3c4433',
+  warning: '#964d2b',
+  disabled: 'rgba(36,28,21,.38)',
+  onPrimary: '#ffffff',
 } as const
 
-export const serif = "'Newsreader', Georgia, serif"
+export const serif = "'Newsreader', 'Newsreader Fallback', Georgia, serif"
 export const sans =
-  "'Source Sans 3', 'Avenir Next', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+  "'Source Sans 3', 'Source Sans 3 Fallback', system-ui, sans-serif"
 /** Retained only for legacy call sites; new work uses `sans`. */
 export const mono = sans
 
-export const radius = { sm: 4, md: 8, lg: 14, pill: 999 } as const
+/** Control radius for buttons/fields. Card radius for panels. Pill only for segmented choices. */
+export const radius = { sm: 6, md: 12, lg: 12, control: 6, card: 12, pill: 999 } as const
+
+export const space = {
+  4: 4, 8: 8, 12: 12, 16: 16, 24: 24, 32: 32, 48: 48, 64: 64,
+} as const
+
+export const layout = {
+  gutterMobile: 16,
+  gutterDesktop: 44,
+  contentMax: 1180,
+  controlHeight: 44,
+} as const
+
+export const type = {
+  display: { desktop: 40, mobile: 28 },
+  title: { desktop: 28, mobile: 22 },
+  question: { desktop: 28, mobile: 20 },
+  body: 16,
+  label: 14,
+  meta: 13,
+} as const
 
 export const shadow = {
   panel: '0 1px 2px rgba(36,28,21,.05)',
-  lift: '0 10px 30px rgba(36,28,21,.14)',
+  lift: '0 8px 24px rgba(36,28,21,.10)',
   dark: '0 14px 40px rgba(20,15,11,.30)',
+} as const
+
+export const focusRing = {
+  outline: `2px solid ${T.focus}`,
+  outlineOffset: 3,
 } as const
 
 /** Subtle paper grain — texture without scrapbook. */

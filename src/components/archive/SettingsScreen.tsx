@@ -11,8 +11,9 @@ import { CTA, TRUST, archiveSetupLabel, countsLine } from '../../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel, PrivacyNote } from '../../design/ui'
 
 function planName(plan?: string | null) {
-  if (plan === 'setup') return 'Set up'
+  if (plan === 'setup') return 'Package'
   if (plan === 'monthly') return 'Monthly'
+  if (plan === 'storage') return 'Storage'
   if (plan === 'preserve') return 'Preserve'
   if (plan === 'family') return 'Family'
   if (plan === 'archive') return 'The Archive'
@@ -34,9 +35,6 @@ export default function SettingsScreen() {
   const owner = isOwner(ctx.role)
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [billingLoaded, setBillingLoaded] = useState(false)
-  const [billingBusy, setBillingBusy] = useState(false)
-  const [addonBusy, setAddonBusy] = useState(false)
-  const [billingError, setBillingError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!owner) return
@@ -54,30 +52,6 @@ export default function SettingsScreen() {
   const name = profile.creator?.display_name || 'This archive'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
 
-  const buyAddon = async () => {
-    setAddonBusy(true)
-    setBillingError(null)
-    try {
-      const { url } = await billingApi.checkout('addon')
-      if (!url) throw new Error('Checkout did not return a payment page')
-      window.location.href = url
-    } catch (e) {
-      setBillingError(e instanceof Error ? e.message : 'Could not start checkout')
-      setAddonBusy(false)
-    }
-  }
-
-  const openPortal = async () => {
-    setBillingBusy(true)
-    setBillingError(null)
-    try {
-      const { url } = await billingApi.portal()
-      window.location.href = url
-    } catch (e) {
-      setBillingError(e instanceof Error ? e.message : 'Could not open billing')
-      setBillingBusy(false)
-    }
-  }
   const mayEdit = canEditArchive(role)
   const profileName = owner ? name : (viewerName || viewerEmail || 'Your account')
 
@@ -131,12 +105,12 @@ export default function SettingsScreen() {
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                 <Display size={22}>{profileName}</Display>
-                {viewerEmail && <Body size={13.5} color={T.ink3}>{viewerEmail}</Body>}
+                {viewerEmail && <Body size={13.5} color={T.status}>{viewerEmail}</Body>}
               </div>
               {mayEdit && (
                 <div style={{ marginLeft: 'auto' }}>
                   <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
-                    Edit archive
+                    Review and edit entries
                   </Btn>
                 </div>
               )}
@@ -158,7 +132,7 @@ export default function SettingsScreen() {
               <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Who can open this archive</span>
               {canManageAccess(role)
                 ? <Btn tone="quiet" size="sm" onClick={() => navigate(`/family-access${cQuery}`)}>{CTA.manage}</Btn>
-                : <Body size={13} color={T.ink3}>Managed by the archive owner</Body>}
+                : <Body size={13} color={T.status}>Managed by the archive owner</Body>}
             </div>
             {canRunInterview(role) && (
               <div style={rowStyle}>
@@ -189,36 +163,21 @@ export default function SettingsScreen() {
                             ? ` · ${billing.minutesRemaining} minutes left`
                             : ' · no minutes left'
                           : ''}.`
-                      : 'You are on Preserve. The interview is open. Pay Monthly or Set up to see the archive.'
-                    : 'Choose Preserve to record the interview, or Monthly / Set up to open the archive.'}
+                      : 'You are on Preserve. The interview is open. Pay Monthly or Storage to see the archive.'
+                    : billing?.hasSetup
+                      ? 'The package is paid. Choose Monthly or Storage to keep the archive active.'
+                      : 'Start with the $699 package, then choose Monthly or Storage.'}
               </Body>
               {billingLoaded && (
                 <div style={rowStyle}>
                   <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>
-                    {billing?.paid ? 'Change plan or payment' : 'Choose a plan'}
+                    Invoices, extra minutes, and plan changes
                   </span>
-                  {billing?.paid ? (
-                    <Btn tone="quiet" size="sm" disabled={billingBusy} onClick={() => void openPortal()}>
-                      {billingBusy ? 'Opening…' : 'Manage billing'}
-                    </Btn>
-                  ) : (
-                    <Btn tone="quiet" size="sm" onClick={() => navigate('/pricing')}>See pricing</Btn>
-                  )}
-                </div>
-              )}
-              {billing?.canBuyAddon && (
-                <div style={rowStyle}>
-                  <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>
-                    {billing.minutesExhausted
-                      ? 'Minutes are used — add 30 minutes to keep interviewing and calling'
-                      : `Add 30 minutes${billing.addon?.displayPrice ? ` — ${billing.addon.displayPrice}` : ' — $29.99'}`}
-                  </span>
-                  <Btn tone={billing.minutesExhausted ? 'primary' : 'quiet'} size="sm" disabled={addonBusy} onClick={() => void buyAddon()}>
-                    {addonBusy ? 'Opening checkout…' : 'Add 30 minutes'}
+                  <Btn tone="quiet" size="sm" onClick={() => navigate(`/billing${cQuery}`)}>
+                    Open billing
                   </Btn>
                 </div>
               )}
-              {billingError && <Body size={13} color="#b04a3a">{billingError}</Body>}
             </Panel>
           )}
         </div>

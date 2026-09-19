@@ -1,7 +1,16 @@
+export const MIN_VOICE_SECONDS = 30
+
+export const UNDER_30S_MESSAGE =
+  'Record at least 30 seconds — 60–90 seconds in a quiet room clones much more reliably.'
+
+/** Readable 60–90 second passage. Short scripts made people hit the 30s gate. */
 export const VOICE_SCRIPT = [
   'Hello. My name is here, and these are the stories I want to leave behind.',
-  'I grew up in a place I loved, with people who shaped who I became.',
-  'If there is one thing I would want you to remember, it is to be kind, and to be brave.',
+  'I grew up in a place I loved, with people who shaped who I became. I can still hear the house in the morning — a door, a kettle, someone calling my name — and I can still see the faces around the table.',
+  'Work took me places I did not expect. Some days were ordinary. Some days I still think about. I am proud of the work I did with my hands, and of the people I stood beside when it was hard.',
+  'There were mistakes. There was luck. There was love I did not always say out loud. If I could sit with you a little longer, I would tell you about one afternoon that still feels close, and about the person who made an ordinary day matter.',
+  'If there is one thing I would want you to remember, it is to be kind, and to be brave. Tell the people you love that you love them. Take the walk. Make the call. Sit a little longer than you planned.',
+  'I hope when you hear this you hear me — not a perfect speech, just my voice, the way I really sounded, talking to you.',
 ]
 
 export function pickMime(candidates: string[]): string | undefined {

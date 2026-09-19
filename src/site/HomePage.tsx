@@ -17,7 +17,7 @@ export default function HomePage() {
           position: 'absolute', inset: 0,
           background: `radial-gradient(120% 90% at 82% 34%, rgba(176,94,55,.30) 0%, rgba(94,60,38,.22) 38%, rgba(24,18,13,0) 72%),
             radial-gradient(70% 60% at 96% 76%, rgba(179,144,47,.18) 0%, rgba(24,18,13,0) 70%),
-            linear-gradient(100deg, #17110c 0%, #241a13 46%, #33251b 100%)`,
+            linear-gradient(100deg, ${T.walnutDeep} 0%, ${T.walnut} 52%, ${T.walnutMid} 100%)`,
         }} />
         <div style={{ position: 'relative' }}>
           <SiteHeader />

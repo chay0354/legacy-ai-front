@@ -13,7 +13,7 @@ import {
 } from "../lib/interviewDepth";
 import { sanitizeForSessionLanguage, textMatchesSessionLanguage } from "../lib/languageScript";
 import { avatarApi, type CreatorGender, type CreatorPronouns } from "../lib/api";
-import { C, serif, sans } from "../design/tokens";
+import { C, T, serif, sans } from "../design/tokens";
 
 /**
  * Legacy AI — Interview Session
@@ -88,8 +88,13 @@ export interface AiVoiceInterview {
   }) => void;
   nudge?: (reason?: 'idle' | 'manual' | 'escalate') => void;
   updateInstructions: (instructions: string) => void;
-  completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
-  transitionToTopic: (instructions: string, questionIndex: number) => void;
+  completeFunctionCall: (callId: string, output: unknown, options?: {
+    instructions?: string;
+    continueResponse?: boolean;
+    nextQuestionIndex?: number;
+    totalQuestions?: number;
+  }) => void;
+  transitionToTopic: (instructions: string, questionIndex: number, totalQuestions?: number) => void;
   waitForPlaybackIdle?: (timeoutMs?: number) => Promise<void>;
 }
 
@@ -121,6 +126,8 @@ export interface InterviewSessionProps {
   onViewAvatar?: () => void;
   onViewLegacy?: () => void;
   onManageAccess?: () => void;
+  onAddMemory?: () => void;
+  onReviewAnswers?: () => void;
   /** Preserve: interview is done, but the archive stays closed until they pay. */
   archiveLocked?: boolean;
   onBack?: () => void;
@@ -203,6 +210,8 @@ export default function InterviewSession({
   onViewLegacy,
   archiveLocked = false,
   onManageAccess = () => {},
+  onAddMemory,
+  onReviewAnswers,
   onBack,
   embedded = false,
   priorStories = [],
@@ -214,9 +223,17 @@ export default function InterviewSession({
   useInjectedHead();
 
   const [liveQuestions, setLiveQuestions] = useState(questions);
-  useEffect(() => { setLiveQuestions(questions); }, [questions]);
+  const coreCountRef = useRef(questions.length);
+  useEffect(() => {
+    coreCountRef.current = questions.length;
+    setLiveQuestions(questions);
+  }, [interviewStage]);
+  useEffect(() => {
+    const cap = coreCountRef.current || questions.length;
+    setLiveQuestions(questions.length > cap ? questions.slice(0, cap) : questions);
+  }, [questions]);
   const QS    = liveQuestions;
-  const TOTAL = QS.length;
+  const TOTAL = coreCountRef.current || QS.length;
 
   const [started,    setStarted]    = useState(false);
   const [complete,   setComplete]   = useState(false);
@@ -413,10 +430,7 @@ export default function InterviewSession({
     digFor: QS[questionIndex]?.digFor || '',
     questionIndex,
     totalQuestions: TOTAL,
-    priorTopics: [
-      ...priorStories,
-      ...priorTopicsFor(questionIndex),
-    ],
+    priorTopics: priorTopicsFor(questionIndex),
     priorStories,
     topicExclusions: topicExclusionsRef.current,
     language: interviewLanguage || 'en',
@@ -444,7 +458,12 @@ export default function InterviewSession({
     }
 
     let completed = false;
-    const finish = (output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => {
+    const finish = (output: unknown, options?: {
+      instructions?: string;
+      continueResponse?: boolean;
+      nextQuestionIndex?: number;
+      totalQuestions?: number;
+    }) => {
       if (completed) return;
       completed = true;
       realtimeRef.current?.completeFunctionCall(callId, output, options);
@@ -495,7 +514,8 @@ export default function InterviewSession({
           skipped: trulySkipped,
         });
         if (nextList?.questions?.length) {
-          list = nextList.questions;
+          const cap = coreCountRef.current || nextList.questions.length;
+          list = nextList.questions.slice(0, cap);
           setLiveQuestions(list);
         }
       }
@@ -506,7 +526,7 @@ export default function InterviewSession({
           return;
         }
         const next = questionIndex + 1;
-        const total = list.length;
+        const total = coreCountRef.current || list.length;
         setQ(next);
         clearTopicTranscript();
         const nextCtx = {
@@ -527,7 +547,7 @@ export default function InterviewSession({
                 ? `They asked to stop this topic. What they said is saved. New instructions are loaded for topic ${next + 1} of ${total}. Acknowledge briefly — do NOT dig further — then open the next topic warmly.`
                 : `Topic saved. New instructions are loaded for topic ${next + 1} of ${total}. Transition warmly — a soft progress cue in plain language (topic ${next + 1} of ${total}), bridge from their story if it fits, then ask the next topic in your own words. Never say "next question" or sound like a checklist. Do not re-welcome them.`) + langLock,
           },
-          { instructions, nextQuestionIndex: next },
+          { instructions, nextQuestionIndex: next, totalQuestions: total },
         );
       } else {
         // Critical: do NOT request another model turn — that left sessions hanging after the last topic.
@@ -576,7 +596,8 @@ export default function InterviewSession({
           skipped: !kept,
         });
         if (nextList?.questions?.length) {
-          list = nextList.questions;
+          const cap = coreCountRef.current || nextList.questions.length;
+          list = nextList.questions.slice(0, cap);
           setLiveQuestions(list);
         }
       }
@@ -587,16 +608,17 @@ export default function InterviewSession({
 
       if (questionIndex < list.length - 1) {
         const next = questionIndex + 1;
+        const total = coreCountRef.current || list.length;
         setQ(next);
         if (aiVoiceMode && realtimeRef.current) {
           const nextCtx = {
             ...ctxFor(next),
             anchorQuestion: list[next]?.q || '',
             digFor: list[next]?.digFor || '',
-            totalQuestions: list.length,
+            totalQuestions: total,
           };
           const instructions = await fetchRealtimeInstructions(nextCtx);
-          realtimeRef.current.transitionToTopic(instructions, next);
+          realtimeRef.current.transitionToTopic(instructions, next, total);
         } else {
           stopConversation();
           void startRealtimeConversation(next);
@@ -806,7 +828,8 @@ export default function InterviewSession({
         skipped,
       });
       if (nextList?.questions?.length) {
-        list = nextList.questions;
+        const cap = coreCountRef.current || nextList.questions.length;
+        list = nextList.questions.slice(0, cap);
         setLiveQuestions(list);
       }
     }
@@ -1040,7 +1063,7 @@ export default function InterviewSession({
       <div style={{
         flex: "none",
         borderBottom: embedded ? "none" : `1px solid ${C.line}`,
-        background: embedded ? "#1e1712" : undefined,
+        background: embedded ? T.walnut : undefined,
         margin: embedded ? "0 -8px 8px" : undefined,
         padding: embedded ? "10px 16px 12px" : undefined,
         borderRadius: embedded ? 4 : undefined,
@@ -1058,16 +1081,11 @@ export default function InterviewSession({
             {running ? (
               <>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.terra, animation: ambient && !paused ? "la-rec 1.4s ease-in-out infinite" : "none" }} />
-                <span style={{ color: C.terra }}>Topic {q + 1}/{TOTAL}</span>
-                <span style={{ color: embedded ? "rgba(240,231,214,.28)" : C.line }}>·</span>
                 <span>{elapsed}</span>
               </>
             ) : <span>{stageLabel} · {sessionLabel}{guidanceMode === "free" ? " · free talk" : guidanceMode === "light" ? " · lighter" : ""}</span>}
           </div>
           <div style={{ minWidth: 78, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
-            {running && (
-              <button onClick={togglePause} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${embedded ? "rgba(240,231,214,.22)" : C.line}`, color: embedded ? "#f0e7d6" : C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 4 }}>{paused ? "Resume" : "Pause"}</button>
-            )}
             {onBack && (
               <button
                 type="button"
@@ -1079,7 +1097,7 @@ export default function InterviewSession({
             )}
           </div>
         </div>
-        <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px 14px", display: "flex", justifyContent: "center" }}>
+        <div className="la-stage-track" style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px 14px", display: "flex", justifyContent: "center" }}>
           <StageProgressTrack stages={stages} margin="0" maxWidth={520} />
         </div>
       </div>
@@ -1256,9 +1274,8 @@ export default function InterviewSession({
           <div style={{ width: "100%", maxWidth: 680, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
             {/* progress */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 36, width: "100%", maxWidth: 360 }}>
-              <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3 }}>
+              <div style={{ fontFamily: sans, fontSize: 13, letterSpacing: ".04em", color: C.ink3 }}>
                 Topic {q + 1} of {TOTAL}
-                {q < TOTAL - 1 ? ` · ${TOTAL - q - 1} left after this` : " · last topic"}
               </div>
               <div
                 aria-hidden
@@ -1271,9 +1288,6 @@ export default function InterviewSession({
                   background: accent,
                   transition: "width .35s ease",
                 }} />
-              </div>
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", justifyContent: "center" }}>
-                {QS.map((_, i) => <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < q ? C.umber : i === q ? accent : C.line }} />)}
               </div>
             </div>
 
@@ -1291,14 +1305,12 @@ export default function InterviewSession({
                 <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, marginBottom: 12 }}>
                   Topic theme · {cur.q}
                 </div>
-                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 26, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink, textWrap: "pretty" }}>
-                  {partialAssistant
-                    || [...chatTurns].reverse().find((t) => t.role === "assistant")?.text
-                    || (convLive ? "I'm listening…" : "Connecting to your interviewer…")}
+                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 22, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink3, textWrap: "pretty" }}>
+                  {paused ? "Paused" : convLive ? "Listening…" : "Connecting to your interviewer…"}
                 </p>
               </div>
             ) : (
-              <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 40, lineHeight: 1.16, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
+              <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
             )}
 
             {/* mode toggle */}
@@ -1360,6 +1372,7 @@ export default function InterviewSession({
                     style={{
                       cursor: "pointer",
                       marginTop: 16,
+                      minHeight: 44,
                       background: paused ? C.ink : "transparent",
                       color: paused ? C.paper : C.ink2,
                       border: `1px solid ${paused ? C.ink : C.line}`,
@@ -1367,7 +1380,7 @@ export default function InterviewSession({
                       fontWeight: 600,
                       fontSize: 14,
                       padding: "10px 22px",
-                      borderRadius: 999,
+                      borderRadius: 6,
                     }}
                   >
                     {paused ? "Resume interview" : "Pause interview"}
@@ -1398,12 +1411,12 @@ export default function InterviewSession({
             {/* actions */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginTop: 24 }}>
               {!voiceMode && (
-                <button onClick={goNext} disabled={!answered} style={{ cursor: answered ? "pointer" : "default", background: answered ? C.ink : C.panel, color: answered ? C.paper : C.ink3, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 15, padding: "15px 34px", borderRadius: 999, display: "inline-flex", alignItems: "center", gap: 11, opacity: answered ? 1 : 0.7 }}>
+                <button onClick={goNext} disabled={!answered} style={{ cursor: answered ? "pointer" : "default", background: answered ? C.ink : C.panel, color: answered ? C.paper : C.ink3, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 15, padding: "15px 34px", borderRadius: 6, minHeight: 44, display: "inline-flex", alignItems: "center", gap: 11, opacity: answered ? 1 : 0.7 }}>
                   {lastQ ? "Finish for today" : "Next question"}<span>→</span>
                 </button>
               )}
-              <button onClick={() => void goNext()} style={{ cursor: "pointer", background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 13.5, textDecoration: "underline", textUnderlineOffset: 3 }}>
-                {lastQ ? "Finish for today →" : "Skip this question →"}
+              <button onClick={() => void goNext()} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 600, fontSize: 14, minHeight: 44, minWidth: 44, padding: "10px 18px", borderRadius: 6 }}>
+                {lastQ ? "Finish for today" : "Skip this question"}
               </button>
             </div>
 
@@ -1543,8 +1556,14 @@ export default function InterviewSession({
                       {archiveLocked ? "See what you need to pay →" : "Open your archive →"}
                     </button>
                   )}
+                  {!archiveLocked && onReviewAnswers && (
+                    <button onClick={onReviewAnswers} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Review answers</button>
+                  )}
                   {!archiveLocked && (
                     <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Invite family</button>
+                  )}
+                  {!archiveLocked && onAddMemory && (
+                    <button onClick={onAddMemory} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Add another memory</button>
                   )}
                   {!archiveLocked && onViewLegacy != null && onViewAvatar != null && (
                     <button onClick={onViewAvatar} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Ask the archive</button>

@@ -9,12 +9,12 @@ export interface StageStep {
 type StageStatus = 'done' | 'current' | 'upcoming'
 
 const C = {
-  sage: '#71805c',
-  terra: '#c06a44',
-  ink: '#2b241c',
-  ink3: '#9a8d79',
-  line: '#ddccb0',
-  paper: '#fbf6ec',
+  sage: '#3c4433',
+  terra: '#b05e37',
+  ink: '#241c15',
+  ink3: '#5c5246',
+  line: '#d8c9ae',
+  paper: '#faf5eb',
 }
 
 function statusOf(st: StageStep): StageStatus {
@@ -41,7 +41,7 @@ export default function StageProgressTrack({
   const onDark = variant === 'dark'
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', margin, maxWidth, width: '100%' }}>
+    <div className="la-stage-track" style={{ display: 'flex', alignItems: 'center', margin, maxWidth, width: '100%' }}>
       {stages.map((st, i) => {
         const status = statusOf(st)
         const isLast = i === stages.length - 1

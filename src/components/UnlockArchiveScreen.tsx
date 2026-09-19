@@ -10,16 +10,16 @@ export default function UnlockArchiveScreen() {
         maxWidth: 640, margin: '0 auto', padding: '72px 28px 96px',
         display: 'flex', flexDirection: 'column', gap: 18,
       }}>
-        <Eyebrow>Preserve</Eyebrow>
-        <Display size={36}>Your interview is kept. The archive opens when you pay.</Display>
+        <Eyebrow>Archive locked</Eyebrow>
+        <Display size={36}>Your interview is kept. The archive opens when you continue.</Display>
         <Body size={16} color={T.ink2}>
           We saved what you recorded. Stories, people, values, and the live avatar stay closed
-          on Preserve. Choose Monthly or Set up to see everything.
+          until you choose Monthly or Storage.
         </Body>
         <PaywallCard
           kind="unlock"
-          title="Pay to see your data"
-          note="Monthly includes 60 minutes each month. Set up includes the first three months."
+          title="Open the archive"
+          note="Monthly includes 60 interview minutes each month. Storage keeps the stored archive active without new interviews."
         />
       </div>
     </SitePage>

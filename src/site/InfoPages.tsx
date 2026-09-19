@@ -15,7 +15,7 @@ function PageHead({
       <div className="site-page-head-inner" style={{ padding: '48px 44px 42px', maxWidth: 1180, margin: '0 auto' }}>
         <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Eyebrow color="rgba(179,144,47,.9)">{eyebrow}</Eyebrow>
-          <Display size={46} color={T.onDark} style={{ fontSize: 'clamp(28px, 6vw, 46px)' }}>{title}</Display>
+          <Display as="h1" size={46} color={T.onDark} style={{ fontSize: 'clamp(28px, 6vw, 46px)' }}>{title}</Display>
           {standfirst && <Body size={17.5} color={T.onDark2} style={{ maxWidth: 620 }}>{standfirst}</Body>}
         </div>
       </div>
@@ -147,18 +147,19 @@ export function TheArchivePage() {
 const FALLBACK_PLANS: BillingPlan[] = [
   {
     id: 'setup',
-    name: 'Set up',
-    displayPrice: '$699.00',
-    cadence: 'one time · includes first 3 months',
+    name: 'Package',
+    displayPrice: '$699',
+    cadence: 'one time · everyone starts here',
     amount: 69900,
     currency: 'usd',
     interval: 'once',
-    primary: false,
+    primary: true,
+    step: 1,
     canViewArchive: true,
     lines: [
-      'Everything in Monthly, prepaid for three months',
+      'The starting package for every new archive',
       'Interview, archive, live avatar, and family access',
-      '180 minutes included',
+      '180 minutes included for the first three months',
     ],
   },
   {
@@ -169,28 +170,31 @@ const FALLBACK_PLANS: BillingPlan[] = [
     amount: 6990,
     currency: 'usd',
     interval: 'month',
-    primary: true,
+    primary: false,
+    step: 2,
     canViewArchive: true,
     lines: [
-      'Guided interview and a full archive you can read',
-      'Live avatar and family invitations',
-      '60 minutes each month',
+      'Keep interviewing and talking with 60 minutes each month',
+      'Full archive, live avatar, and family invitations',
+      'Available after the $699 package',
     ],
   },
   {
-    id: 'preserve',
-    name: 'Preserve',
+    id: 'storage',
+    name: 'Storage',
     displayPrice: '$6.99',
-    cadence: 'one time · interview only',
+    cadence: 'per month · keep your data',
     amount: 699,
     currency: 'usd',
-    interval: 'once',
+    interval: 'month',
     primary: false,
-    canViewArchive: false,
+    step: 2,
+    canViewArchive: true,
+    canInterview: false,
     lines: [
-      'Record the guided interview',
-      'We keep what you share',
-      'Pay Monthly or Set up when you want to see the archive',
+      'Keep the account and stored memories active',
+      'Read the archive — no new interview minutes',
+      'Available after the $699 package',
     ],
   },
 ]
@@ -205,7 +209,7 @@ export function PricingPage() {
   // A ?checkout= arrival is already on its way to Stripe — keep the buttons quiet meanwhile.
   const [busy, setBusy] = useState<string | null>(() => {
     const p = params.get('checkout')
-    return p && ['setup', 'monthly', 'preserve', 'archive', 'family'].includes(p) ? p : null
+    return p && ['setup', 'monthly', 'storage'].includes(p) ? p : null
   })
   const [error, setError] = useState<string | null>(null)
   const autoStarted = useRef(false)
@@ -233,8 +237,15 @@ export function PricingPage() {
       navigate(`/signin?new=1&next=${encodeURIComponent(`/pricing?checkout=${plan}`)}`)
       return
     }
+    if ((plan === 'monthly' || plan === 'storage') && !billing?.hasSetup) {
+      return startCheckout('setup')
+    }
+    if (plan === 'setup' && billing?.hasSetup) {
+      navigate('/billing')
+      return
+    }
     if (billing?.paid && billing.plan === plan && billing.canViewArchive) {
-      navigate('/overview')
+      navigate(billing.hasSetup ? '/billing' : '/overview')
       return
     }
     setBusy(plan)
@@ -256,7 +267,7 @@ export function PricingPage() {
   useEffect(() => {
     if (!ready || autoStarted.current) return
     const plan = params.get('checkout')
-    if (!plan || !['setup', 'monthly', 'preserve', 'archive', 'family'].includes(plan)) return
+    if (!plan || !['setup', 'monthly', 'storage'].includes(plan)) return
     autoStarted.current = true
     const rest = new URLSearchParams(params)
     rest.delete('checkout')
@@ -267,17 +278,61 @@ export function PricingPage() {
 
   const ctaFor = (p: BillingPlan) => {
     if (billing?.paid && billing.plan === p.id) return 'Current plan'
-    if (billing?.paid && !billing.canViewArchive && p.canViewArchive) return `Open the archive with ${p.name}`
+    if (p.id === 'setup' && billing?.hasSetup) return 'Package already paid'
+    if ((p.id === 'monthly' || p.id === 'storage') && !billing?.hasSetup) {
+      return signedIn ? 'Start with the package' : CTA.begin
+    }
     if (busy === p.id) return 'Opening checkout…'
     return signedIn ? `Continue with ${p.name}` : CTA.begin
   }
+
+  const visible = plans.filter((p) => p.id !== 'addon' && p.kind !== 'addon' && p.id !== 'preserve')
+  const entry = visible.find((p) => p.id === 'setup') || visible.find((p) => p.step === 1)
+  const next = visible.filter((p) => p.id === 'monthly' || p.id === 'storage' || p.step === 2)
+
+  const renderCard = (p: BillingPlan) => (
+    <Panel
+      key={p.id}
+      pad="30px 30px 32px"
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 14,
+        borderColor: p.primary ? 'rgba(176,94,55,.45)' : T.cardEdge,
+      }}
+    >
+      <Eyebrow color={p.primary ? T.sienna : T.ink3}>{p.id === 'setup' ? '1 · Start here' : `Then ${p.name}`}</Eyebrow>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <span style={{ fontFamily: serif, fontSize: 34, color: T.ink }}>{p.displayPrice}</span>
+        <span style={{ fontFamily: sans, fontSize: 13.5, color: T.ink3 }}>{p.cadence}</span>
+      </div>
+      <Divider tone="gold" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {p.lines.map((l) => (
+          <span key={l} style={{
+            display: 'flex', gap: 10, alignItems: 'flex-start',
+            fontFamily: sans, fontSize: 14.5, color: T.ink2, lineHeight: 1.5,
+          }}>
+            <Icon name="check" size={15} color={T.olive} strokeWidth={1.4} style={{ marginTop: 3 }} />
+            {l}
+          </span>
+        ))}
+      </div>
+      <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
+        <Btn
+          disabled={Boolean(busy) || Boolean(billing?.paid && billing.plan === p.id) || Boolean(p.id === 'setup' && billing?.hasSetup)}
+          onClick={() => void startCheckout(p.id)}
+        >
+          {ctaFor(p)}
+        </Btn>
+      </div>
+    </Panel>
+  )
 
   return (
     <SitePage>
       <PageHead
         eyebrow="Pricing"
-        title="Record now. Open the archive when you are ready."
-        standfirst="Preserve is the interview only. Monthly and Set up open the stories, people, and live avatar."
+        title="Everyone starts with the package. Then you choose how to continue."
+        standfirst="Pay $699 once to open the archive. After that, keep interviewing for $69.90 a month, or keep the stored memories active for $6.99 a month."
       />
       <div className="site-wrap" style={wrap}>
         {error && (
@@ -288,7 +343,20 @@ export function PricingPage() {
             <Body size={14.5} color="#b04a3a">{error}</Body>
           </div>
         )}
-        {ready && signedIn && !billing?.paid && (
+        {ready && signedIn && billing?.hasSetup && (
+          <div style={{
+            maxWidth: 860, marginBottom: 22, padding: '14px 16px',
+            border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <Eyebrow>Your package is paid</Eyebrow>
+            <Body size={14.5}>
+              Choose Monthly to keep interview minutes, or Storage to keep the archive open.
+              Extra minutes live on your billing page.
+            </Body>
+          </div>
+        )}
+        {ready && signedIn && !billing?.hasSetup && (
           <div style={{
             maxWidth: 860, marginBottom: 22, padding: '14px 16px',
             border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
@@ -296,57 +364,25 @@ export function PricingPage() {
           }}>
             <Eyebrow>Your account is ready</Eyebrow>
             <Body size={14.5}>
-              Choose Preserve to record the interview, or Monthly / Set up if you want to see the
-              archive afterwards.
+              Start with the $699 package. After that you choose Monthly or Storage.
             </Body>
+          </div>
+        )}
+        {entry && (
+          <div style={{ maxWidth: 860, marginBottom: 18 }}>
+            {renderCard(entry)}
           </div>
         )}
         <div className="pricing-grid" style={{
           display: 'grid', gap: 18,
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
         }}>
-          {plans.filter((p) => p.id !== 'addon' && p.kind !== 'addon').map((p) => (
-            <Panel
-              key={p.id}
-              pad="30px 30px 32px"
-              style={{
-                display: 'flex', flexDirection: 'column', gap: 14,
-                borderColor: p.primary ? 'rgba(176,94,55,.45)' : T.cardEdge,
-              }}
-            >
-              <Eyebrow color={p.primary ? T.sienna : T.ink3}>{p.name}</Eyebrow>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <span style={{ fontFamily: serif, fontSize: 34, color: T.ink }}>{p.displayPrice}</span>
-                <span style={{ fontFamily: sans, fontSize: 13.5, color: T.ink3 }}>{p.cadence}</span>
-              </div>
-              <Divider tone="gold" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {p.lines.map((l) => (
-                  <span key={l} style={{
-                    display: 'flex', gap: 10, alignItems: 'flex-start',
-                    fontFamily: sans, fontSize: 14.5, color: T.ink2, lineHeight: 1.5,
-                  }}>
-                    <Icon name="check" size={15} color={T.olive} strokeWidth={1.4} style={{ marginTop: 3 }} />
-                    {l}
-                  </span>
-                ))}
-              </div>
-              <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
-                <Btn
-                  disabled={Boolean(busy) || Boolean(billing?.paid && billing.plan === p.id && billing.canViewArchive)}
-                  onClick={() => void startCheckout(p.id)}
-                >
-                  {ctaFor(p)}
-                </Btn>
-              </div>
-            </Panel>
-          ))}
+          {next.map(renderCard)}
         </div>
         <Body size={14} color={T.ink3} style={{ marginTop: 26, maxWidth: 620 }}>
-          Preserve keeps the recording closed until you pay Monthly or Set up. Extra minutes
-          ($29.99 for 30) appear in Settings after you have an active Monthly or Set up plan,
-          or when those minutes run out. Nothing is deleted without your instruction. Invited
-          family never pays separately.
+          Extra interview minutes ($29.99 for 30) appear on your billing page after the package
+          or Monthly is active, or when those minutes run out. Storage does not include interview
+          time. Nothing is deleted without your instruction. Invited family never pays separately.
         </Body>
       </div>
     </SitePage>

@@ -108,19 +108,30 @@ export default function AskArchiveScreen() {
     void submit()
   }
 
+  const memoryText = (memories[0]?.summary || memories[0]?.full_transcript || '').trim()
+
+  const playSampleSrc = (src: string) => {
+    voiceAudioRef.current?.pause()
+    const audio = sampleRef.current || new Audio()
+    sampleRef.current = audio
+    audio.src = src
+    audio.onended = () => setHearing(false)
+    void playMedia(audio).then(() => { if (!audio.paused) setHearing(true) })
+  }
+
   const toggleSample = () => {
-    if (!voiceSampleUrl) return
     if (hearing) {
       sampleRef.current?.pause()
       setHearing(false)
       return
     }
-    voiceAudioRef.current?.pause()
-    const audio = sampleRef.current || new Audio(voiceSampleUrl)
-    sampleRef.current = audio
-    audio.src = voiceSampleUrl
-    audio.onended = () => setHearing(false)
-    void playMedia(audio).then(() => { if (!audio.paused) setHearing(true) })
+    if (memoryText && voiceCloned && creatorId) {
+      void avatarApi.speak(memoryText, creatorId)
+        .then((src) => playSampleSrc(src))
+        .catch(() => { if (voiceSampleUrl) playSampleSrc(voiceSampleUrl) })
+      return
+    }
+    if (voiceSampleUrl) playSampleSrc(voiceSampleUrl)
   }
 
   const startLive = () => {
@@ -166,7 +177,7 @@ export default function AskArchiveScreen() {
           <Display size={40}>{name}</Display>
           <Body size={17} style={{ maxWidth: 560 }}>{intro}</Body>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            {voiceSampleUrl && (
+            {(voiceSampleUrl || (memoryText && voiceCloned)) && (
               <Btn tone="quiet" icon="voice" onClick={toggleSample}>
                 {hearing ? ASK.pause : ASK.hear}
               </Btn>

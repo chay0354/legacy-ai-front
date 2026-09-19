@@ -30,6 +30,7 @@ function routeFromPath(pathname: string): ArchiveRouteKey | undefined {
   if (pathname.startsWith('/edit') || pathname.startsWith('/voice-and-photo')) return 'edit'
   if (pathname.startsWith('/family-access')) return 'access'
   if (pathname.startsWith('/settings')) return 'settings'
+  if (pathname.startsWith('/billing')) return 'billing'
   if (pathname.startsWith('/ask')) return 'ask'
   if (pathname.startsWith('/interview')) return 'interview'
   return undefined
@@ -61,7 +62,7 @@ export default function ArchiveWorkspace({
   const nav = useMemo<SectionNav>(() => ({ setActive: setActiveSection, attach }), [attach])
 
   useEffect(() => {
-    if (ctx.profile?.locked && !location.pathname.startsWith('/interview')) {
+    if (ctx.profile?.locked && !location.pathname.startsWith('/interview') && !location.pathname.startsWith('/billing')) {
       navigate('/unlock', { replace: true })
     }
   }, [ctx.profile?.locked, location.pathname, navigate])
@@ -87,11 +88,13 @@ export default function ArchiveWorkspace({
           band={false}
         >
           <div key={activeRoute || 'main'} className="archive-pane">
-            {ctx.loading && !ctx.profile
-              ? <Loading label="Opening your archive…" />
-              : ctx.error && !ctx.profile
-                ? <Loading label={ctx.error} />
-                : <Outlet context={{ viewerName, viewerEmail } satisfies ArchiveOutlet} />}
+            {location.pathname.startsWith('/billing')
+              ? <Outlet context={{ viewerName, viewerEmail } satisfies ArchiveOutlet} />
+              : ctx.loading && !ctx.profile
+                ? <Loading label="Opening your archive…" />
+                : ctx.error && !ctx.profile
+                  ? <Loading label={ctx.error} />
+                  : <Outlet context={{ viewerName, viewerEmail } satisfies ArchiveOutlet} />}
           </div>
         </ArchiveShell>
       </SectionNavContext.Provider>

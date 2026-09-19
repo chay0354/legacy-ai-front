@@ -7,7 +7,7 @@ import {
 import { ACTIONS, can, normalizeRole } from '../../lib/permissions'
 import { T, radius, sans } from '../../design/tokens'
 import { CTA, TRUST } from '../../design/copy'
-import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel, PrivacyNote } from '../../design/ui'
+import { Body, Btn, Display, Divider, Icon, Panel, PrivacyNote, Select } from '../../design/ui'
 
 const ROLE_LABEL: Record<Role, string> = {
   creator: 'You',
@@ -149,20 +149,16 @@ export default function FamilyAccessScreen() {
                 what this archive allows.
               </Body>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 220 }}>
-                  <Eyebrow>Access level</Eyebrow>
-                  <select
+                <div style={{ minWidth: 220, flex: '1 1 220px' }}>
+                  <Select
+                    label="Access level"
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as Role)}
-                    style={{
-                      background: T.paper, border: `1px solid ${T.line}`, borderRadius: radius.sm,
-                      padding: '10px 12px', fontFamily: sans, fontSize: 14, color: T.ink,
-                    }}
+                    onChange={(v) => setInviteRole(v as Role)}
                   >
                     <option value="member">Family member — read and listen</option>
                     {mayAppoint && <option value="administrator">Administrator — manage access</option>}
-                  </select>
-                </label>
+                  </Select>
+                </div>
                 <Btn onClick={createInvite} disabled={busy}>
                   {busy ? 'Creating…' : CTA.invite}
                 </Btn>
@@ -223,17 +219,14 @@ export default function FamilyAccessScreen() {
                   {mayManage && (mayAppoint || r === 'member') && (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {mayAppoint && (
-                        <select
+                        <Select
+                          label="Access level"
                           value={r}
-                          onChange={(e) => changeRole(m.user_id, e.target.value as Role)}
-                          style={{
-                            background: T.paper, border: `1px solid ${T.line}`, borderRadius: radius.sm,
-                            padding: '7px 10px', fontFamily: sans, fontSize: 13, color: T.ink,
-                          }}
+                          onChange={(v) => changeRole(m.user_id, v as Role)}
                         >
                           <option value="member">Family member</option>
                           <option value="administrator">Administrator</option>
-                        </select>
+                        </Select>
                       )}
                       <Btn tone="quiet" size="sm" onClick={() => remove(m.user_id, name)}>Remove</Btn>
                     </div>

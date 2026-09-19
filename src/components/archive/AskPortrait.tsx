@@ -202,24 +202,29 @@ export default function AskPortrait({
         )}
       </div>
 
-      <div style={{ marginTop: 12, padding: '0 4px 2px' }}>
+      <div style={{ marginTop: 12, padding: '0 4px 2px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {liveActive ? (
           <Btn tone="quiet" style={{ width: '100%', justifyContent: 'center' }} onClick={() => void handleEnd()}>
             {ASK.endCall}
           </Btn>
-        ) : isOwner && !liveReady && onCreateAvatar ? (
-          <Btn tone="secondary" style={{ width: '100%', justifyContent: 'center' }} onClick={onCreateAvatar}>
-            {ASK.setup}
-          </Btn>
-        ) : liveReady && canChat ? (
-          <Btn style={{ width: '100%', justifyContent: 'center' }} onClick={onStartLive}>
-            {ASK.talk}
-          </Btn>
-        ) : canChat && onAskInWriting ? (
-          <Btn tone="quiet" style={{ width: '100%', justifyContent: 'center' }} onClick={onAskInWriting}>
-            {ASK.write}
-          </Btn>
-        ) : null}
+        ) : (
+          <>
+            {liveReady && canChat ? (
+              <Btn style={{ width: '100%', justifyContent: 'center' }} onClick={onStartLive}>
+                {ASK.talk}
+              </Btn>
+            ) : canChat && onAskInWriting ? (
+              <Btn style={{ width: '100%', justifyContent: 'center' }} onClick={onAskInWriting}>
+                {ASK.write}
+              </Btn>
+            ) : null}
+            {isOwner && !liveReady && onCreateAvatar && (
+              <Btn tone="quiet" style={{ width: '100%', justifyContent: 'center' }} onClick={onCreateAvatar}>
+                {ASK.setup}
+              </Btn>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

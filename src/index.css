@@ -1,5 +1,31 @@
 /* Legacy AI — global shell. Fonts are locked: Newsreader (display) + Source Sans 3 (UI). */
 
+@font-face {
+  font-family: 'Source Sans 3 Fallback';
+  src: local('Georgia');
+  size-adjust: 94%;
+  ascent-override: 100%;
+}
+
+@font-face {
+  font-family: 'Newsreader Fallback';
+  src: local('Georgia');
+  size-adjust: 100%;
+  ascent-override: 98%;
+}
+
+:root {
+  --la-paper: #eee5d4;
+  --la-ink: #241c15;
+  --la-status: #5c5246;
+  --la-walnut: #2b211a;
+  --la-sienna: #b05e37;
+  --la-gutter: 44px;
+  --la-control: 44px;
+  --la-radius-control: 6px;
+  --la-radius-card: 12px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -8,12 +34,21 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: #eee5d4;
-  color: #241c15;
-  font-family: 'Source Sans 3', 'Avenir Next', system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', sans-serif;
+  background: var(--la-paper);
+  color: var(--la-ink);
+  font-family: 'Source Sans 3', 'Source Sans 3 Fallback', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+html.la-drawer-open,
+body.la-drawer-open {
+  overflow: hidden;
+}
+
+:focus-visible {
+  outline: 2px solid var(--la-sienna);
+  outline-offset: 3px;
 }
 
 #root {
@@ -48,14 +83,16 @@ a:hover {
 
 /* Phone: walnut top bar + one-column drawer, not a wrapping two-column rail. */
 @media (max-width: 900px) {
+  :root { --la-gutter: 16px; }
+
   .archive-mobile-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     padding: 12px 16px;
-    padding-top: max(12px, env(safe-area-inset-top));
-    background: #1e1712;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    background: var(--la-walnut);
     position: sticky;
     top: 0;
     z-index: 60;
@@ -63,12 +100,14 @@ a:hover {
 
   .archive-mobile-menu-btn {
     background: none;
-    border: 1px solid rgba(240, 231, 214, 0.15);
+    border: 1px solid rgba(240, 231, 214, 0.18);
     color: #f0e7d6;
-    border-radius: 4px;
-    padding: 8px 12px;
-    font-family: 'Source Sans 3', system-ui, sans-serif;
-    font-size: 13px;
+    border-radius: var(--la-radius-control);
+    min-height: var(--la-control);
+    min-width: var(--la-control);
+    padding: 10px 14px;
+    font-family: 'Source Sans 3', 'Source Sans 3 Fallback', system-ui, sans-serif;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
   }
@@ -91,10 +130,12 @@ a:hover {
     max-width: none !important;
     flex: none !important;
     height: 100dvh !important;
+    height: 100svh !important;
     z-index: 50;
     transform: translateX(-105%);
     transition: transform 0.2s ease;
-    padding-top: calc(52px + env(safe-area-inset-top, 0px));
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .archive-sidebar-brand {
@@ -147,27 +188,88 @@ a:hover {
     flex-wrap: nowrap;
     gap: 12px !important;
     padding: 14px 20px !important;
-    padding-top: max(14px, env(safe-area-inset-top)) !important;
+    padding-top: max(14px, env(safe-area-inset-top, 0px)) !important;
   }
 
   .site-header-nav,
-  .site-header-signin {
+  .site-header-signin,
+  .site-header-cta {
     display: none !important;
   }
 
   .site-header-actions {
-    display: flex !important;
-    margin-left: auto !important;
-    gap: 10px !important;
-  }
-
-  .site-header-cta {
-    padding: 8px 14px !important;
-    font-size: 13px !important;
+    display: none !important;
   }
 
   .site-header-menu-btn {
     display: inline-flex !important;
+    margin-left: auto !important;
+    min-height: var(--la-control);
+    min-width: var(--la-control);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .site-header-drawer {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100dvh !important;
+    height: 100svh !important;
+    padding-top: max(72px, calc(56px + env(safe-area-inset-top, 0px))) !important;
+    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
+    overflow-y: auto;
+    z-index: 40;
+  }
+
+  .overview-hero {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .overview-hero-copy { order: 1; }
+  .overview-hero-portrait {
+    order: 2;
+    max-width: 280px;
+    width: 100%;
+  }
+
+  .legacy-interview-question {
+    font-size: 20px !important;
+    line-height: 1.28 !important;
+  }
+
+  .site-hero-title {
+    font-size: 36px !important;
+    line-height: 1.12 !important;
+  }
+
+  .legacy-interview-top {
+    height: auto !important;
+    min-height: 56px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .la-stage-track {
+    flex-wrap: wrap !important;
+    justify-content: center;
+    row-gap: 8px;
+  }
+
+  .site-page-head-inner,
+  .site-wrap,
+  .archive-paper {
+    padding-left: var(--la-gutter) !important;
+    padding-right: var(--la-gutter) !important;
+  }
+
+  .how-step {
+    grid-template-columns: 1fr !important;
   }
 
   .archive-sidebar {

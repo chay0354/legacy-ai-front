@@ -104,7 +104,7 @@ export interface PendingInvitation {
   creatorDisplayName: string | null;
 }
 
-export type BillingPlanId = 'none' | 'setup' | 'monthly' | 'preserve' | 'addon' | 'archive' | 'family';
+export type BillingPlanId = 'none' | 'setup' | 'monthly' | 'storage' | 'preserve' | 'addon' | 'archive' | 'family';
 
 export interface BillingStatus {
   plan: BillingPlanId;
@@ -120,6 +120,9 @@ export interface BillingStatus {
   minutesExhausted?: boolean;
   canInterview?: boolean;
   canViewArchive?: boolean;
+  hasSetup?: boolean;
+  needsSetup?: boolean;
+  canChooseContinuation?: boolean;
   canBuyAddon?: boolean;
   addon?: { id: string; name: string; displayPrice: string; minutes: number; amount: number } | null;
 }
@@ -135,8 +138,23 @@ export interface BillingPlan {
   lines: string[];
   primary: boolean;
   kind?: 'plan' | 'addon';
+  step?: 1 | 2 | null;
   canInterview?: boolean;
   canViewArchive?: boolean;
+}
+
+export interface BillingInvoice {
+  id: string;
+  number?: string | null;
+  status: string;
+  amountPaid: number;
+  amountDue: number;
+  currency: string;
+  created?: string | null;
+  hostedInvoiceUrl?: string | null;
+  invoicePdf?: string | null;
+  description?: string | null;
+  kind?: 'invoice' | 'checkout';
 }
 
 export interface AccessMe {
@@ -243,12 +261,13 @@ export interface SavedAnswer {
 export interface InterviewSessionData {
   session: { id: string; label: string; status: string; stage?: string };
   creator: { id: string; display_name: string; avatar_level: number; completion_score: number };
-  stage: 'foundation' | 'enriched' | 'legacy';
+  stage: 'foundation' | 'enriched' | 'legacy' | 'memory';
   stageLabel: string;
   stageGoal?: string;
   stages?: { id: string; label: string; done?: boolean; current?: boolean }[];
   allStagesComplete?: boolean;
   questions: { q: string; digFor?: string }[];
+  coreQuestionCount?: number;
   questionMeta: QuestionMeta[];
   savedAnswers: SavedAnswer[];
   resumeIndex: number;
@@ -381,7 +400,15 @@ export const avatarApi = {
     if (initial.liveReady) return initial;
     if (initial.status !== 'processing') return initial;
 
-    opts?.onProgress?.('Creating your live avatar…');
+    const phaseLabel = (phase: unknown, i: number) => {
+      if (phase === 'photo') return 'Photo — building your live face…'
+      if (phase === 'voice') return 'Voice — cloning how you sound…'
+      if (phase === 'live_face') return 'Live face — finishing the avatar…'
+      if (i < 8) return 'Photo — building your live face…'
+      if (i < 25) return 'Voice — cloning how you sound…'
+      return 'Live face — finishing the avatar…'
+    }
+    opts?.onProgress?.(phaseLabel(initial.assets?.metadata?.anam_phase, 0));
     for (let i = 0; i < 90; i++) {
       await sleep(3000);
       const polled = await avatarApi.getAssets({ light: true });
@@ -398,7 +425,7 @@ export const avatarApi = {
       if (anamStatus === 'failed') {
         throw new Error(polled.assets?.metadata?.anam_error || 'Live avatar setup failed');
       }
-      opts?.onProgress?.(i < 20 ? 'Creating your live avatar…' : 'Almost there…');
+      opts?.onProgress?.(phaseLabel(polled.assets?.metadata?.anam_phase, i));
     }
     throw new Error('Live avatar setup is taking longer than expected. Refresh and try again.');
   },
@@ -468,9 +495,12 @@ export const avatarApi = {
 };
 
 export const interviewApi = {
-  getSession: (opts?: { stage?: string }) => {
-    const q = opts?.stage ? `?stage=${encodeURIComponent(opts.stage)}` : ''
-    return apiFetch(`/api/interview/session${q}`) as Promise<InterviewSessionData>
+  getSession: (opts?: { stage?: string; mode?: string }) => {
+    const q = new URLSearchParams()
+    if (opts?.stage) q.set('stage', opts.stage)
+    if (opts?.mode) q.set('mode', opts.mode)
+    const qs = q.toString()
+    return apiFetch(`/api/interview/session${qs ? `?${qs}` : ''}`) as Promise<InterviewSessionData>
   },
 
   saveAnswer: (sessionId: string, payload: {
@@ -549,10 +579,12 @@ export const billingApi = {
     fetch(apiUrl('/api/billing/plans')).then(async (res) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
-      return data as { plans: BillingPlan[]; configured: boolean };
+      return data as { plans: BillingPlan[]; entryPlan?: string; continuationPlans?: string[]; configured: boolean };
     }),
 
   status: () => apiFetch('/api/billing/status') as Promise<BillingStatus>,
+
+  invoices: () => apiFetch('/api/billing/invoices') as Promise<{ invoices: BillingInvoice[] }>,
 
   checkout: (plan: BillingPlanId) =>
     apiFetch('/api/billing/checkout', {

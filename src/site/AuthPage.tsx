@@ -24,7 +24,7 @@ export default function AuthPage() {
   const [plan, setPlan] = useState<BillingPlan | null>(null)
 
   // Someone who picked a plan on /pricing arrives here first — name it so the step makes sense.
-  const chosenPlan = /checkout=(setup|monthly|preserve|archive|family)/.exec(params.get('next') || '')?.[1] || null
+  const chosenPlan = /checkout=(setup|monthly|storage|preserve|archive|family)/.exec(params.get('next') || '')?.[1] || null
   useEffect(() => {
     if (!chosenPlan) return
     let active = true
@@ -153,9 +153,9 @@ export default function AuthPage() {
               <Body size={14}>
                 {plan
                   ? `${plan.name} — ${plan.displayPrice} ${plan.cadence}.`
-                  : chosenPlan === 'setup' ? 'Set up.'
-                    : chosenPlan === 'monthly' ? 'Monthly.'
-                      : chosenPlan === 'preserve' ? 'Preserve — interview only.'
+                  : chosenPlan === 'setup' ? 'Package — $699.'
+                    : chosenPlan === 'monthly' ? 'Monthly — $69.90.'
+                      : chosenPlan === 'storage' ? 'Storage — $6.99.'
                         : 'Your plan.'}
                 {' '}Payment comes after your account, on Stripe’s secure page.
               </Body>

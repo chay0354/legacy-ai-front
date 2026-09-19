@@ -21,8 +21,9 @@ const input: CSSProperties = {
 }
 
 function planLabel(plan?: string | null) {
-  if (plan === 'setup') return 'Set up'
+  if (plan === 'setup') return 'Package'
   if (plan === 'monthly') return 'Monthly'
+  if (plan === 'storage') return 'Storage'
   if (plan === 'preserve') return 'Preserve'
   if (plan === 'family') return 'Family'
   if (plan === 'archive') return 'The Archive'
@@ -206,7 +207,10 @@ function UserDetail({
             Comp Monthly
           </Btn>
           <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('setup', () => adminApi.setPlan(u.id, 'setup', { lifetime: true, notes }))}>
-            Comp Set up
+            Comp Package
+          </Btn>
+          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('storage', () => adminApi.setPlan(u.id, 'storage', { lifetime: true, notes }))}>
+            Comp Storage
           </Btn>
           <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('preserve', () => adminApi.setPlan(u.id, 'preserve', { lifetime: true, notes }))}>
             Comp Preserve

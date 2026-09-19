@@ -40,7 +40,14 @@ export default function BillingSuccessPage() {
           window.clearTimeout(timer)
           setPhase('ready')
           const boughtAddon = params.get('addon') === '1'
-          navigate(boughtAddon ? '/settings' : '/interview', { replace: true })
+          const dest = boughtAddon
+            ? '/billing'
+            : billing.canChooseContinuation
+              ? '/billing?choose=1'
+              : billing.canViewArchive
+                ? '/overview'
+                : '/interview'
+          navigate(dest, { replace: true })
           return
         }
         setError('Payment is at Stripe, but the plan did not open. Try again.')
@@ -81,7 +88,7 @@ export default function BillingSuccessPage() {
         {phase === 'failed' && (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
             <Btn onClick={() => window.location.reload()}>Try again</Btn>
-            <Btn tone="quiet" onClick={() => navigate('/interview')}>Go to the interview</Btn>
+            <Btn tone="quiet" onClick={() => navigate('/billing')}>Go to billing</Btn>
           </div>
         )}
       </div>

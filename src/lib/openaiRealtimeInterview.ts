@@ -54,9 +54,14 @@ export type RealtimeVoiceInterview = {
   nudge: (reason?: 'idle' | 'manual' | 'escalate') => void;
   updateInstructions: (instructions: string) => void;
   /** Optionally apply new topic instructions before returning the tool result (avoids race). */
-  completeFunctionCall: (callId: string, output: unknown, options?: { instructions?: string; continueResponse?: boolean; nextQuestionIndex?: number }) => void;
+  completeFunctionCall: (callId: string, output: unknown, options?: {
+    instructions?: string;
+    continueResponse?: boolean;
+    nextQuestionIndex?: number;
+    totalQuestions?: number;
+  }) => void;
   /** Move to the next topic without tearing down the Realtime session (skip). */
-  transitionToTopic: (instructions: string, questionIndex: number) => void;
+  transitionToTopic: (instructions: string, questionIndex: number, totalQuestions?: number) => void;
   /** Resolves when current assistant audio has finished playing (or timeout). */
   waitForPlaybackIdle: (timeoutMs?: number) => Promise<void>;
 };
@@ -172,6 +177,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   let activeResponseId: string | null = null;
   let activeResponseStartedAt = 0;
   let pendingResponseCreate = false;
+  let pendingResponseInstructions: string | null = null;
   let conductingQuestionIndex = 0;
   let totalTopicsKnown = 1;
   let currentTopicPrompt = '';
@@ -230,13 +236,18 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
   const flushPendingResponseCreate = () => {
     if (userPaused || !pendingResponseCreate || activeResponseId || userIsSpeaking) return;
     pendingResponseCreate = false;
+    const instructions = pendingResponseInstructions;
+    pendingResponseInstructions = null;
     touchActivity();
-    sendEvent({ type: 'response.create' });
+    sendEvent(instructions
+      ? { type: 'response.create', response: { instructions } }
+      : { type: 'response.create' });
   };
 
-  const requestResponseCreate = () => {
+  const requestResponseCreate = (instructions?: string) => {
     // Drop while paused — do not queue a response that would fire on resume unexpectedly.
     if (userPaused) return;
+    if (instructions) pendingResponseInstructions = instructions;
     // Never talk over them — queue until VAD marks end of their utterance.
     if (userIsSpeaking) {
       pendingResponseCreate = true;
@@ -247,8 +258,12 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
       return;
     }
     pendingResponseCreate = false;
+    const nextInstructions = pendingResponseInstructions;
+    pendingResponseInstructions = null;
     touchActivity();
-    sendEvent({ type: 'response.create' });
+    sendEvent(nextInstructions
+      ? { type: 'response.create', response: { instructions: nextInstructions } }
+      : { type: 'response.create' });
   };
 
   /** User kept talking before AI audio started — cancel the cut-off turn. */
@@ -426,7 +441,11 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
         output: JSON.stringify(output),
       },
     });
-    if (continueResponse) requestResponseCreate();
+    if (continueResponse) {
+      requestResponseCreate(
+        'Continue this topic now with one question, or close it. Do not recap their life. Do not wait for them to say continue.',
+      );
+    }
   };
 
   const forceClearSpeechLocks = (reason: string) => {
@@ -596,6 +615,7 @@ export function createOpenAiRealtimeInterview(handlers: RealtimeHandlers): Realt
     activeResponseId = null;
     activeResponseStartedAt = 0;
     pendingResponseCreate = false;
+    pendingResponseInstructions = null;
     setAwaitingFunctionOutput(false);
     if (afterUserSpeechFlushTimer) {
       clearTimeout(afterUserSpeechFlushTimer);
@@ -1169,6 +1189,9 @@ Do NOT restart the welcome/intro. Do NOT advance topics. Do NOT call complete_an
         topicEpoch += 1;
         conductingQuestionIndex = options.nextQuestionIndex;
       }
+      if (options?.totalQuestions != null && options.totalQuestions > 0) {
+        totalTopicsKnown = options.totalQuestions;
+      }
       if (options?.instructions) {
         const m = options.instructions.match(/Current topic prompt[\s\S]*?"([^"]+)"/i);
         if (m?.[1]) currentTopicPrompt = m[1];
@@ -1190,7 +1213,17 @@ Do NOT restart the welcome/intro. Do NOT advance topics. Do NOT call complete_an
       );
       // Interview finished or paused — never start another model turn (that caused post-complete hangs).
       if (userPaused || completeFlag || options?.continueResponse === false) return;
-      requestResponseCreate();
+      const outputMessage = output && typeof output === 'object'
+        ? String((output as { message?: string }).message || '')
+        : '';
+      const nextTopic = options?.nextQuestionIndex != null;
+      requestResponseCreate(
+        nextTopic
+          ? `${outputMessage} REQUIRED: Speak now. Open topic ${conductingQuestionIndex + 1} of ${totalTopicsKnown} in fresh warm words, then STOP and wait. Do not recap their life. Do not wait for them to say continue. Do not stay silent.`
+          : (outputMessage
+            ? `${outputMessage} Then continue this topic with one question, or close it. Never stay silent. Never wait for continue.`
+            : 'Continue this topic now with one question. Do not recap. Do not wait for continue.'),
+      );
     },
 
     waitForPlaybackIdle(timeoutMs = 8000) {
@@ -1203,9 +1236,12 @@ Do NOT restart the welcome/intro. Do NOT advance topics. Do NOT call complete_an
         });
       });
     },
-    transitionToTopic(instructions, questionIndex) {
+    transitionToTopic(instructions, questionIndex, totalQuestions) {
       topicEpoch += 1;
       conductingQuestionIndex = questionIndex;
+      idleNudgeCount = 0;
+      lastIdleNudgeAt = 0;
+      if (totalQuestions && totalQuestions > 0) totalTopicsKnown = totalQuestions;
       const m = instructions.match(/Current topic prompt[\s\S]*?"([^"]+)"/i);
       if (m?.[1]) currentTopicPrompt = m[1];
       if (activeResponseId) {
@@ -1218,10 +1254,12 @@ Do NOT restart the welcome/intro. Do NOT advance topics. Do NOT call complete_an
       });
       if (userPaused) {
         pendingResponseCreate = false;
+        pendingResponseInstructions = null;
         return;
       }
-      pendingResponseCreate = true;
-      flushPendingResponseCreate();
+      requestResponseCreate(
+        `They left the previous topic. REQUIRED: In one brief sentence acknowledge, then ask topic ${questionIndex + 1} of ${totalTopicsKnown} in fresh words, then STOP and wait. Do not recap earlier answers. Do not wait for them to say continue.`,
+      );
     },
   };
 }

@@ -142,7 +142,7 @@ export const adminApi = {
 
   user: (id: string) => adminFetch(`/api/admin/users/${id}`) as Promise<AdminUserDetail>,
 
-  setPlan: (id: string, plan: 'setup' | 'monthly' | 'preserve' | 'archive' | 'family' | 'none', opts?: { lifetime?: boolean; notes?: string }) =>
+  setPlan: (id: string, plan: 'setup' | 'monthly' | 'storage' | 'preserve' | 'archive' | 'family' | 'none', opts?: { lifetime?: boolean; notes?: string }) =>
     adminFetch(`/api/admin/users/${id}/plan`, {
       method: 'POST',
       body: JSON.stringify({ plan, ...opts }),

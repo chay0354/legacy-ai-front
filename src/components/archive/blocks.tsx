@@ -131,7 +131,7 @@ export function VoiceBlock({
           ]}
           quote={firstMemory?.summary
             ? `${firstMemory.summary.slice(0, 150)}${firstMemory.summary.length > 150 ? '…' : ''}`
-            : undefined}
+            : 'Spoken in the cloned voice — the story, not the clone script.'}
           playing={playing}
           onToggle={onToggle}
         />
@@ -169,9 +169,27 @@ export function VoiceBlock({
 }
 
 /* ─────────────────────── photos & documents ──────────────────────── */
-export function PhotosBlock({ profile }: { profile: LegacyProfile }) {
+export function PhotosBlock({
+  profile, onAdd,
+}: {
+  profile: LegacyProfile
+  onAdd?: () => void
+}) {
   const items = profile.gallery || []
-  if (items.length === 0) return <Quiet>No photographs or documents have been added yet.</Quiet>
+  if (items.length === 0) {
+    return (
+      <Quiet>
+        {onAdd
+          ? 'No photographs or documents yet. Add the first one here.'
+          : 'No photographs or documents have been added yet.'}
+        {onAdd && (
+          <div style={{ marginTop: 12 }}>
+            <Btn tone="quiet" size="sm" onClick={onAdd}>Add photos</Btn>
+          </div>
+        )}
+      </Quiet>
+    )
+  }
   return (
     <div style={{
       display: 'grid', gap: 14,

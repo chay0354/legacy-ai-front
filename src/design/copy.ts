@@ -19,6 +19,7 @@ export const NAV = {
   live: 'Live avatar',
   access: 'Family Access',
   settings: 'Settings',
+  billing: 'Plan and purchases',
 } as const
 
 export const SITE_NAV = [
@@ -42,6 +43,8 @@ export const CTA = {
   editLive: 'Edit live avatar',
   recordVoice: 'Record a voice memory',
   addEntry: 'Add an entry',
+  addMemory: 'Add another memory',
+  addPhotos: 'Add photos',
   invite: 'Invite family',
   prepareAccess: 'Prepare family access',
   review: 'Review answers',

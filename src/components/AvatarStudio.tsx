@@ -7,17 +7,13 @@ import {
   type CreatorPronouns,
 } from '../lib/api'
 import { ANAM_LANGUAGES, guessAnamLanguage, normalizeAnamLanguage } from '../lib/anamLanguages'
-import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
 import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImage'
 import { bindMediaStream } from '../lib/playMedia'
+import { C, sans, serif } from '../design/tokens'
+import { Select } from '../design/ui'
 
-const C = {
-  paper: '#ece3d2', card: '#fbf6ec', ink: '#2b241c', ink2: '#6e6253', ink3: '#9a8d79',
-  line: '#ddccb0', terra: '#c06a44', umber: '#7a5236', gold: '#b3902f', sage: '#71805c',
-}
-const serif = "'Newsreader', Georgia, serif"
-const sans = "'Hanken Grotesk', system-ui, sans-serif"
-const mono = "'Spline Sans Mono', ui-monospace, monospace"
+const mono = sans
 
 const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, border: 'none', borderRadius: 999, padding: '13px 26px', fontFamily: sans, fontWeight: 600, fontSize: 14, cursor: 'pointer' }
 const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 999, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
@@ -177,18 +173,6 @@ function Intro({
   const [idError, setIdError] = useState<string | null>(null)
   const [saved, setSaved] = useState(Boolean(gender || pronouns))
 
-  const selectStyle: React.CSSProperties = {
-    width: '100%',
-    marginTop: 6,
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: `1px solid ${C.line}`,
-    background: C.paper,
-    fontFamily: sans,
-    fontSize: 14,
-    color: C.ink,
-  }
-
   async function persistIdentity(nextGender: CreatorGender, nextPronouns: CreatorPronouns) {
     setBusy(true)
     setIdError(null)
@@ -219,43 +203,37 @@ function Intro({
           Set this explicitly — we never guess from your name (e.g. Yael is not assumed male or female).
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 14 }}>
-          <label style={{ fontSize: 13, color: C.ink2 }}>
-            Gender
-            <select
-              style={selectStyle}
-              value={gender || ''}
-              disabled={busy}
-              onChange={(e) => {
-                const g = (e.target.value || null) as CreatorGender
-                const p = pronouns || defaultPronounsForGender(g)
-                onIdentityChange(g, p)
-                void persistIdentity(g, p)
-              }}
-            >
-              <option value="">Not set</option>
-              {GENDER_OPTIONS.map((o) => (
-                <option key={String(o.value)} value={o.value || ''}>{o.label}</option>
-              ))}
-            </select>
-          </label>
-          <label style={{ fontSize: 13, color: C.ink2 }}>
-            Pronouns
-            <select
-              style={selectStyle}
-              value={pronouns || ''}
-              disabled={busy}
-              onChange={(e) => {
-                const p = (e.target.value || null) as CreatorPronouns
-                onIdentityChange(gender, p)
-                void persistIdentity(gender, p)
-              }}
-            >
-              <option value="">Not set</option>
-              {PRONOUN_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Gender"
+            value={gender || ''}
+            disabled={busy}
+            onChange={(v) => {
+              const g = (v || null) as CreatorGender
+              const p = pronouns || defaultPronounsForGender(g)
+              onIdentityChange(g, p)
+              void persistIdentity(g, p)
+            }}
+          >
+            <option value="">Not set</option>
+            {GENDER_OPTIONS.map((o) => (
+              <option key={String(o.value)} value={o.value || ''}>{o.label}</option>
+            ))}
+          </Select>
+          <Select
+            label="Pronouns"
+            value={pronouns || ''}
+            disabled={busy}
+            onChange={(v) => {
+              const p = (v || null) as CreatorPronouns
+              onIdentityChange(gender, p)
+              void persistIdentity(gender, p)
+            }}
+          >
+            <option value="">Not set</option>
+            {PRONOUN_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </Select>
         </div>
         {saved && !idError && (
           <div style={{ fontFamily: mono, fontSize: 11, color: C.sage, marginTop: 10 }}>✓ saved for your avatar &amp; interviews</div>
@@ -278,10 +256,48 @@ function Intro({
   )
 }
 
-function StudioProgress({ label }: { label: string }) {
+const ANAM_STEPS = [
+  { id: 'photo', label: 'Photo' },
+  { id: 'voice', label: 'Voice' },
+  { id: 'live_face', label: 'Live face' },
+] as const
+
+function anamStepFromPhase(phase: string): (typeof ANAM_STEPS)[number]['id'] | null {
+  const p = phase.toLowerCase()
+  if (p.includes('photo') || p.includes('portrait') || p.includes('face') && p.includes('photo')) return 'photo'
+  if (p.includes('voice') || p.includes('clon')) return 'voice'
+  if (p.includes('live') || p.includes('almost') || p.includes('ready')) return 'live_face'
+  return null
+}
+
+function StudioProgress({ label, named }: { label: string; named?: boolean }) {
+  const current = named ? anamStepFromPhase(label) : null
+  const idx = current ? ANAM_STEPS.findIndex((s) => s.id === current) : -1
   return (
     <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
       <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: C.terra }}>{label}</div>
+      {named && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+          {ANAM_STEPS.map((s, i) => {
+            const done = idx > i
+            const active = s.id === current
+            return (
+              <span
+                key={s.id}
+                style={{
+                  fontFamily: sans, fontSize: 13, padding: '6px 12px', borderRadius: 999,
+                  border: `1px solid ${active || done ? C.terra : C.line}`,
+                  background: active ? 'rgba(192,106,68,.12)' : done ? 'rgba(113,128,92,.12)' : C.card,
+                  color: active ? C.terra : done ? C.sage : C.ink3,
+                  fontWeight: active ? 600 : 500,
+                }}
+              >
+                {done ? `✓ ${s.label}` : s.label}
+              </span>
+            )
+          })}
+        </div>
+      )}
       <div style={{ marginTop: 12, height: 4, borderRadius: 2, background: C.line, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: '40%', background: C.terra, animation: 'legacyPulse 1.4s ease-in-out infinite alternate' }} />
       </div>
@@ -379,8 +395,8 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 
   const submit = async () => {
     if (!blob || busy) return
-    if (recordedSeconds < 30) {
-      setError('Record at least 30 seconds — 60–90 seconds in a quiet room clones much more reliably.')
+    if (recordedSeconds < MIN_VOICE_SECONDS) {
+      setError(UNDER_30S_MESSAGE)
       return
     }
     setBusy(true)
@@ -390,7 +406,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
       const path = await uploadMedia(creatorId, 'voice-sample', wav, 'wav', 'audio/wav')
       const result = await avatarApi.cloneVoice(path, language)
       if (!result.cloned) {
-        setError('Voice cloning did not succeed. Try again with a longer recording (30+ seconds) in a quiet room.')
+        setError(`Voice cloning did not succeed. ${UNDER_30S_MESSAGE}`)
         setBusy(false)
         return
       }
@@ -401,45 +417,30 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
     }
   }
 
-  const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= 30
+  const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= MIN_VOICE_SECONDS
 
   return (
     <div style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Record your voice</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
-        Choose the language you’ll speak, then read these lines slowly and naturally. Aim for 30–90 seconds in a quiet room.
+        Choose the language you’ll speak, then read the whole passage slowly and naturally. Aim for 60–90 seconds in a quiet room. Under 30 seconds cannot be cloned.
       </p>
 
-      <label style={{ display: 'block', marginTop: 16 }}>
-        <span style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: C.ink3 }}>
-          Language for your live avatar voice
-        </span>
-        <select
+      <div style={{ marginTop: 16, maxWidth: 360 }}>
+        <Select
+          label="Language for your live avatar voice"
           value={language}
-          onChange={(e) => setLanguage(normalizeAnamLanguage(e.target.value))}
           disabled={recording || busy}
-          style={{
-            display: 'block',
-            width: '100%',
-            maxWidth: 360,
-            marginTop: 8,
-            padding: '12px 14px',
-            borderRadius: 10,
-            border: `1px solid ${C.line}`,
-            background: C.paper,
-            color: C.ink,
-            fontFamily: sans,
-            fontSize: 15,
-          }}
+          onChange={(v) => setLanguage(normalizeAnamLanguage(v))}
         >
           {ANAM_LANGUAGES.map((l) => (
             <option key={l.code} value={l.code}>{l.label}</option>
           ))}
-        </select>
+        </Select>
         <span style={{ display: 'block', fontSize: 12.5, color: C.ink3, marginTop: 8, lineHeight: 1.45, maxWidth: 480 }}>
           Record in this language — cloning English when you speak Hebrew (or the other way around) makes the live voice sound like someone else.
         </span>
-      </label>
+      </div>
 
       <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px', marginTop: 16 }}>
         {language === 'en' ? (
@@ -448,7 +449,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
           ))
         ) : (
           <p style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.55, color: C.ink, margin: 0 }}>
-            Speak naturally for 30–90 seconds in{' '}
+            Speak naturally for 60–90 seconds in{' '}
             <strong>{ANAM_LANGUAGES.find((l) => l.code === language)?.label || language}</strong>
             — introduce yourself, talk about your family, a childhood memory, and something you care about.
             Clear speech in a quiet room works best for cloning.
@@ -470,7 +471,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
       {assets?.voice_status === 'ready' && !blob && (
         <p style={{ fontFamily: mono, fontSize: 11, color: assets.metadata?.cloned === false ? '#b04a3a' : C.sage, marginTop: 12 }}>
           {assets.metadata?.cloned === false
-            ? '⚠ Voice is not cloned yet — re-record here (30+ seconds, quiet room).'
+            ? `⚠ Voice is not cloned yet — re-record here (${MIN_VOICE_SECONDS}+ seconds, quiet room).`
             : '✓ Your cloned voice is saved. Re-recording replaces it.'}
         </p>
       )}
@@ -478,9 +479,9 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 
       {busy && <StudioProgress label="Cloning your voice…" />}
 
-      {blob && !recording && recordedSeconds < 30 && !busy && (
-        <p style={{ fontFamily: sans, fontSize: 12, color: C.ink3, marginTop: 12 }}>
-          Record at least 30 seconds to continue (60–90 seconds is best for voice cloning).
+      {blob && !recording && recordedSeconds < MIN_VOICE_SECONDS && !busy && (
+        <p style={{ fontFamily: sans, fontSize: 13, color: '#b04a3a', marginTop: 12 }}>
+          {UNDER_30S_MESSAGE}
         </p>
       )}
 
@@ -875,7 +876,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
     setStatus('generating')
     setError(null)
     setNotice(null)
-    setPhase('Creating your live avatar…')
+    setPhase('Photo — building your live face…')
     try {
       const prov = await avatarApi.provision({
         onProgress: (p) => setPhase(p),
@@ -913,7 +914,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         and re-record in the language you actually speak — then generate again.
       </p>
 
-      {status === 'generating' && <StudioProgress label={phase} />}
+      {status === 'generating' && <StudioProgress label={phase} named />}
 
       {status === 'done' && (
         <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>

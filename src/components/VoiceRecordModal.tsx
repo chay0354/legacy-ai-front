@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, VOICE_SCRIPT } from '../lib/voiceRecord'
+import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
 
 const C = {
   card: '#fbf6ec',
@@ -116,8 +116,8 @@ export default function VoiceRecordModal({
 
   const handleSave = async () => {
     if (!blob || saving) return
-    if (recordedSeconds < 2) {
-      setLocalError('Record at least 2 seconds before saving.')
+    if (recordedSeconds < MIN_VOICE_SECONDS) {
+      setLocalError(UNDER_30S_MESSAGE)
       return
     }
     setLocalError(null)
@@ -130,7 +130,7 @@ export default function VoiceRecordModal({
     }
   }
 
-  const canSave = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= 2
+  const canSave = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= MIN_VOICE_SECONDS
   const displayError = error || localError
 
   return (
@@ -165,7 +165,7 @@ export default function VoiceRecordModal({
       >
         <div style={{ fontFamily: serif, fontSize: 24, color: C.ink }}>Record your voice</div>
         <p style={{ fontFamily: sans, fontSize: 13, color: C.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
-          Record a message in your own voice. Family will hear it on your avatar page — separate from the live talking avatar.
+          Read the whole passage slowly. You need at least 30 seconds — 60–90 seconds in a quiet room clones much more reliably.
         </p>
 
         <div style={{ background: '#ece3d2', border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px' }}>
@@ -232,9 +232,9 @@ export default function VoiceRecordModal({
           <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{displayError}</p>
         )}
 
-        {blob && !recording && recordedSeconds < 2 && (
-          <p style={{ fontFamily: sans, fontSize: 12, color: C.ink3, marginTop: 12 }}>
-            Record at least 2 seconds to save.
+        {blob && !recording && recordedSeconds < MIN_VOICE_SECONDS && (
+          <p style={{ fontFamily: sans, fontSize: 13, color: '#b04a3a', marginTop: 12 }}>
+            {UNDER_30S_MESSAGE}
           </p>
         )}
 
