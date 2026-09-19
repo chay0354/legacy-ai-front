@@ -216,12 +216,6 @@ export default function ArchiveShell({
               {NAV.access}
             </Link>
           )}
-          {isOwner(role) && (
-            <Link to={`/billing${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'billing')}>
-              <Icon name="settings" size={18} color={iconColor(activeRoute === 'billing')} />
-              {NAV.billing}
-            </Link>
-          )}
           {!locked && (
             <Link
               to={`/settings${cQuery}`}
@@ -337,6 +331,31 @@ export default function ArchiveShell({
                 </span>
               </span>
             </div>
+          )}
+          {/* Upgrade — the one door to billing: package, Monthly / Storage, extra minutes, receipts */}
+          {ownThis && (
+            <Link
+              to={`/billing${cQuery}`}
+              onClick={() => setMenuOpen(false)}
+              aria-current={activeRoute === 'billing' ? 'page' : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', marginTop: 10,
+                minHeight: 44, borderRadius: radius.sm, textDecoration: 'none',
+                background: activeRoute === 'billing' ? 'rgba(176,94,55,.22)' : 'rgba(176,94,55,.12)',
+                border: `1px solid ${activeRoute === 'billing' ? T.sienna : 'rgba(176,94,55,.55)'}`,
+                transition: 'background .18s ease',
+              }}
+            >
+              <Icon name="arrow" size={16} color={T.gold} style={{ transform: 'rotate(-90deg)' }} />
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span style={{ fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.onDark }}>
+                  {NAV.upgrade}
+                </span>
+                <span style={{ fontFamily: sans, fontSize: 12, color: T.onDark3 }}>
+                  {NAV.upgradeSub}
+                </span>
+              </span>
+            </Link>
           )}
         </div>
       </nav>

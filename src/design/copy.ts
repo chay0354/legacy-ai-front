@@ -20,6 +20,8 @@ export const NAV = {
   access: 'Family Access',
   settings: 'Settings',
   billing: 'Plan and purchases',
+  upgrade: 'Upgrade',
+  upgradeSub: 'Plan, minutes, and receipts',
 } as const
 
 export const SITE_NAV = [

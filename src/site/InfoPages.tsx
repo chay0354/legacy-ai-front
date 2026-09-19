@@ -286,9 +286,12 @@ export function PricingPage() {
     return signedIn ? `Continue with ${p.name}` : CTA.begin
   }
 
+  const hasSetup = Boolean(billing?.hasSetup)
   const visible = plans.filter((p) => p.id !== 'addon' && p.kind !== 'addon' && p.id !== 'preserve')
   const entry = visible.find((p) => p.id === 'setup') || visible.find((p) => p.step === 1)
-  const next = visible.filter((p) => p.id === 'monthly' || p.id === 'storage' || p.step === 2)
+  const next = hasSetup
+    ? visible.filter((p) => p.id === 'monthly' || p.id === 'storage' || p.step === 2)
+    : []
 
   const renderCard = (p: BillingPlan) => (
     <Panel
@@ -299,7 +302,7 @@ export function PricingPage() {
         borderColor: p.primary ? 'rgba(176,94,55,.45)' : T.cardEdge,
       }}
     >
-      <Eyebrow color={p.primary ? T.sienna : T.ink3}>{p.id === 'setup' ? '1 · Start here' : `Then ${p.name}`}</Eyebrow>
+      <Eyebrow color={p.primary ? T.sienna : T.ink3}>{p.id === 'setup' ? 'The package' : p.name}</Eyebrow>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
         <span style={{ fontFamily: serif, fontSize: 34, color: T.ink }}>{p.displayPrice}</span>
         <span style={{ fontFamily: sans, fontSize: 13.5, color: T.ink3 }}>{p.cadence}</span>
@@ -331,8 +334,12 @@ export function PricingPage() {
     <SitePage>
       <PageHead
         eyebrow="Pricing"
-        title="Everyone starts with the package. Then you choose how to continue."
-        standfirst="Pay $699 once to open the archive. After that, keep interviewing for $69.90 a month, or keep the stored memories active for $6.99 a month."
+        title={hasSetup
+          ? 'The package is paid. Choose how to continue.'
+          : 'Start with the package.'}
+        standfirst={hasSetup
+          ? 'Keep interviewing with Monthly, or keep the stored archive open with Storage.'
+          : 'Pay $699 once. That opens the interview, the archive, the live avatar, and family access — with 180 minutes for the first three months.'}
       />
       <div className="site-wrap" style={wrap}>
         {error && (
@@ -364,26 +371,35 @@ export function PricingPage() {
           }}>
             <Eyebrow>Your account is ready</Eyebrow>
             <Body size={14.5}>
-              Start with the $699 package. After that you choose Monthly or Storage.
+              The first choice is the package. How you continue comes later, after these three months.
             </Body>
           </div>
         )}
-        {entry && (
-          <div style={{ maxWidth: 860, marginBottom: 18 }}>
+        {entry && !hasSetup && (
+          <div style={{ maxWidth: 560 }}>
             {renderCard(entry)}
           </div>
         )}
-        <div className="pricing-grid" style={{
-          display: 'grid', gap: 18,
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
-        }}>
-          {next.map(renderCard)}
-        </div>
-        <Body size={14} color={T.ink3} style={{ marginTop: 26, maxWidth: 620 }}>
-          Extra interview minutes ($29.99 for 30) appear on your billing page after the package
-          or Monthly is active, or when those minutes run out. Storage does not include interview
-          time. Nothing is deleted without your instruction. Invited family never pays separately.
-        </Body>
+        {hasSetup && next.length > 0 && (
+          <div className="pricing-grid" style={{
+            display: 'grid', gap: 18,
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
+          }}>
+            {next.map(renderCard)}
+          </div>
+        )}
+        {!hasSetup && (
+          <Body size={14} color={T.status} style={{ marginTop: 22, maxWidth: 520 }}>
+            After the first three months you choose whether to keep interviewing or only keep
+            the archive. Invited family never pays separately. Nothing is deleted without you.
+          </Body>
+        )}
+        {hasSetup && (
+          <Body size={14} color={T.status} style={{ marginTop: 26, maxWidth: 620 }}>
+            Extra interview minutes appear on your billing page when Monthly is active, or when
+            those minutes run out. Storage does not include interview time.
+          </Body>
+        )}
       </div>
     </SitePage>
   )

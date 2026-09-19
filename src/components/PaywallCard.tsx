@@ -7,7 +7,7 @@ import { Body, Btn, Display, Eyebrow } from '../design/ui'
 export default function PaywallCard({
   kind = 'interview',
   title = 'Choose a plan to continue',
-  note = 'Everyone starts with the $699 package. After that you choose Monthly to keep interviewing, or Storage to keep the archive open.',
+  note = 'Start with the $699 package. That opens the interview, the archive, and family access for the first three months.',
 }: {
   kind?: 'interview' | 'unlock' | 'minutes'
   title?: string
@@ -30,11 +30,13 @@ export default function PaywallCard({
     return () => { active = false }
   }, [])
 
+  // The server refuses Monthly / Storage until the package is paid, so never offer them first.
+  const hasSetup = Boolean(billing?.hasSetup)
   const ids: BillingPlanId[] = (() => {
     if (kind === 'minutes') return ['addon']
+    if (!hasSetup) return ['setup']
     if (kind === 'unlock') return ['monthly', 'storage']
-    if (billing?.hasSetup) return ['monthly']
-    return ['setup']
+    return ['monthly']
   })()
 
   const label = (id: BillingPlanId) => {
@@ -79,13 +81,13 @@ export default function PaywallCard({
       </div>
       <button
         type="button"
-        onClick={() => navigate(kind === 'minutes' ? '/billing' : kind === 'unlock' ? '/billing' : '/pricing')}
+        onClick={() => navigate(hasSetup || kind === 'minutes' ? '/billing' : '/pricing')}
         style={{
           background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
           fontFamily: sans, fontSize: 13.5, color: T.ink3, textDecoration: 'underline',
         }}
       >
-        {kind === 'minutes' ? 'Back to billing' : 'Compare plans'}
+        {kind === 'minutes' || hasSetup ? 'Go to billing' : 'See the package'}
       </button>
       {error && <Body size={13.5} color="#b04a3a">{error}</Body>}
     </div>

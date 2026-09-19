@@ -14,12 +14,12 @@ export default function UnlockArchiveScreen() {
         <Display size={36}>Your interview is kept. The archive opens when you continue.</Display>
         <Body size={16} color={T.ink2}>
           We saved what you recorded. Stories, people, values, and the live avatar stay closed
-          until you choose Monthly or Storage.
+          until your plan is active.
         </Body>
         <PaywallCard
           kind="unlock"
           title="Open the archive"
-          note="Monthly includes 60 interview minutes each month. Storage keeps the stored archive active without new interviews."
+          note="Everyone starts with the $699 package. Once it is paid, you choose Monthly to keep interviewing or Storage to keep the archive open."
         />
       </div>
     </SitePage>

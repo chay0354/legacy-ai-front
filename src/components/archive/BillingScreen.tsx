@@ -114,11 +114,21 @@ export default function BillingScreen() {
   const showMonthly = Boolean(billing?.hasSetup && billing.plan !== 'monthly' && !complimentary)
   const showStorage = Boolean(billing?.hasSetup && billing.plan !== 'storage' && !complimentary)
   const showContinuation = showMonthly || showStorage
+  const continuationTitle = billing?.plan === 'monthly'
+    ? 'Change plan'
+    : billing?.plan === 'storage'
+      ? 'Upgrade to Monthly'
+      : 'Continue after the package'
+  const continuationNote = billing?.plan === 'monthly'
+    ? 'Switch to Storage when you are done interviewing. The archive stays open; interview minutes stop.'
+    : billing?.plan === 'storage'
+      ? 'Monthly adds 60 interview minutes each month so you can keep adding to the archive.'
+      : 'Monthly keeps interview minutes. Storage keeps the stored archive active without new interviews.'
 
   return (
     <>
       <SectionHeader
-        eyebrow="Account"
+        eyebrow="Upgrade"
         title="Plan and purchases"
         note={choose
           ? 'The package is paid. Choose Monthly to keep interviewing, or Storage to keep the archive open.'
@@ -150,12 +160,10 @@ export default function BillingScreen() {
           </div>
         </Panel>
 
-        {(showContinuation || showMonthly || showStorage) && (
+        {showContinuation && (
           <Panel pad="22px 24px">
-            <Display size={20} style={{ marginBottom: 8 }}>Continue after the package</Display>
-            <Body size={14.5} style={{ marginBottom: 14 }}>
-              Monthly keeps interview minutes. Storage keeps the stored archive active without new interviews.
-            </Body>
+            <Display size={20} style={{ marginBottom: 8 }}>{continuationTitle}</Display>
+            <Body size={14.5} style={{ marginBottom: 14 }}>{continuationNote}</Body>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {showMonthly && (
                 <Btn disabled={Boolean(busy)} onClick={() => void start('monthly')}>
