@@ -40,13 +40,14 @@ export default function BillingSuccessPage() {
           window.clearTimeout(timer)
           setPhase('ready')
           const boughtAddon = params.get('addon') === '1'
+          // Package includes the first three months — start the interview, do not ask Monthly/Storage now.
           const dest = boughtAddon
             ? '/billing'
-            : billing.canChooseContinuation
-              ? '/billing?choose=1'
+            : billing.canInterview
+              ? '/interview'
               : billing.canViewArchive
                 ? '/overview'
-                : '/interview'
+                : '/billing'
           navigate(dest, { replace: true })
           return
         }
