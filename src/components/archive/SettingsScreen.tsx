@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useArchiveContext } from './data'
 import type { ArchiveOutlet } from './ArchiveLayout'
 import { SectionHeader } from './parts'
-import { canEditArchive, canManageAccess, canRunInterview, isOwner } from './sections'
+import { canManageAccess, canRunInterview, isOwner } from './sections'
 import { supabase } from '../../lib/supabase'
 import { billingApi, clearAuthTokenCache, type BillingStatus } from '../../lib/api'
 import { T, radius, sans } from '../../design/tokens'
@@ -52,7 +52,6 @@ export default function SettingsScreen() {
   const name = profile.creator?.display_name || 'This archive'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
 
-  const mayEdit = canEditArchive(role)
   const profileName = owner ? name : (viewerName || viewerEmail || 'Your account')
 
   const signOut = async () => {
@@ -107,13 +106,6 @@ export default function SettingsScreen() {
                 <Display size={22}>{profileName}</Display>
                 {viewerEmail && <Body size={13.5} color={T.status}>{viewerEmail}</Body>}
               </div>
-              {mayEdit && (
-                <div style={{ marginLeft: 'auto' }}>
-                  <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
-                    Review and edit entries
-                  </Btn>
-                </div>
-              )}
             </div>
           </Panel>
 

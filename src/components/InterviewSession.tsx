@@ -1098,7 +1098,7 @@ export default function InterviewSession({
           </div>
         </div>
         <div className="la-stage-track" style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px 14px", display: "flex", justifyContent: "center" }}>
-          <StageProgressTrack stages={stages} margin="0" maxWidth={520} />
+          <StageProgressTrack stages={stages} variant={embedded ? 'dark' : 'light'} margin="0" maxWidth={520} />
         </div>
       </div>
 
@@ -1272,11 +1272,12 @@ export default function InterviewSession({
         {/* RUNNING */}
         {running && (
           <div style={{ width: "100%", maxWidth: 680, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-            {/* progress */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 36, width: "100%", maxWidth: 360 }}>
-              <div style={{ fontFamily: sans, fontSize: 13, letterSpacing: ".04em", color: C.ink3 }}>
-                Topic {q + 1} of {TOTAL}
-              </div>
+              {!aiVoiceMode && (
+                <div style={{ fontFamily: sans, fontSize: 13, letterSpacing: ".04em", color: T.status }}>
+                  Topic {q + 1} of {TOTAL}
+                </div>
+              )}
               <div
                 aria-hidden
                 style={{ width: "100%", height: 4, borderRadius: 999, background: C.line, overflow: "hidden" }}
@@ -1302,10 +1303,10 @@ export default function InterviewSession({
             {/* Current prompt / status — full conversation lives in the scroller below */}
             {aiVoiceMode ? (
               <div style={{ width: "100%", maxWidth: 560 }}>
-                <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, marginBottom: 12 }}>
-                  Topic theme · {cur.q}
+                <div style={{ fontFamily: sans, fontSize: 13, letterSpacing: ".04em", color: T.status, marginBottom: 12 }}>
+                  Topic {q + 1} of {TOTAL}
                 </div>
-                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 22, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: C.ink3, textWrap: "pretty" }}>
+                <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 22, lineHeight: 1.35, letterSpacing: "-.01em", margin: 0, color: T.status, textWrap: "pretty" }}>
                   {paused ? "Paused" : convLive ? "Listening…" : "Connecting to your interviewer…"}
                 </p>
               </div>
@@ -1331,7 +1332,7 @@ export default function InterviewSession({
             </div>
 
             {/* answer card */}
-            <div style={{ width: "100%", background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, boxShadow: "0 18px 44px rgba(43,36,28,.08)", padding: "34px 32px", boxSizing: "border-box" }}>
+            <div style={{ width: "100%", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, boxShadow: "0 18px 44px rgba(43,36,28,.08)", padding: "34px 32px", boxSizing: "border-box" }}>
               {voiceMode ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                   {aiVoiceMode ? (
@@ -1388,12 +1389,6 @@ export default function InterviewSession({
                   {aiError && (
                     <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{aiError}</p>
                   )}
-                  {!aiVoiceMode && transcript && (
-                    <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 20, lineHeight: 1.55, color: C.ink, margin: "20px 0 0", textAlign: "left", width: "100%" }}>
-                      <span style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, display: "block", marginBottom: 8 }}>Your words so far</span>
-                      {transcript}
-                    </p>
-                  )}
                 </div>
               ) : (
                 <textarea
@@ -1420,7 +1415,18 @@ export default function InterviewSession({
               </button>
             </div>
 
-            {/* Conversation transcript — below controls, designed scroller */}
+            {/* Conversation transcript — the ONE transcript location, below the controls */}
+            {voiceMode && !aiVoiceMode && transcript && (
+              <div style={{ width: "100%", marginTop: 36, textAlign: "left" }}>
+                <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".14em", textTransform: "uppercase", color: C.ink3, marginBottom: 10 }}>
+                  Conversation
+                </div>
+                <div style={{ padding: "18px 18px 16px", borderRadius: 12, border: `1px solid ${C.line}`, background: `linear-gradient(180deg, ${C.card} 0%, ${C.panel} 100%)` }}>
+                  <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginBottom: 5 }}>You</div>
+                  <p style={{ fontFamily: serif, fontWeight: 300, fontSize: 16, lineHeight: 1.45, margin: 0, color: C.ink, textWrap: "pretty" }}>{transcript}</p>
+                </div>
+              </div>
+            )}
             {aiVoiceMode && (
               <div style={{ width: "100%", marginTop: 36, textAlign: "left" }}>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
@@ -1440,7 +1446,7 @@ export default function InterviewSession({
                     overflowY: "auto",
                     overflowX: "hidden",
                     padding: "18px 18px 16px",
-                    borderRadius: 14,
+                    borderRadius: 12,
                     border: `1px solid ${C.line}`,
                     background: `linear-gradient(180deg, ${C.card} 0%, ${C.panel} 100%)`,
                     boxShadow: "inset 0 1px 0 rgba(255,251,242,.55)",
@@ -1518,7 +1524,7 @@ export default function InterviewSession({
                   <button
                     onClick={onRetryPreservation}
                     disabled={processing}
-                    style={{ cursor: "pointer", marginTop: 22, background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 999, opacity: processing ? 0.6 : 1 }}
+                    style={{ cursor: "pointer", marginTop: 22, background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 6, minHeight: 44, opacity: processing ? 0.6 : 1 }}
                   >
                     {processing ? "Preserving…" : "Try preserving again"}
                   </button>
@@ -1552,21 +1558,21 @@ export default function InterviewSession({
                 )}
                 <div style={{ display: "flex", gap: 13, marginTop: 34, flexWrap: "wrap", justifyContent: "center" }}>
                   {(onViewLegacy != null || onViewAvatar != null) && (
-                    <button onClick={onViewLegacy ?? onViewAvatar} style={{ cursor: "pointer", background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 999 }}>
+                    <button onClick={onViewLegacy ?? onViewAvatar} style={{ cursor: "pointer", background: C.ink, color: C.paper, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "14px 26px", borderRadius: 6, minHeight: 44 }}>
                       {archiveLocked ? "See what you need to pay →" : "Open your archive →"}
                     </button>
                   )}
                   {!archiveLocked && onReviewAnswers && (
-                    <button onClick={onReviewAnswers} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Review answers</button>
+                    <button onClick={onReviewAnswers} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 6, minHeight: 44 }}>Review answers</button>
                   )}
                   {!archiveLocked && (
-                    <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Invite family</button>
+                    <button onClick={onManageAccess} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 6, minHeight: 44 }}>Invite family</button>
                   )}
                   {!archiveLocked && onAddMemory && (
-                    <button onClick={onAddMemory} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Add another memory</button>
+                    <button onClick={onAddMemory} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 6, minHeight: 44 }}>Add another memory</button>
                   )}
                   {!archiveLocked && onViewLegacy != null && onViewAvatar != null && (
-                    <button onClick={onViewAvatar} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 999 }}>Ask the archive</button>
+                    <button onClick={onViewAvatar} style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 14, padding: "14px 24px", borderRadius: 6, minHeight: 44 }}>Ask the archive</button>
                   )}
                 </div>
               </>

@@ -115,7 +115,7 @@ const STUCK_RESPONSE_MS = 45000;
 /** Dead air after the last turn — auto-recover before the user has to ask "are you there?" */
 const IDLE_NUDGE_MS = 12000;
 /** After the user spoke, expect the interviewer sooner than a general idle. */
-const POST_USER_REPLY_MS = 8000;
+const POST_USER_REPLY_MS = 5500;
 /** If an idle nudge produced no speech, escalate sooner. */
 const NUDGE_NO_SPEECH_MS = 7000;
 /** Tool-call advance stuck — don't block silence recovery forever. */

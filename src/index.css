@@ -327,6 +327,11 @@ a:hover {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
+.legacy-interview:not(.is-embedded) {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .legacy-interview-chat-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(36, 28, 21, 0.28) transparent;

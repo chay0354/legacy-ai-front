@@ -61,7 +61,7 @@ export default function StageProgressTrack({
                       ? onDark ? '#a8c49a' : C.sage
                       : status === 'current'
                         ? onDark ? '#fbf6ec' : C.ink
-                        : onDark ? 'rgba(245,241,234,.45)' : C.ink3,
+                        : onDark ? 'rgba(240,231,214,.70)' : C.ink3,
                 }}
               >
                 {st.label}

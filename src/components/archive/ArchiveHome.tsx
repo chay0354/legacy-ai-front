@@ -295,17 +295,7 @@ export default function ArchiveHome() {
               <Btn tone="quiet" size="sm" onClick={() => navigate(`/family-access${cQuery}`)}>
                 {Math.max(0, members.length - 1) === 0 ? 'Prepare family access' : CTA.manage}
               </Btn>
-              {owner && (
-                <Btn tone="quiet" size="sm" onClick={() => navigate(`/billing${cQuery}`)}>
-                  Plan and purchases
-                </Btn>
-              )}
             </div>
-          )}
-          {owner && !canManageAccess(role) && (
-            <Btn tone="quiet" size="sm" onClick={() => navigate(`/billing${cQuery}`)}>
-              Plan and purchases
-            </Btn>
           )}
         </div>
       </header>
