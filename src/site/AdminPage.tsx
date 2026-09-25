@@ -118,7 +118,6 @@ function UserDetail({
   const [busy, setBusy] = useState<string | null>(null)
   const [months, setMonths] = useState(1)
   const [creditPlan, setCreditPlan] = useState<'archive' | 'family'>('archive')
-  const [notes, setNotes] = useState('')
   const [archiveName, setArchiveName] = useState<Record<string, string>>({})
 
   const load = () => {
@@ -197,35 +196,10 @@ function UserDetail({
           <select value={months} onChange={(e) => setMonths(Number(e.target.value))} style={{ ...input, width: 'auto' }}>
             {[1, 2, 3, 6, 12].map((n) => <option key={n} value={n}>{n} month{n === 1 ? '' : 's'}</option>)}
           </select>
-          <Btn disabled={Boolean(busy)} onClick={() => void run('credit', () => adminApi.credit(u.id, months, creditPlan, notes))}>
+          <Btn disabled={Boolean(busy)} onClick={() => void run('credit', () => adminApi.credit(u.id, months, creditPlan))}>
             {busy === 'credit' ? 'Granting…' : 'Grant credit'}
           </Btn>
         </div>
-        <Eyebrow>Change the plan</Eyebrow>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('monthly', () => adminApi.setPlan(u.id, 'monthly', { lifetime: true, notes }))}>
-            Comp Monthly
-          </Btn>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('setup', () => adminApi.setPlan(u.id, 'setup', { lifetime: true, notes }))}>
-            Comp Package
-          </Btn>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('storage', () => adminApi.setPlan(u.id, 'storage', { lifetime: true, notes }))}>
-            Comp Storage
-          </Btn>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('preserve', () => adminApi.setPlan(u.id, 'preserve', { lifetime: true, notes }))}>
-            Comp Preserve
-          </Btn>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('archive', () => adminApi.setPlan(u.id, 'archive', { lifetime: true, notes }))}>
-            Comp The Archive
-          </Btn>
-          <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void run('revoke', () => adminApi.revoke(u.id, notes || 'Revoked from admin desk'))}>
-            {busy === 'revoke' ? 'Revoking…' : 'Revoke access'}
-          </Btn>
-        </div>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <Eyebrow>Note (optional)</Eyebrow>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Why this change was made" style={input} />
-        </label>
         {(b.credits || []).length > 0 && (
           <div>
             <Eyebrow>Credit history</Eyebrow>
