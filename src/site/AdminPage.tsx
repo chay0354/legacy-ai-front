@@ -340,9 +340,6 @@ export default function AdminPage() {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [grantBusy, setGrantBusy] = useState(false)
-  const [grantNote, setGrantNote] = useState<string | null>(null)
-
   const refresh = () => {
     setError(null)
     Promise.all([adminApi.overview(), adminApi.users(query)])
@@ -412,25 +409,7 @@ export default function AdminPage() {
                 style={{ ...input, maxWidth: 360 }}
               />
               <Btn tone="quiet" onClick={() => refresh()}>Search</Btn>
-              <Btn
-                tone="quiet"
-                disabled={grantBusy}
-                onClick={() => {
-                  setGrantBusy(true)
-                  setGrantNote(null)
-                  adminApi.grantMissingPlans()
-                    .then((r) => {
-                      setGrantNote(`Opened a plan for ${r.granted} account${r.granted === 1 ? '' : 's'}. ${r.already} already had one.`)
-                      refresh()
-                    })
-                    .catch((e) => setError(e instanceof Error ? e.message : 'Could not grant plans'))
-                    .finally(() => setGrantBusy(false))
-                }}
-              >
-                {grantBusy ? 'Opening plans…' : 'Give every account a plan'}
-              </Btn>
             </div>
-            {grantNote && <Body size={14} color={T.olive}>{grantNote}</Body>}
             {error && <Body size={13.5} color={T.siennaDeep}>{error}</Body>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {users.map((u) => (
