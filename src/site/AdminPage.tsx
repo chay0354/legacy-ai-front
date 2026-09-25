@@ -333,6 +333,64 @@ function UserDetail({
   )
 }
 
+function PriceEditor() {
+  const [prices, setPrices] = useState<{ id: string; name: string; amount: number; displayPrice: string; interval: string | null }[]>([])
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState<string | null>(null)
+  const [note, setNote] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    adminApi.prices()
+      .then((r) => {
+        setPrices(r.prices)
+        const next: Record<string, string> = {}
+        for (const p of r.prices) next[p.id] = (p.amount / 100).toFixed(2)
+        setDrafts(next)
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not load prices'))
+  }, [])
+
+  const save = async (id: string) => {
+    setBusy(id)
+    setError(null)
+    setNote(null)
+    try {
+      const res = await adminApi.setPrice(id, Number(drafts[id]))
+      setPrices(res.prices)
+      setNote(`${res.price.name} is now ${res.price.displayPrice}. New checkouts use this price.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save the price')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Display size={22}>Package prices</Display>
+      <Body size={14}>New checkouts charge the price you save. People already subscribed keep their current Stripe price.</Body>
+      {prices.map((p) => (
+        <div key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Body size={14} style={{ minWidth: 110 }}>{p.name}</Body>
+          <Body size={13} color={T.ink3}>now {p.displayPrice}{p.interval ? ` / ${p.interval}` : ' once'}</Body>
+          <input
+            value={drafts[p.id] ?? ''}
+            onChange={(e) => setDrafts((s) => ({ ...s, [p.id]: e.target.value }))}
+            inputMode="decimal"
+            style={{ ...input, width: 110 }}
+          />
+          <Btn tone="quiet" size="sm" disabled={Boolean(busy)} onClick={() => void save(p.id)}>
+            {busy === p.id ? 'Saving…' : 'Save'}
+          </Btn>
+        </div>
+      ))}
+      {note && <Body size={13.5} color={T.olive}>{note}</Body>}
+      {error && <Body size={13.5} color={T.siennaDeep}>{error}</Body>}
+    </Panel>
+  )
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(() => Boolean(adminToken()))
   const [overview, setOverview] = useState<AdminOverview | null>(null)
@@ -411,6 +469,7 @@ export default function AdminPage() {
               <Btn tone="quiet" onClick={() => refresh()}>Search</Btn>
             </div>
             {error && <Body size={13.5} color={T.siennaDeep}>{error}</Body>}
+            <PriceEditor />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {users.map((u) => (
                 <button

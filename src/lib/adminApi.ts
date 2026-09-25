@@ -129,6 +129,19 @@ export const adminApi = {
 
   overview: () => adminFetch('/api/admin/overview') as Promise<AdminOverview>,
 
+  prices: () => adminFetch('/api/admin/prices') as Promise<{
+    prices: { id: string; name: string; amount: number; displayPrice: string; interval: string | null; stripePriceId: string | null }[]
+  }>,
+
+  setPrice: (plan: string, dollars: number) =>
+    adminFetch('/api/admin/prices', {
+      method: 'POST',
+      body: JSON.stringify({ plan, dollars }),
+    }) as Promise<{
+      price: { id: string; name: string; displayPrice: string }
+      prices: { id: string; name: string; amount: number; displayPrice: string; interval: string | null; stripePriceId: string | null }[]
+    }>,
+
   grantMissingPlans: () =>
     adminFetch('/api/admin/grant-missing-plans', { method: 'POST' }) as Promise<{
       users: number
