@@ -6,6 +6,7 @@ import {
   adminToken,
   clearAdminSession,
   setAdminSession,
+  type AdminBilling,
   type AdminOverview,
   type AdminUserDetail,
   type AdminUserRow,
@@ -35,6 +36,37 @@ function moneyDate(iso?: string | null) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const PLAN_PRICE: Record<string, { amount: string; every: 'month' | null }> = {
+  setup: { amount: '$699', every: null },
+  monthly: { amount: '$69.90', every: 'month' },
+  storage: { amount: '$6.99', every: 'month' },
+  preserve: { amount: '$6.99', every: null },
+  archive: { amount: '$19', every: 'month' },
+  family: { amount: '$39', every: 'month' },
+}
+
+function billingFacts(b: AdminBilling) {
+  const price = PLAN_PRICE[b.plan]
+  const complimentary = b.source === 'comp' || b.source === 'credit'
+  if (!b.paid || !price) {
+    return { pays: 'Not paying', charge: 'No upcoming charge' }
+  }
+  if (complimentary) {
+    return { pays: 'Complimentary — not charged', charge: 'No upcoming charge' }
+  }
+  if (!price.every) {
+    const until = b.currentPeriodEnd ? ` Included until ${moneyDate(b.currentPeriodEnd)}.` : ''
+    return { pays: `${price.amount} once`, charge: `No recurring charge.${until}` }
+  }
+  if (b.cancelAtPeriodEnd && b.currentPeriodEnd) {
+    return { pays: `${price.amount} / month`, charge: `Cancels ${moneyDate(b.currentPeriodEnd)}. No further charge.` }
+  }
+  if (b.currentPeriodEnd) {
+    return { pays: `${price.amount} / month`, charge: moneyDate(b.currentPeriodEnd) }
+  }
+  return { pays: `${price.amount} / month`, charge: 'No charge date on file' }
 }
 
 function Login({ onIn }: { onIn: () => void }) {
@@ -152,6 +184,7 @@ function UserDetail({
 
   const u = data.user
   const b = data.billing
+  const pay = billingFacts(b)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -174,11 +207,20 @@ function UserDetail({
 
       <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Display size={20}>Payment</Display>
-        <Body size={14.5}>
-          {b.paid
-            ? `On ${planLabel(b.plan)} until ${moneyDate(b.currentPeriodEnd)}${b.source ? ` · ${b.source}` : ''}.`
-            : 'No active plan.'}
-        </Body>
+        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+          <div>
+            <Eyebrow>Plan</Eyebrow>
+            <Body size={15}>{b.paid ? planLabel(b.plan) : 'None'}</Body>
+          </div>
+          <div>
+            <Eyebrow>Pays</Eyebrow>
+            <Body size={15}>{pay.pays}</Body>
+          </div>
+          <div>
+            <Eyebrow>Next charge</Eyebrow>
+            <Body size={15}>{pay.charge}</Body>
+          </div>
+        </div>
         {b.notes && <Body size={13.5} color={T.ink3}>{b.notes}</Body>}
         {b.stripeCustomerId && (
           <Body size={13} color={T.ink3}>
