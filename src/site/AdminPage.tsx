@@ -429,7 +429,12 @@ export default function AdminPage() {
   if (!authed) return <Login onIn={() => setAuthed(true)} />
 
   return (
-    <div style={{ minHeight: '100dvh', background: T.paper }}>
+    <div style={{
+      minHeight: '100dvh', background: T.paper,
+      height: desk === 'appearance' ? '100dvh' : undefined,
+      display: 'flex', flexDirection: 'column',
+      overflow: desk === 'appearance' ? 'hidden' : undefined,
+    }}>
       <header style={{
         background: T.walnutDeep, color: T.onDark, padding: '18px 28px',
         display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
@@ -452,10 +457,11 @@ export default function AdminPage() {
         </div>
       </header>
 
+      {desk === 'appearance' ? (
+        <DesignDesk />
+      ) : (
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px 72px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {desk === 'appearance' ? (
-          <DesignDesk />
-        ) : selected ? (
+        {selected ? (
           <UserDetail id={selected} onBack={() => { setSelected(null); refresh() }} onGone={() => { setSelected(null); refresh() }} />
         ) : (
           <>
@@ -509,6 +515,7 @@ export default function AdminPage() {
           </>
         )}
       </div>
+      )}
     </div>
   )
 }

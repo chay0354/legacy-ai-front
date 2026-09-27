@@ -137,7 +137,31 @@ export function contrastWarnings(draft: ThemeDraft) {
   })
 }
 
+export const THEME_PREVIEW_MESSAGE = 'legacy-theme-preview'
+export const THEME_PREVIEW_READY = 'legacy-theme-ready'
+
+/** The staff desk posts unsaved tokens into a same-origin preview frame. */
+export function postThemePreview(frame: HTMLIFrameElement | null, draft: ThemeDraft) {
+  frame?.contentWindow?.postMessage(
+    { type: THEME_PREVIEW_MESSAGE, tokens: draft },
+    location.origin,
+  )
+}
+
+export function installThemePreviewBridge() {
+  if (new URLSearchParams(location.search).get('themePreview') !== '1') return false
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.origin !== location.origin) return
+    const data = event.data as { type?: string; tokens?: unknown } | null
+    if (!data || data.type !== THEME_PREVIEW_MESSAGE) return
+    paintTheme(mergeTheme(data.tokens))
+  })
+  window.parent.postMessage({ type: THEME_PREVIEW_READY }, location.origin)
+  return true
+}
+
 export async function bootTheme() {
+  if (installThemePreviewBridge()) return
   try {
     const res = await fetch(apiUrl('/api/theme'))
     if (!res.ok) return
