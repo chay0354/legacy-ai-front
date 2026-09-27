@@ -294,7 +294,7 @@ export function VoiceMemoryPanel({
         >
           <Icon
             name={playing ? 'check' : 'play'} size={17}
-            color="#fdf8ef" strokeWidth={playing ? 1.6 : 1}
+            color={T.onPrimary} strokeWidth={playing ? 1.6 : 1}
             style={playing ? undefined : { marginLeft: 2 }}
           />
         </button>

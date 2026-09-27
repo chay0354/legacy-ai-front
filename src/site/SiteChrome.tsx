@@ -127,7 +127,7 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
             type="button"
             onClick={() => navigate(primaryTo)}
             style={{
-              background: T.sienna, color: '#fdf8ef', border: 'none', borderRadius: radius.sm,
+              background: T.sienna, color: T.onPrimary, border: 'none', borderRadius: radius.sm,
               padding: '12px 18px', fontFamily: sans, fontSize: 15, fontWeight: 600, cursor: 'pointer',
               width: '100%',
             }}

@@ -1161,7 +1161,7 @@ export default function InterviewSession({
             {pronouns && !changingIdentity ? (
               <div style={{
                 marginTop: 26, width: "100%", maxWidth: 420, textAlign: "left",
-                padding: "14px 16px", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 4,
+                padding: "14px 16px", background: C.panel, border: `1px solid ${C.line}`, borderRadius: radius.card,
                 display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
               }}>
                 <span style={{ fontSize: 14, color: C.ink2 }}>Using {pronouns}</span>
@@ -1180,7 +1180,7 @@ export default function InterviewSession({
               padding: "16px 16px 14px",
               background: C.panel,
               border: `1px solid ${C.line}`,
-              borderRadius: 4,
+              borderRadius: radius.card,
             }}>
               <div style={{ fontFamily: sans, fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: C.ink3, fontWeight: 600 }}>
                 How should we refer to you?
@@ -1207,10 +1207,10 @@ export default function InterviewSession({
                           void persistIdentity(g, p).catch(() => {});
                         }}
                         style={{
-                          flex: 1, padding: "10px 12px", borderRadius: 4, cursor: "pointer",
+                          flex: 1, padding: "10px 12px", borderRadius: radius.control, cursor: "pointer",
                           fontFamily: sans, fontSize: 14, fontWeight: 600,
                           background: gender === value ? accent : C.card,
-                          color: gender === value ? "#fbf6ec" : C.ink,
+                          color: gender === value ? T.onPrimary : C.ink,
                           border: `1px solid ${gender === value ? accent : C.line}`,
                         }}
                       >{label}</button>
@@ -1232,10 +1232,10 @@ export default function InterviewSession({
                           void persistIdentity(gender, p).catch(() => {});
                         }}
                         style={{
-                          flex: 1, padding: "10px 12px", borderRadius: 4, cursor: "pointer",
+                          flex: 1, padding: "10px 12px", borderRadius: radius.control, cursor: "pointer",
                           fontFamily: sans, fontSize: 14, fontWeight: 600,
                           background: pronouns === value ? accent : C.card,
-                          color: pronouns === value ? "#fbf6ec" : C.ink,
+                          color: pronouns === value ? T.onPrimary : C.ink,
                           border: `1px solid ${pronouns === value ? accent : C.line}`,
                         }}
                       >{label}</button>
@@ -1252,16 +1252,16 @@ export default function InterviewSession({
             <button
               onClick={() => startVoice("guided")}
               disabled={identityBusy}
-              style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 34, background: accent, color: "#fbf6ec", border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 12, opacity: identityBusy ? 0.7 : 1 }}
+              style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 34, background: accent, color: T.onPrimary, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: radius.control, display: "inline-flex", alignItems: "center", gap: 12, opacity: identityBusy ? 0.7 : 1 }}
             >
               <span style={{ display: "inline-flex", alignItems: "flex-end", gap: 2, height: 15 }}>
-                <span style={{ width: 3, height: 7, background: "#fbf6ec", borderRadius: 2 }} />
-                <span style={{ width: 3, height: 15, background: "#fbf6ec", borderRadius: 2 }} />
-                <span style={{ width: 3, height: 10, background: "#fbf6ec", borderRadius: 2 }} />
+                <span style={{ width: 3, height: 7, background: T.onPrimary, borderRadius: 2 }} />
+                <span style={{ width: 3, height: 15, background: T.onPrimary, borderRadius: 2 }} />
+                <span style={{ width: 3, height: 10, background: T.onPrimary, borderRadius: 2 }} />
               </span>
               {aiVoice ? "Start talking with your interviewer" : "Start the interview"}
             </button>
-            <button onClick={() => startVoice("light")} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 14, background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "12px 20px", borderRadius: 4 }}>A lighter conversation</button>
+            <button onClick={() => startVoice("light")} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 14, background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 600, fontSize: 14, padding: "12px 20px", borderRadius: radius.control }}>A lighter conversation</button>
             <button onClick={() => startVoice("free")} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 10, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 600, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I just want to talk</button>
             <button onClick={startText} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 12, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
             <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginTop: 30 }}>
