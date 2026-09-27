@@ -1,6 +1,8 @@
+import { useId } from 'react'
 import { CTA } from '../../design/copy'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { Body, Btn } from '../../design/ui'
+import { useDialogA11y } from '../../lib/useDialogA11y'
 
 export default function AddMemoryChooser({
   open,
@@ -15,11 +17,14 @@ export default function AddMemoryChooser({
   onWrite: () => void
   onPhoto: () => void
 }) {
+  const titleId = useId()
+  const panelRef = useDialogA11y(open, onClose)
   if (!open) return null
   return (
     <div
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
@@ -29,6 +34,8 @@ export default function AddMemoryChooser({
       }}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 440, background: T.card,
@@ -37,7 +44,7 @@ export default function AddMemoryChooser({
           display: 'flex', flexDirection: 'column', gap: 14,
         }}
       >
-        <div style={{ fontFamily: serif, fontSize: 26, color: T.ink }}>{CTA.addMemory}</div>
+        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 26, fontWeight: 400, color: T.ink, margin: 0 }}>{CTA.addMemory}</h2>
         <Body size={15}>Talk, write, or add a photograph. The structured interviews are done — the archive stays open.</Body>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
           <Btn onClick={onTalk}>Talk</Btn>

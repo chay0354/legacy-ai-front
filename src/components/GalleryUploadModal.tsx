@@ -1,15 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { T, radius, sans, serif, shadow } from '../design/tokens'
+import { useDialogA11y } from '../lib/useDialogA11y'
 
-const C = {
-  card: '#fbf6ec',
-  ink: '#2b241c',
-  ink2: '#6e6253',
-  ink3: '#9a8d79',
-  line: '#ddccb0',
-  terra: '#c06a44',
+const field = {
+  display: 'block' as const,
+  width: '100%',
+  marginTop: 6,
+  padding: '10px 12px',
+  borderRadius: radius.control,
+  border: `1px solid ${T.line}`,
+  background: T.card,
+  fontFamily: sans,
+  fontSize: 15,
+  color: T.ink,
+  boxSizing: 'border-box' as const,
 }
-const serif = "'Newsreader', Georgia, serif"
-const sans = "'Hanken Grotesk', system-ui, sans-serif"
 
 type Props = {
   open: boolean
@@ -26,6 +31,8 @@ export default function GalleryUploadModal({
   onSave,
   onClose,
 }: Props) {
+  const titleId = useId()
+  const panelRef = useDialogA11y(open, onClose)
   const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -58,6 +65,7 @@ export default function GalleryUploadModal({
     <div
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       onClick={onClose}
       className="legacy-modal-overlay"
       style={{
@@ -72,20 +80,23 @@ export default function GalleryUploadModal({
       }}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="legacy-modal-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: 560,
-          background: C.card,
-          border: `1px solid ${C.line}`,
-          borderRadius: 12,
+          background: T.card,
+          border: `1px solid ${T.line}`,
+          borderRadius: radius.card,
           padding: '24px 26px',
-          boxShadow: '0 24px 48px rgba(43,36,28,.18)',
+          boxShadow: shadow.lift,
+          outline: 'none',
         }}
       >
-        <div style={{ fontFamily: serif, fontSize: 24, color: C.ink }}>Add to gallery</div>
-        <p style={{ fontFamily: sans, fontSize: 13, color: C.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
+        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 24, fontWeight: 400, color: T.ink, margin: 0 }}>Add photos</h2>
+        <p style={{ fontFamily: sans, fontSize: 14, color: T.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
           Upload a photo and write what it means — faces, places, letters, anything worth keeping.
         </p>
 
@@ -103,9 +114,9 @@ export default function GalleryUploadModal({
           style={{
             width: '100%',
             minHeight: preview ? 'auto' : 160,
-            border: `1px dashed ${C.line}`,
-            borderRadius: 10,
-            background: '#fff',
+            border: `1px dashed ${T.line}`,
+            borderRadius: radius.control,
+            background: T.paper,
             cursor: 'pointer',
             padding: preview ? 0 : 16,
             overflow: 'hidden',
@@ -114,53 +125,28 @@ export default function GalleryUploadModal({
           {preview ? (
             <img src={preview} alt="Preview" style={{ display: 'block', width: '100%', maxHeight: 280, objectFit: 'cover' }} />
           ) : (
-            <span style={{ fontFamily: sans, fontSize: 14, color: C.ink2 }}>Click to choose a photo</span>
+            <span style={{ fontFamily: sans, fontSize: 14, color: T.ink2 }}>Click to choose a photo</span>
           )}
         </button>
 
         <label style={{ display: 'block', marginTop: 14 }}>
-          <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: C.ink2 }}>Title (optional)</span>
+          <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: T.ink2 }}>Title (optional)</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Dad at the lake house"
-            style={{
-              display: 'block',
-              width: '100%',
-              marginTop: 6,
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: `1px solid ${C.line}`,
-              background: '#fff',
-              fontFamily: sans,
-              fontSize: 14,
-              color: C.ink,
-              boxSizing: 'border-box',
-            }}
+            style={field}
           />
         </label>
 
         <label style={{ display: 'block', marginTop: 14 }}>
-          <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: C.ink2 }}>What is this photo about?</span>
+          <span style={{ fontFamily: sans, fontSize: 12, fontWeight: 600, color: T.ink2 }}>What is this photo about?</span>
           <textarea
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             rows={4}
             placeholder="Who is in the photo? Where was it taken? Why does it matter to your family?"
-            style={{
-              display: 'block',
-              width: '100%',
-              marginTop: 6,
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: `1px solid ${C.line}`,
-              background: '#fff',
-              fontFamily: sans,
-              fontSize: 14,
-              color: C.ink,
-              resize: 'vertical',
-              boxSizing: 'border-box',
-            }}
+            style={{ ...field, resize: 'vertical' }}
           />
         </label>
 
@@ -176,13 +162,13 @@ export default function GalleryUploadModal({
             style={{
               cursor: canSave && !saving ? 'pointer' : 'not-allowed',
               border: 'none',
-              background: C.terra,
-              color: '#fbf6ec',
+              background: T.sienna,
+              color: T.onPrimary,
               fontFamily: sans,
               fontWeight: 600,
               fontSize: 14,
               padding: '12px 20px',
-              borderRadius: 999,
+              borderRadius: radius.control,
               opacity: canSave && !saving ? 1 : 0.55,
             }}
           >
@@ -194,14 +180,14 @@ export default function GalleryUploadModal({
             onClick={onClose}
             style={{
               cursor: 'pointer',
-              border: `1px solid ${C.line}`,
+              border: `1px solid ${T.line}`,
               background: 'transparent',
-              color: C.ink2,
+              color: T.ink2,
               fontFamily: sans,
               fontWeight: 500,
               fontSize: 14,
               padding: '12px 18px',
-              borderRadius: 999,
+              borderRadius: radius.control,
             }}
           >
             Cancel
