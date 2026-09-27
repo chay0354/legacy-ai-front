@@ -232,7 +232,40 @@ a:hover {
   .overview-hero-copy { order: 1; }
   .overview-hero-portrait {
     order: 2;
-    max-width: 280px;
+    max-width: 200px;
+    width: 100%;
+  }
+
+  .archive-setup-stages {
+    display: flex !important;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .archive-setup-stage {
+    display: grid !important;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 12px;
+    padding: 0 !important;
+    border-left: none !important;
+    position: relative;
+  }
+
+  .archive-setup-stage:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 13px;
+    top: 28px;
+    bottom: -18px;
+    width: 1px;
+    background: rgba(36, 28, 21, 0.18);
+  }
+
+  .pair-actions {
+    flex-direction: column;
+  }
+
+  .pair-actions > * {
     width: 100%;
   }
 

@@ -51,9 +51,9 @@ export function Band({
 
 function Quiet({ children }: { children: ReactNode }) {
   return (
-    <Panel pad="30px 26px" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <Icon name="clock" size={18} color={T.ink3} strokeWidth={1.3} />
-      <Body size={14.5}>{children}</Body>
+    <Panel pad="16px 18px" style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+      <Icon name="clock" size={16} color={T.ink2} strokeWidth={1.3} />
+      <Body size={14.5} color={T.ink2}>{children}</Body>
     </Panel>
   )
 }
@@ -131,7 +131,7 @@ export function VoiceBlock({
           ]}
           quote={firstMemory?.summary
             ? `${firstMemory.summary.slice(0, 150)}${firstMemory.summary.length > 150 ? '…' : ''}`
-            : 'Spoken in the cloned voice — the story, not the clone script.'}
+            : 'Voice sample recorded. This is the clone recording, not a story.'}
           playing={playing}
           onToggle={onToggle}
         />
@@ -285,15 +285,15 @@ export function AskBlock({ suggestions, onOpen }: { suggestions: string[]; onOpe
   return (
     <Panel pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Body size={14.5} style={{ maxWidth: 560 }}>
-        Ask a question and the archive answers from recorded material only. {STATUS.unknown}.
+        Answers become available as stories are added. These prompts are examples.
       </Body>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {suggestions.slice(0, 4).map((q) => (
           <button
             key={q} type="button" onClick={onOpen}
             style={{
-              border: `1px solid ${T.line}`, background: T.paper, borderRadius: radius.pill,
-              padding: '9px 15px', cursor: 'pointer', fontFamily: serif, fontSize: 15, color: T.ink2,
+              border: `1px solid ${T.line}`, background: T.card, borderRadius: radius.control,
+              padding: '9px 12px', cursor: 'pointer', fontFamily: sans, fontSize: 14, color: T.ink2,
             }}
           >{q}</button>
         ))}

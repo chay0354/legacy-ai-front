@@ -224,6 +224,7 @@ export default function EditArchiveScreen() {
       />
       <VoiceRecordModal
         open={voiceOpen} saving={voiceSaving} error={voiceError} hasExisting={Boolean(voiceUrl)}
+        speakerName={ctx.profile?.creator?.display_name}
         onSave={saveVoice} onClose={() => !voiceSaving && setVoiceOpen(false)}
       />
 
@@ -401,11 +402,11 @@ export default function EditArchiveScreen() {
           {/* voice + live avatar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <Display size={22}>Voice memories</Display>
+              <Display size={22}>Voice sample</Display>
               <Body size={14.5}>
                 {voiceUrl
-                  ? 'A recording is in place. Record again to replace it.'
-                  : 'Read a short passage aloud and your family hears the story in your voice.'}
+                  ? 'A clone sample is saved. Record again to replace the sample, not a story.'
+                  : 'Read the passage aloud so the live avatar can use your voice. This is setup, not a saved story.'}
               </Body>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Btn tone="quiet" size="sm" icon="voice" onClick={() => setVoiceOpen(true)}>

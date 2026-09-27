@@ -15,8 +15,8 @@ import { Select } from '../design/ui'
 
 const mono = sans
 
-const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, border: 'none', borderRadius: 999, padding: '13px 26px', fontFamily: sans, fontWeight: 600, fontSize: 14, cursor: 'pointer' }
-const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 999, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
+const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, border: 'none', borderRadius: 6, padding: '13px 26px', fontFamily: sans, fontWeight: 600, fontSize: 14, cursor: 'pointer' }
+const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 6, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
 const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: '26px 28px' }
 
 type StepId = 'intro' | 'voice' | 'photo' | 'generate'
@@ -189,7 +189,7 @@ function Intro({
 
   return (
     <div style={card}>
-      <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 34, margin: 0 }}>Create your living avatar</h1>
+      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: 0 }}>{hasVoice ? 'Update your live avatar' : 'Set up your live avatar'}</h2>
       <p style={{ fontSize: 15, lineHeight: 1.6, color: C.ink2, marginTop: 12 }}>
         Record your <strong>voice</strong> and take a <strong>photo</strong>. The system automatically
         clones your voice and builds a talking avatar from your face — no extra steps on other websites.
@@ -247,7 +247,7 @@ function Intro({
         <li>Then family can talk with you face to face in real time</li>
       </ul>
       <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
-        <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update my avatar' : 'Begin'}</button>
+        <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update live avatar' : 'Begin'}</button>
         {cloned && <span style={{ fontFamily: mono, fontSize: 11, color: C.sage }}>✓ your voice is cloned</span>}
         {hasVoice && !cloned && <span style={{ fontFamily: mono, fontSize: 11, color: '#b04a3a' }}>⚠ voice not cloned — re-record in Voice step</span>}
       </div>
@@ -285,7 +285,7 @@ function StudioProgress({ label, named }: { label: string; named?: boolean }) {
               <span
                 key={s.id}
                 style={{
-                  fontFamily: sans, fontSize: 13, padding: '6px 12px', borderRadius: 999,
+                  fontFamily: sans, fontSize: 13, padding: '6px 12px', borderRadius: 6,
                   border: `1px solid ${active || done ? C.terra : C.line}`,
                   background: active ? 'rgba(192,106,68,.12)' : done ? 'rgba(113,128,92,.12)' : C.card,
                   color: active ? C.terra : done ? C.sage : C.ink3,

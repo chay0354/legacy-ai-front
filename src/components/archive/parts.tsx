@@ -54,7 +54,7 @@ export function ArchiveSetup({
           const current = level === i
           const tone = done ? T.olive : current ? T.sienna : T.ink3
           return (
-            <div key={s.key} style={{
+            <div key={s.key} className="archive-setup-stage" style={{
               display: 'flex', flexDirection: 'column', gap: 8, padding: '0 20px',
               borderLeft: i === 0 ? 'none' : `1px solid ${T.lineSoft}`,
             }}>
@@ -90,29 +90,18 @@ export function ArchiveSetup({
 
 /* ───────────────────────── next action card ─────────────────────── */
 export function NextAction({
-  eyebrow, title, note, cta, onCta, imageSrc,
+  eyebrow, title, note,
 }: {
-  eyebrow: string; title: string; note: string; cta: string
-  onCta: () => void; imageSrc?: string | null
+  eyebrow: string; title: string; note: string
 }) {
   return (
-    <Panel pad={0} className="featured-split" style={{ overflow: 'hidden', display: 'flex', minHeight: 176 }}>
-      <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="interview" size={17} color={T.gold} strokeWidth={1.4} />
-          <Eyebrow>{eyebrow}</Eyebrow>
-        </div>
-        <Display size={22}>{title}</Display>
-        <Body size={14} style={{ maxWidth: 340 }}>{note}</Body>
-        <div style={{ marginTop: 'auto', paddingTop: 14 }}>
-          <Btn onClick={onCta}>{cta}</Btn>
-        </div>
+    <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon name="interview" size={17} color={T.siennaDeep} strokeWidth={1.4} />
+        <Eyebrow>{eyebrow}</Eyebrow>
       </div>
-      {imageSrc && (
-        <div style={{ flex: '0 0 38%', minWidth: 140, maxWidth: 240, background: T.paperDeep }}>
-          <img src={imageSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        </div>
-      )}
+      <Display size={22}>{title}</Display>
+      <Body size={14} style={{ maxWidth: 420 }}>{note}</Body>
     </Panel>
   )
 }

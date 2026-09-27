@@ -82,7 +82,7 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
           className="site-header-cta"
           onClick={() => navigate(primaryTo)}
           style={{
-            background: T.sienna, color: '#fdf8ef', border: 'none', borderRadius: radius.sm,
+            background: T.sienna, color: T.onPrimary, border: 'none', borderRadius: radius.sm,
             padding: '11px 20px', fontFamily: sans, fontSize: 14, fontWeight: 600, cursor: 'pointer',
           }}
         >{primaryLabel}</button>

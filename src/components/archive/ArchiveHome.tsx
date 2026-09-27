@@ -20,7 +20,7 @@ import AddMemoryChooser from './AddMemoryChooser'
 import GalleryUploadModal from '../GalleryUploadModal'
 import MemoryEditorModal, { type MemoryFormValues } from '../MemoryEditorModal'
 
-function stageAsk(level: number) {
+function stageAsk(level: number, started: boolean) {
   if (level >= 3) {
     return {
       eyebrow: 'Keep Legacy open', title: 'Add another memory',
@@ -28,11 +28,13 @@ function stageAsk(level: number) {
       cta: CTA.addMemory, stage: 'memory' as string | null,
     }
   }
-  if (level >= 1) {
+  if (level >= 1 || started) {
     return {
-      eyebrow: STAGES.enrichment.label, title: 'Pick up where you left off',
-      note: STAGES.enrichment.note, cta: CTA.continueInterview,
-      stage: level >= 2 ? 'legacy' : 'enriched',
+      eyebrow: level >= 1 ? STAGES.enrichment.label : STAGES.foundation.label,
+      title: 'Pick up where you left off',
+      note: level >= 1 ? STAGES.enrichment.note : STAGES.foundation.note,
+      cta: CTA.continueInterview,
+      stage: level >= 2 ? 'legacy' : level >= 1 ? 'enriched' : 'foundation',
     }
   }
   return {
@@ -145,7 +147,10 @@ export default function ArchiveHome() {
     || null
   const liveReady = ctx.assets?.liveReady === true
   const mayAsk = canAsk(role)
-  const ask = stageAsk(level)
+  const interviewStarted = level > 0 || setupPct > 0 || (profile.memories?.length ?? 0) > 0
+  const ask = stageAsk(level, interviewStarted)
+  const invited = Math.max(0, members.length - 1)
+  const hasRealMemory = Boolean((firstMemory?.summary || firstMemory?.title || '').trim())
   const interviewHref = creatorId
     ? `/interview?c=${creatorId}${ask.stage === 'memory' ? '&mode=memory' : ask.stage ? `&stage=${ask.stage}` : ''}`
     : ask.stage === 'memory' ? '/interview?mode=memory' : ask.stage ? `/interview?stage=${ask.stage}` : '/interview'
@@ -266,7 +271,7 @@ export default function ArchiveHome() {
         </div>
 
         <div className="overview-hero-copy" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
-          <Eyebrow>{owner ? 'Your archive' : `${ownerFirst}’s archive`}</Eyebrow>
+          <Eyebrow>{`${ownerFirst}’s archive`}</Eyebrow>
           <Display as="h1" size={38}>{owner ? `Welcome back, ${viewerName}.` : ownerName}</Display>
           <Body size={16} color={T.status}>{archiveSetupLabel(setupPct)}. {roleStandfirst(role, ownerFirst)}</Body>
           {canRunInterview(role) && (
@@ -274,7 +279,7 @@ export default function ArchiveHome() {
               <Btn icon="interview" onClick={openNext}>{ask.cta}</Btn>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+          <div className="pair-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
             {canPlayVoice && (
               <Btn tone="quiet" icon="voice" onClick={toggleVoice}>
                 {playing ? ASK.pause : ASK.hear}
@@ -284,16 +289,20 @@ export default function ArchiveHome() {
               <Btn tone="quiet" icon="ask" onClick={() => navigate(`/ask${cQuery}`)}>{ASK.write}</Btn>
             )}
           </div>
-          <PrivacyNote>{STATUS.private}. {STATUS.onlyInvited}</PrivacyNote>
+          <PrivacyNote>
+            {owner && invited === 0
+              ? 'Only you can access this archive. Invite family when you’re ready.'
+              : `${STATUS.private}. ${STATUS.onlyInvited}`}
+          </PrivacyNote>
           {canManageAccess(role) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <Body size={13.5} color={T.status}>
-                {Math.max(0, members.length - 1) === 0
-                  ? 'Only you can open this archive'
-                  : `${Math.max(0, members.length - 1)} invited family ${Math.max(0, members.length - 1) === 1 ? 'member' : 'members'}`}
+                {invited === 0
+                  ? 'No one else has been invited.'
+                  : `${invited} invited family ${invited === 1 ? 'member' : 'members'}`}
               </Body>
               <Btn tone="quiet" size="sm" onClick={() => navigate(`/family-access${cQuery}`)}>
-                {Math.max(0, members.length - 1) === 0 ? 'Prepare family access' : CTA.manage}
+                {invited === 0 ? 'Prepare family access' : CTA.manage}
               </Btn>
             </div>
           )}
@@ -306,20 +315,11 @@ export default function ArchiveHome() {
           icon={owner ? 'overview' : 'story'}
           title={owner ? 'Archive setup' : 'A story to begin with'}
           count={owner ? 'Where the archive stands' : 'Worth starting here'}
-          action={(canRunInterview(role) || canEditArchive(role))
+          action={canEditArchive(role) && (level >= 1 || counts.stories > 0)
             ? (
-              <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {canEditArchive(role) && (level >= 1 || counts.stories > 0) && (
-                  <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
-                    {CTA.review}
-                  </Btn>
-                )}
-                {canRunInterview(role) && (
-                  <Btn icon="interview" onClick={openNext}>
-                    {ask.cta}
-                  </Btn>
-                )}
-              </span>
+              <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
+                Review and edit
+              </Btn>
             )
             : undefined}
         >
@@ -357,9 +357,7 @@ export default function ArchiveHome() {
             }}>
               {owner ? (
                 <NextAction
-                  eyebrow={ask.eyebrow} title={ask.title} note={ask.note} cta={ask.cta}
-                  imageSrc={storyPhoto}
-                  onCta={openNext}
+                  eyebrow={ask.eyebrow} title={ask.title} note={ask.note}
                 />
               ) : (
                 <PhotoCollage
@@ -393,12 +391,9 @@ export default function ArchiveHome() {
                 <span style={{ fontFamily: sans, fontSize: 14, color: T.ink2 }}>
                   Adding, correcting, and removing happens in one place.
                 </span>
-                <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ marginLeft: 'auto' }}>
                   <Btn tone="quiet" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
-                    {CTA.review}
-                  </Btn>
-                  <Btn tone="secondary" size="sm" icon="pen" onClick={() => navigate(`/edit${cQuery}`)}>
-                    Edit archive
+                    Review and edit
                   </Btn>
                 </span>
               </Panel>
@@ -424,9 +419,12 @@ export default function ArchiveHome() {
 
       {has('voice') && (
         <Band
-          id="voice" refFn={register('voice')} icon="voice" title="Voice memories"
-          count={voiceUrl ? '1 recording' : 'No recordings yet'}
-          note="Kept as a recording, so a story arrives the way it was told."
+          id="voice" refFn={register('voice')} icon="voice"
+          title={hasRealMemory ? 'Voice memories' : 'Voice sample'}
+          count={voiceUrl ? (hasRealMemory ? '1 memory' : 'Sample recorded') : 'No sample yet'}
+          note={hasRealMemory
+            ? 'A story kept as a recording, the way it was told.'
+            : 'The clone sample used to build the live voice. It is not a story.'}
         >
           <VoiceBlock
             voiceUrl={canPlayVoice ? (voiceUrl || 'tts') : null} playing={playing} onToggle={toggleVoice}
@@ -440,7 +438,7 @@ export default function ArchiveHome() {
           id="photos" refFn={register('photos')} icon="photo" title="Photos & documents"
           count={`${counts.photographs} ${counts.photographs === 1 ? 'photograph' : 'photographs'}`}
           note="Photographs, letters, and papers that belong with the stories."
-          action={canEditArchive(role)
+          action={canEditArchive(role) && counts.photographs > 0
             ? <Btn tone="quiet" size="sm" onClick={() => setPhotoOpen(true)}>{CTA.addPhotos}</Btn>
             : undefined}
         >

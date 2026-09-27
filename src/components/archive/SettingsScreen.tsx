@@ -111,7 +111,7 @@ export default function SettingsScreen() {
 
           <Panel pad="22px 24px">
             <Display size={20} style={{ marginBottom: 6 }}>
-              {owner ? 'Your archive' : `${name.split(' ')[0]}’s archive`}
+              {`${name.split(' ')[0]}’s archive`}
             </Display>
             <Eyebrow>{archiveSetupLabel(setupPct)}</Eyebrow>
             <Body size={13.5} style={{ marginTop: 10 }}>
@@ -128,8 +128,12 @@ export default function SettingsScreen() {
             </div>
             {canRunInterview(role) && (
               <div style={rowStyle}>
-                <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>Continue the guided interview</span>
-                <Btn tone="quiet" size="sm" onClick={() => navigate(`/interview${cQuery}`)}>{CTA.continueInterview}</Btn>
+                <span style={{ fontFamily: sans, fontSize: 14.5, color: T.ink }}>
+                  {level > 0 || setupPct > 0 || counts.stories > 0 ? 'Continue the guided interview' : 'Begin the guided interview'}
+                </span>
+                <Btn tone="quiet" size="sm" onClick={() => navigate(`/interview${cQuery}`)}>
+                  {level > 0 || setupPct > 0 || counts.stories > 0 ? CTA.continueInterview : CTA.beginInterview}
+                </Btn>
               </div>
             )}
             <div style={rowStyle}>

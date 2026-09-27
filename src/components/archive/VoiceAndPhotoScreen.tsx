@@ -50,9 +50,9 @@ export default function VoiceAndPhotoScreen() {
           <Display size={20}>Studio</Display>
           <Eyebrow color={liveReady ? T.olive : T.ink3}>
             {liveReady
-              ? 'Ready for live call'
+              ? 'Live avatar ready — you can update it below'
               : voiceCloned
-                ? 'Voice ready — finish the photograph and generate'
+                ? 'Voice sample ready — finish the photograph'
                 : 'Not set up yet'}
           </Eyebrow>
         </div>

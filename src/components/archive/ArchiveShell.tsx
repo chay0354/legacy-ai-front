@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { T, paperTexture, radius, sans, serif } from '../../design/tokens'
+import { T, radius, sans, serif } from '../../design/tokens'
 import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
@@ -100,8 +100,8 @@ export default function ArchiveShell({
   const mayEdit = canEditArchive(role)
   const ownThis = isOwner(role)
   const archiveLabel = !identityReady
-    ? (ownThis ? 'Your archive' : 'Opening…')
-    : ownThis ? 'Your archive' : `${firstName}’s archive`
+    ? 'Opening…'
+    : `${firstName}’s archive`
   const relationship = ownThis
     ? 'Owner'
     : canManageAccess(role) ? 'You help look after this' : 'Shared with you'
@@ -237,9 +237,7 @@ export default function ArchiveShell({
                 <Eyebrow color={T.onDark3}>Other archives</Eyebrow>
               </div>
               {otherArchives.map((m) => {
-                const label = m.isOwner
-                  ? 'Your archive'
-                  : `${(m.displayName || 'Shared').split(' ')[0]}’s archive`
+                const label = `${(m.displayName || 'Shared').split(' ')[0]}’s archive`
                 return (
                   <button
                     key={m.creatorId}
@@ -362,7 +360,7 @@ export default function ArchiveShell({
 
       {/* paper workspace */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
-        <div style={{ flex: 1, background: paperTexture, backgroundColor: T.paper }}>
+        <div style={{ flex: 1, backgroundColor: T.paper }}>
           <div className="archive-paper" style={{ maxWidth: contentMax, margin: '0 auto', padding: '38px 40px 46px' }}>
             {children}
           </div>

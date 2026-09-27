@@ -67,6 +67,12 @@ export default function ArchiveWorkspace({
     }
   }, [ctx.profile?.locked, location.pathname, navigate])
 
+  useEffect(() => {
+    if (location.hash) return
+    window.scrollTo(0, 0)
+    document.querySelector('.archive-paper')?.parentElement?.scrollTo?.(0, 0)
+  }, [location.pathname])
+
   const goSection = useCallback((key: SectionKey) => {
     if (scroller.current) scroller.current(key)
     else navigate(`/overview${cQuery}#${key}`)

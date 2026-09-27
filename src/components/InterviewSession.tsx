@@ -1074,6 +1074,7 @@ export default function InterviewSession({
               <>
                 <Mark border={C.umber} color={C.umber} />
                 <div className="legacy-interview-brand" style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
+                <h1 style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, margin: 0, color: C.ink }}>Interview</h1>
               </>
             )}
           </div>

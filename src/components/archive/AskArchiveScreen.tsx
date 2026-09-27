@@ -220,7 +220,7 @@ export default function AskArchiveScreen() {
                   onClick={() => void submit(p)}
                   style={{
                     background: 'transparent', border: `1px solid ${T.line}`, color: T.ink2,
-                    fontFamily: sans, fontSize: 13, padding: '7px 12px', borderRadius: radius.pill,
+                    fontFamily: sans, fontSize: 14, padding: '8px 12px', borderRadius: radius.control,
                     cursor: busy ? 'default' : 'pointer',
                   }}
                 >
@@ -251,9 +251,7 @@ export default function AskArchiveScreen() {
         <EmptyState
           icon="ask"
           title={ASK.empty}
-          note={mayInterview
-            ? 'Begin with a guided interview, then add stories, voice, and photographs.'
-            : 'When entries are added, they will appear here.'}
+          note="Answers become available as stories are added. Nothing has been asked yet."
           cta={mayInterview ? 'Begin interview' : undefined}
           onCta={mayInterview ? () => navigate(`/interview${cQuery}`) : undefined}
         />

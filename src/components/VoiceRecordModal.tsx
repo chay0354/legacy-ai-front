@@ -1,23 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
-import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
-
-const C = {
-  card: '#fbf6ec',
-  ink: '#2b241c',
-  ink2: '#6e6253',
-  ink3: '#9a8d79',
-  line: '#ddccb0',
-  terra: '#c06a44',
-  sage: '#71805c',
-}
-const serif = "'Newsreader', Georgia, serif"
-const sans = "'Hanken Grotesk', system-ui, sans-serif"
+import { useEffect, useId, useRef, useState } from 'react'
+import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, voiceScript } from '../lib/voiceRecord'
+import { T, radius, sans, serif, shadow } from '../design/tokens'
+import { useDialogA11y } from '../lib/useDialogA11y'
 
 type Props = {
   open: boolean
   saving?: boolean
   error?: string | null
   hasExisting?: boolean
+  speakerName?: string | null
   onSave: (wav: Blob) => Promise<void>
   onClose: () => void
 }
@@ -27,9 +18,13 @@ export default function VoiceRecordModal({
   saving = false,
   error,
   hasExisting = false,
+  speakerName,
   onSave,
   onClose,
 }: Props) {
+  const titleId = useId()
+  const panelRef = useDialogA11y(open, onClose)
+  const script = voiceScript(speakerName)
   const [recording, setRecording] = useState(false)
   const [blob, setBlob] = useState<Blob | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -137,6 +132,7 @@ export default function VoiceRecordModal({
     <div
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       onClick={() => { if (!saving) onClose() }}
       className="legacy-modal-overlay"
       style={{
@@ -151,26 +147,30 @@ export default function VoiceRecordModal({
       }}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="legacy-modal-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: 560,
-          background: C.card,
-          border: `1px solid ${C.line}`,
-          borderRadius: 12,
+          background: T.card,
+          border: `1px solid ${T.line}`,
+          borderRadius: radius.card,
           padding: '24px 26px',
-          boxShadow: '0 24px 48px rgba(43,36,28,.18)',
+          boxShadow: shadow.lift,
+          outline: 'none',
         }}
       >
-        <div style={{ fontFamily: serif, fontSize: 24, color: C.ink }}>Record your voice</div>
-        <p style={{ fontFamily: sans, fontSize: 13, color: C.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
-          Read the whole passage slowly. You need at least 30 seconds — 60–90 seconds in a quiet room clones much more reliably.
+        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 24, fontWeight: 400, color: T.ink, margin: 0 }}>Record your voice</h2>
+        <p style={{ fontFamily: sans, fontSize: 14, color: T.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
+          This recording clones your voice for the live avatar. It is not saved as a story. Read the passage slowly — at least 30 seconds, ideally 60–90 in a quiet room.
+          {speakerName?.trim() ? ` Say “${speakerName.trim()}” where your name appears.` : ' Say your name clearly in the first line.'}
         </p>
 
-        <div style={{ background: '#ece3d2', border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px' }}>
-          {VOICE_SCRIPT.map((line, i) => (
-            <p key={i} style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.5, color: C.ink, margin: i ? '10px 0 0' : 0 }}>{line}</p>
+        <div style={{ background: T.paper, border: `1px solid ${T.line}`, borderRadius: radius.sm, padding: '16px 18px' }}>
+          {script.map((line, i) => (
+            <p key={i} style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.5, color: T.ink, margin: i ? '10px 0 0' : 0 }}>{line}</p>
           ))}
         </div>
 
@@ -183,13 +183,13 @@ export default function VoiceRecordModal({
               style={{
                 border: 'none',
                 cursor: saving ? 'default' : 'pointer',
-                background: C.ink,
-                color: C.card,
+                background: T.ink,
+                color: T.onPrimary,
                 fontFamily: sans,
                 fontWeight: 600,
                 fontSize: 14,
                 padding: '12px 22px',
-                borderRadius: 999,
+                borderRadius: radius.control,
               }}
             >
               {blob ? 'Re-record' : 'Start recording'}
@@ -202,20 +202,20 @@ export default function VoiceRecordModal({
               style={{
                 border: 'none',
                 cursor: 'pointer',
-                background: C.terra,
-                color: C.card,
+                background: T.sienna,
+                color: T.onPrimary,
                 fontFamily: sans,
                 fontWeight: 600,
                 fontSize: 14,
                 padding: '12px 22px',
-                borderRadius: 999,
+                borderRadius: radius.control,
               }}
             >
               ■ Stop ({seconds}s)
             </button>
           )}
           {recording && (
-            <span style={{ width: 10, height: 10, borderRadius: '50%', background: C.terra }} />
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: T.sienna }} />
           )}
           {previewUrl && !recording && (
             <audio src={previewUrl} controls style={{ height: 36, maxWidth: '100%' }} />
@@ -223,8 +223,8 @@ export default function VoiceRecordModal({
         </div>
 
         {hasExisting && !blob && (
-          <p style={{ fontFamily: sans, fontSize: 12, color: C.sage, marginTop: 12 }}>
-            ✓ A voice recording is saved. Re-recording replaces what family hears on your avatar page.
+          <p style={{ fontFamily: sans, fontSize: 13, color: T.olive, marginTop: 12 }}>
+            A voice sample is already saved. Re-recording replaces the clone sample. It does not replace a story in the archive.
           </p>
         )}
 
@@ -244,14 +244,14 @@ export default function VoiceRecordModal({
             disabled={saving}
             onClick={onClose}
             style={{
-              border: `1px solid ${C.line}`,
+              border: `1px solid ${T.line}`,
               background: 'transparent',
-              color: C.ink2,
+              color: T.ink2,
               fontFamily: sans,
               fontWeight: 500,
               fontSize: 14,
               padding: '11px 20px',
-              borderRadius: 999,
+              borderRadius: radius.control,
               cursor: saving ? 'default' : 'pointer',
             }}
           >
@@ -263,13 +263,13 @@ export default function VoiceRecordModal({
             onClick={() => void handleSave()}
             style={{
               border: 'none',
-              background: C.terra,
-              color: C.card,
+              background: T.sienna,
+              color: T.onPrimary,
               fontFamily: sans,
               fontWeight: 600,
               fontSize: 14,
               padding: '11px 22px',
-              borderRadius: 999,
+              borderRadius: radius.control,
               cursor: saving || !canSave ? 'not-allowed' : 'pointer',
               opacity: saving || !canSave ? 0.55 : 1,
             }}

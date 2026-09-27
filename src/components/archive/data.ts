@@ -130,7 +130,7 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
       })
     }
     if (assets?.assets?.voice_sample_path) {
-      rows.push({ label: ACTIVITY_LABEL.voice, title: 'Voice sample recorded', icon: 'voice' })
+      rows.push({ label: ACTIVITY_LABEL.voice, title: 'Setup recording, not a story', icon: 'voice' })
     }
     for (const g of (profile?.gallery || []).slice(0, 2)) {
       rows.push({

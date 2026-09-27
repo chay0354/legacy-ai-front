@@ -20,7 +20,7 @@ export const NAV = {
   access: 'Family Access',
   settings: 'Settings',
   billing: 'Plan and purchases',
-  upgrade: 'Upgrade',
+  upgrade: 'Billing & purchases',
   upgradeSub: 'Plan, minutes, and receipts',
 } as const
 
@@ -95,7 +95,7 @@ export function countsLine(counts: {
   const one = (n: number, s: string, p = `${s}s`) => `${n} ${n === 1 ? s : p}`
   return [
     `${one(counts.stories, 'story', 'stories')} gathered`,
-    `${one(counts.voice, 'voice memory', 'voice memories')} added`,
+    `${one(counts.voice, 'voice sample', 'voice samples')} recorded`,
     `${one(counts.people, 'person', 'people')} added`,
     `${one(counts.photographs, 'photograph')} added`,
   ].join(' · ')
@@ -104,7 +104,7 @@ export function countsLine(counts: {
 /** Recent activity labels must match the object they describe. */
 export const ACTIVITY_LABEL = {
   story: 'Story gathered',
-  voice: 'Voice memory added',
+  voice: 'Voice sample recorded',
   photograph: 'Photograph added',
   document: 'Document added',
   person: 'Person added',

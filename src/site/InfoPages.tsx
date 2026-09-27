@@ -23,7 +23,7 @@ function PageHead({
   )
 }
 
-const wrap: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '0 44px 80px' }
+const wrap: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '56px 44px 80px' }
 
 const STEP_MEDIA: Record<number, { label: string; height: number }> = {
   0: { label: 'A table, a notebook, an afternoon', height: 140 },
@@ -53,7 +53,7 @@ export function HowItWorksPage() {
               borderTop: `1px solid ${i === 0 ? T.line : T.lineSoft}`,
               alignItems: 'start',
             }}>
-              <span className="how-step-num" style={{ fontFamily: serif, fontSize: 22, color: T.gold, letterSpacing: '.08em' }}>{s.n}</span>
+              <span className="how-step-num" style={{ fontFamily: sans, fontSize: 18, fontWeight: 600, color: T.ink, letterSpacing: '.04em' }}>{s.n}</span>
               <div className="how-step-copy" style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <Display size={26}>{s.title}</Display>
                 <Body size={15.5} style={{ maxWidth: 520 }}>{s.body}</Body>

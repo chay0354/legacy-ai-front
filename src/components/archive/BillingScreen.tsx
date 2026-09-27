@@ -128,7 +128,7 @@ export default function BillingScreen() {
   return (
     <>
       <SectionHeader
-        eyebrow="Upgrade"
+        eyebrow="Billing & purchases"
         title="Plan and purchases"
         note={choose
           ? 'The package is paid. Choose Monthly to keep interviewing, or Storage to keep the archive open.'
@@ -152,7 +152,7 @@ export default function BillingScreen() {
             {billing?.canViewArchive && (
               <Btn tone="quiet" onClick={() => navigate('/overview')}>Open the archive</Btn>
             )}
-            {showSetup && setup && (
+            {loaded && showSetup && setup && (
               <Btn disabled={Boolean(busy)} onClick={() => void start('setup')}>
                 {busy === 'setup' ? 'Opening checkout…' : `Start with the package — ${setup.displayPrice}`}
               </Btn>
@@ -160,7 +160,7 @@ export default function BillingScreen() {
           </div>
         </Panel>
 
-        {showContinuation && (
+        {loaded && showContinuation && (
           <Panel pad="22px 24px">
             <Display size={20} style={{ marginBottom: 8 }}>{continuationTitle}</Display>
             <Body size={14.5} style={{ marginBottom: 14 }}>{continuationNote}</Body>
