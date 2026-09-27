@@ -14,6 +14,7 @@ import {
 import { T, radius, sans, serif } from '../design/tokens'
 import { BRAND, BRAND_SUB } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Panel } from '../design/ui'
+import DesignDesk from './DesignDesk'
 
 const input: CSSProperties = {
   width: '100%', boxSizing: 'border-box', background: T.card,
@@ -391,8 +392,17 @@ function PriceEditor() {
   )
 }
 
+function deskTab(on: boolean): CSSProperties {
+  return {
+    fontFamily: sans, fontSize: 13.5, color: on ? T.onDark : T.onDark2,
+    background: on ? 'rgba(240,231,214,.12)' : 'transparent', border: 'none',
+    borderRadius: radius.control, padding: '8px 12px', cursor: 'pointer',
+  }
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(() => Boolean(adminToken()))
+  const [desk, setDesk] = useState<'accounts' | 'appearance'>('accounts')
   const [overview, setOverview] = useState<AdminOverview | null>(null)
   const [users, setUsers] = useState<AdminUserRow[]>([])
   const [query, setQuery] = useState('')
@@ -428,8 +438,10 @@ export default function AdminPage() {
           <div style={{ fontFamily: serif, fontSize: 22 }}>{BRAND}</div>
           <Eyebrow color="rgba(179,144,47,.85)">Staff desk · {adminEmail()}</Eyebrow>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, alignItems: 'center' }}>
-          <Link to="/" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark2, textDecoration: 'none' }}>Site</Link>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => setDesk('accounts')} style={deskTab(desk === 'accounts')}>Accounts</button>
+          <button type="button" onClick={() => setDesk('appearance')} style={deskTab(desk === 'appearance')}>Appearance</button>
+          <Link to="/" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark2, textDecoration: 'none', marginLeft: 8 }}>Site</Link>
           <Btn
             tone="onDark"
             size="sm"
@@ -441,7 +453,9 @@ export default function AdminPage() {
       </header>
 
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px 72px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {selected ? (
+        {desk === 'appearance' ? (
+          <DesignDesk />
+        ) : selected ? (
           <UserDetail id={selected} onBack={() => { setSelected(null); refresh() }} onGone={() => { setSelected(null); refresh() }} />
         ) : (
           <>

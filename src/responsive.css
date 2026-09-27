@@ -145,7 +145,7 @@ a.legacy-touch {
   }
 
   .site-wrap {
-    padding: 40px 20px 56px !important;
+    padding: 40px var(--la-gutter) 56px !important;
   }
 
   .site-hero-inner {

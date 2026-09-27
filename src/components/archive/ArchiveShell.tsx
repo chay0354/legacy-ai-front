@@ -73,7 +73,7 @@ export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
  */
 export default function ArchiveShell({
   role, creatorId, creatorName, portraitUrl, memberships = [], children,
-  activeSection, onSection, activeRoute, band = true, contentMax = 1180, locked = false,
+  activeSection, onSection, activeRoute, band = true, locked = false,
 }: {
   role: Role
   creatorId?: string
@@ -86,7 +86,6 @@ export default function ArchiveShell({
   onSection: (key: SectionKey) => void
   activeRoute?: ArchiveRouteKey
   band?: boolean
-  contentMax?: number
   locked?: boolean
 }) {
   const navigate = useNavigate()
@@ -361,7 +360,7 @@ export default function ArchiveShell({
       {/* paper workspace */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
         <div style={{ flex: 1, backgroundColor: T.paper }}>
-          <div className="archive-paper" style={{ maxWidth: contentMax, margin: '0 auto', padding: '38px 40px 46px' }}>
+          <div className="archive-paper" style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '38px var(--la-gutter) 46px' }}>
             {children}
           </div>
         </div>

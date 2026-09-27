@@ -12,44 +12,45 @@
  *   gold             quiet emphasis on dark — never body copy on cream
  */
 
+/** Values resolve from :root. The staff desk publishes overrides onto these variables. */
 export const T = {
-  paper: '#eee5d4',
-  paperDeep: '#e5dac5',
-  card: '#faf5eb',
-  cardEdge: '#ded0b6',
-  line: '#d8c9ae',
-  lineSoft: '#e8dfcb',
+  paper: 'var(--la-paper)',
+  paperDeep: 'var(--la-paper-deep)',
+  card: 'var(--la-card)',
+  cardEdge: 'var(--la-card-edge)',
+  line: 'var(--la-line)',
+  lineSoft: 'var(--la-line-soft)',
 
-  ink: '#241c15',
-  ink2: '#5e5346',
+  ink: 'var(--la-ink)',
+  ink2: 'var(--la-ink-2)',
   /** Informative / status / privacy — 4.5:1 on paper. Do not use for disabled. */
-  ink3: '#5c5246',
-  status: '#5c5246',
+  ink3: 'var(--la-status)',
+  status: 'var(--la-status)',
 
-  walnut: '#2b211a',
-  walnutDeep: '#17110d',
-  walnutMid: '#4a3323',
-  walnutSoft: '#3b2d24',
+  walnut: 'var(--la-walnut)',
+  walnutDeep: 'var(--la-walnut-deep)',
+  walnutMid: 'var(--la-walnut-mid)',
+  walnutSoft: 'var(--la-walnut-soft)',
 
-  olive: '#3c4433',
-  oliveDeep: '#2e3527',
-  oliveSoft: '#5b6647',
+  olive: 'var(--la-olive)',
+  oliveDeep: 'var(--la-olive-deep)',
+  oliveSoft: 'var(--la-olive-soft)',
 
-  sienna: '#b05e37',
-  siennaDeep: '#964d2b',
-  gold: '#b3902f',
+  sienna: 'var(--la-sienna)',
+  siennaDeep: 'var(--la-sienna-deep)',
+  gold: 'var(--la-gold)',
 
-  onDark: '#f0e7d6',
-  onDark2: 'rgba(240,231,214,.86)',
-  onDark3: 'rgba(240,231,214,.70)',
-  darkLine: 'rgba(240,231,214,.18)',
+  onDark: 'var(--la-on-dark)',
+  onDark2: 'var(--la-on-dark-2)',
+  onDark3: 'var(--la-on-dark-3)',
+  darkLine: 'var(--la-dark-line)',
 
-  focus: '#b05e37',
-  error: '#8f3d2c',
-  success: '#3c4433',
-  warning: '#964d2b',
-  disabled: 'rgba(36,28,21,.38)',
-  onPrimary: '#ffffff',
+  focus: 'var(--la-sienna)',
+  error: 'var(--la-error)',
+  success: 'var(--la-olive)',
+  warning: 'var(--la-sienna-deep)',
+  disabled: 'var(--la-disabled)',
+  onPrimary: 'var(--la-on-primary)',
 } as const
 
 export const serif = "'Newsreader', 'Newsreader Fallback', Georgia, serif"
@@ -59,17 +60,24 @@ export const sans =
 export const mono = sans
 
 /** Control radius for buttons/fields. Card radius for panels. Pill only for segmented choices. */
-export const radius = { sm: 6, md: 12, lg: 12, control: 6, card: 12, pill: 999 } as const
+export const radius = {
+  sm: 'var(--la-radius-control)',
+  md: 'var(--la-radius-card)',
+  lg: 'var(--la-radius-card)',
+  control: 'var(--la-radius-control)',
+  card: 'var(--la-radius-card)',
+  pill: 999,
+} as const
 
 export const space = {
   4: 4, 8: 8, 12: 12, 16: 16, 24: 24, 32: 32, 48: 48, 64: 64,
 } as const
 
 export const layout = {
-  gutterMobile: 16,
-  gutterDesktop: 44,
-  contentMax: 1180,
-  controlHeight: 44,
+  gutterMobile: 'var(--la-gutter-mobile)',
+  gutterDesktop: 'var(--la-gutter-desktop)',
+  contentMax: 'var(--la-content-max)',
+  controlHeight: 'var(--la-control)',
 } as const
 
 export const type = {

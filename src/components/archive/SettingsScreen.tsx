@@ -48,7 +48,7 @@ export default function SettingsScreen() {
 
   if (!ctx.profile) return null
 
-  const { role, creatorId, profile, counts, setupPct } = ctx
+  const { role, creatorId, profile, counts, setupPct, level } = ctx
   const name = profile.creator?.display_name || 'This archive'
   const cQuery = creatorId ? `?c=${creatorId}` : ''
 

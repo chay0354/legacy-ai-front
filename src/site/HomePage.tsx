@@ -21,7 +21,7 @@ export default function HomePage() {
         }} />
         <div style={{ position: 'relative' }}>
           <SiteHeader />
-          <div className="site-hero-inner" style={{ padding: '72px 44px 88px', maxWidth: 1280, margin: '0 auto' }}>
+          <div className="site-hero-inner" style={{ padding: '72px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
             <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 22 }}>
               <Eyebrow color="rgba(179,144,47,.9)">{HERO.standfirst}</Eyebrow>
               <h1 className="site-hero-title" style={{
@@ -53,8 +53,8 @@ export default function HomePage() {
       </section>
 
       {/* ── paper explanation ── */}
-      <section className="site-section" style={{ background: T.paper, padding: '76px 44px' }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+      <section className="site-section" style={{ background: T.paper, padding: '76px var(--la-gutter)' }}>
+        <div style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto' }}>
           <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <Eyebrow>A guided conversation</Eyebrow>
             <Display size={40}>
@@ -91,9 +91,9 @@ export default function HomePage() {
       </section>
 
       {/* ── walnut trust band: the room ── */}
-      <section className="site-section" style={{ background: T.walnut, padding: '72px 44px' }}>
+      <section className="site-section" style={{ background: T.walnut, padding: '72px var(--la-gutter)' }}>
         <div className="home-trust" style={{
-          maxWidth: 1180, margin: '0 auto', display: 'grid', gap: 48,
+          maxWidth: 'var(--la-content-max)', margin: '0 auto', display: 'grid', gap: 48,
           gridTemplateColumns: 'minmax(280px, .9fr) minmax(320px, 1.1fr)', alignItems: 'start',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -121,9 +121,9 @@ export default function HomePage() {
       </section>
 
       {/* ── quiet close ── */}
-      <section className="site-section" style={{ background: T.paper, padding: '76px 44px 84px' }}>
+      <section className="site-section" style={{ background: T.paper, padding: '76px var(--la-gutter) 84px' }}>
         <div className="home-close" style={{
-          maxWidth: 1180, margin: '0 auto', display: 'grid', gap: 40,
+          maxWidth: 'var(--la-content-max)', margin: '0 auto', display: 'grid', gap: 40,
           gridTemplateColumns: 'minmax(300px, 1.1fr) minmax(260px, .8fr)', alignItems: 'center',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

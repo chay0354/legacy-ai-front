@@ -12,7 +12,7 @@ function PageHead({
 }: { eyebrow: string; title: string; standfirst?: string }) {
   return (
     <div className="site-page-head" style={{ background: T.walnut }}>
-      <div className="site-page-head-inner" style={{ padding: '48px 44px 42px', maxWidth: 1180, margin: '0 auto' }}>
+      <div className="site-page-head-inner" style={{ padding: '48px var(--la-gutter) 42px', maxWidth: 'var(--la-content-max)', margin: '0 auto' }}>
         <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Eyebrow color="rgba(179,144,47,.9)">{eyebrow}</Eyebrow>
           <Display as="h1" size={46} color={T.onDark} style={{ fontSize: 'clamp(28px, 6vw, 46px)' }}>{title}</Display>
@@ -23,7 +23,7 @@ function PageHead({
   )
 }
 
-const wrap: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '56px 44px 80px' }
+const wrap: CSSProperties = { maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '56px var(--la-gutter) 80px' }
 
 const STEP_MEDIA: Record<number, { label: string; height: number }> = {
   0: { label: 'A table, a notebook, an afternoon', height: 140 },

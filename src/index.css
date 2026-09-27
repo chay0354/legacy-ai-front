@@ -16,11 +16,37 @@
 
 :root {
   --la-paper: #eee5d4;
+  --la-card: #faf5eb;
   --la-ink: #241c15;
+  --la-ink-2: #5e5346;
   --la-status: #5c5246;
   --la-walnut: #2b211a;
   --la-sienna: #b05e37;
-  --la-gutter: 44px;
+  --la-olive: #3c4433;
+  --la-gold: #b3902f;
+  --la-on-dark: #f0e7d6;
+  --la-on-primary: #ffffff;
+  --la-error: #8f3d2c;
+
+  --la-paper-deep: color-mix(in srgb, var(--la-paper) 86%, var(--la-ink));
+  --la-card-edge: color-mix(in srgb, var(--la-paper) 72%, var(--la-ink));
+  --la-line: color-mix(in srgb, var(--la-paper) 64%, var(--la-ink));
+  --la-line-soft: color-mix(in srgb, var(--la-paper) 80%, var(--la-ink));
+  --la-walnut-deep: color-mix(in srgb, var(--la-walnut) 62%, black);
+  --la-walnut-mid: color-mix(in srgb, var(--la-walnut) 72%, white);
+  --la-walnut-soft: color-mix(in srgb, var(--la-walnut) 84%, white);
+  --la-sienna-deep: color-mix(in srgb, var(--la-sienna) 82%, black);
+  --la-olive-deep: color-mix(in srgb, var(--la-olive) 78%, black);
+  --la-olive-soft: color-mix(in srgb, var(--la-olive) 72%, white);
+  --la-on-dark-2: color-mix(in srgb, var(--la-on-dark) 86%, transparent);
+  --la-on-dark-3: color-mix(in srgb, var(--la-on-dark) 70%, transparent);
+  --la-dark-line: color-mix(in srgb, var(--la-on-dark) 18%, transparent);
+  --la-disabled: color-mix(in srgb, var(--la-ink) 38%, transparent);
+
+  --la-gutter-desktop: 44px;
+  --la-gutter-mobile: 16px;
+  --la-gutter: var(--la-gutter-desktop);
+  --la-content-max: 1180px;
   --la-control: 44px;
   --la-radius-control: 6px;
   --la-radius-card: 12px;
@@ -56,12 +82,12 @@ body.la-drawer-open {
 }
 
 a {
-  color: #b05e37;
+  color: var(--la-sienna);
   text-decoration: none;
 }
 
 a:hover {
-  color: #964d2b;
+  color: var(--la-sienna-deep);
 }
 
 ::selection {
@@ -82,8 +108,19 @@ a:hover {
 }
 
 /* Phone: walnut top bar + one-column drawer, not a wrapping two-column rail. */
+.design-desk-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .design-desk-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 900px) {
-  :root { --la-gutter: 16px; }
+  :root { --la-gutter: var(--la-gutter-mobile); }
 
   .archive-mobile-bar {
     display: flex;
