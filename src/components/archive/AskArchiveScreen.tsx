@@ -6,7 +6,7 @@ import AskPortrait from './AskPortrait'
 import { EmptyState, SectionHeader } from './parts'
 import { avatarApi } from '../../lib/api'
 import { ACTIONS, can } from '../../lib/permissions'
-import { ASK, NAV, STATUS, TRUST } from '../../design/copy'
+import { ASK, CTA, NAV, STATUS, TRUST } from '../../design/copy'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { Body, Btn, Display, Eyebrow, ImageSlot, Meta, Panel, PrivacyNote } from '../../design/ui'
 import { playMedia } from '../../lib/playMedia'
@@ -252,7 +252,9 @@ export default function AskArchiveScreen() {
           icon="ask"
           title={ASK.empty}
           note="Answers become available as stories are added. Nothing has been asked yet."
-          cta={mayInterview ? 'Begin interview' : undefined}
+          cta={mayInterview
+            ? (ctx.level > 0 || ctx.setupPct > 0 || memories.length > 0 ? CTA.continueInterview : CTA.beginInterview)
+            : undefined}
           onCta={mayInterview ? () => navigate(`/interview${cQuery}`) : undefined}
         />
       ) : (

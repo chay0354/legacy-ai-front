@@ -244,7 +244,7 @@ function bars(seed: number, n = 84) {
 
 /** Warm dark panel — the atmospheric anchor on the overview screen. */
 export function VoiceMemoryPanel({
-  title, meta, quote, attribution, playing, progress = 0.42, onToggle, onAddNote, chapter,
+  title, meta, quote, attribution, playing, progress = 0.42, onToggle, onAddNote, chapter, sample = false,
 }: {
   title: string
   meta: (string | undefined)[]
@@ -255,6 +255,8 @@ export function VoiceMemoryPanel({
   onToggle?: () => void
   onAddNote?: () => void
   chapter?: string
+  /** Clone sample, not an archived story. */
+  sample?: boolean
 }) {
   const w = bars(title.length * 31 + 3)
   const cut = Math.round(w.length * Math.max(0, Math.min(1, progress)))
@@ -262,7 +264,7 @@ export function VoiceMemoryPanel({
     <Panel onDark pad="22px 26px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <Icon name="voice" size={16} color={T.gold} strokeWidth={1.4} />
-        <Eyebrow color={T.onDark3}>Voice memory{chapter ? ` · ${chapter}` : ''}</Eyebrow>
+        <Eyebrow color={T.onDark3}>{sample ? 'Voice sample' : 'Voice memory'}{chapter ? ` · ${chapter}` : ''}</Eyebrow>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -299,7 +301,7 @@ export function VoiceMemoryPanel({
           />
         </button>
         <span style={{ fontFamily: sans, fontSize: 13, color: T.onDark3 }}>
-          {playing ? 'Playing' : 'Listen to this memory'}
+          {playing ? 'Playing' : sample ? 'Play the voice sample' : 'Listen to this memory'}
         </span>
         {onAddNote && (
           <button
@@ -317,7 +319,7 @@ export function VoiceMemoryPanel({
         )}
       </div>
 
-      {quote && (
+      {quote && !sample && (
         <div style={{
           borderTop: `1px solid ${T.darkLine}`, paddingTop: 16,
           display: 'flex', gap: 12,

@@ -117,6 +117,8 @@ export function VoiceBlock({
   firstMemory?: { title?: string; year?: string; summary?: string }
   ownVoice: boolean
 }) {
+  const real = Boolean((firstMemory?.title || firstMemory?.summary || '').trim())
+  const excerpt = firstMemory?.summary?.trim()
   return (
     <div className="overview-grid" style={{
       display: 'grid', gap: 18,
@@ -124,25 +126,32 @@ export function VoiceBlock({
     }}>
       {voiceUrl ? (
         <VoiceMemoryPanel
-          title={firstMemory?.title || 'A voice memory'}
-          meta={[
-            ownVoice ? 'Recorded in your voice' : `Recorded in ${ownerFirstName}’s voice`,
-            firstMemory?.year || undefined,
-          ]}
-          quote={firstMemory?.summary
-            ? `${firstMemory.summary.slice(0, 150)}${firstMemory.summary.length > 150 ? '…' : ''}`
-            : 'Voice sample recorded. This is the clone recording, not a story.'}
+          sample={!real}
+          title={real ? (firstMemory?.title || 'A voice memory') : 'Voice sample recorded'}
+          meta={real
+            ? [
+              ownVoice ? 'Recorded in your voice' : `Recorded in ${ownerFirstName}’s voice`,
+              firstMemory?.year || undefined,
+            ]
+            : [ownVoice ? 'Setup recording, not a story' : `Setup recording for ${ownerFirstName}`]}
+          quote={real && excerpt
+            ? `${excerpt.slice(0, 150)}${excerpt.length > 150 ? '…' : ''}`
+            : undefined}
           playing={playing}
           onToggle={onToggle}
         />
       ) : (
         <Panel onDark pad="30px 28px" style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
           <Icon name="voice" size={22} color={T.gold} />
-          <Display size={25} color={T.onDark}>No voice memory yet</Display>
+          <Display size={25} color={T.onDark}>{real ? 'No voice memory yet' : 'No voice sample yet'}</Display>
           <Body size={14.5} color={T.onDark2} style={{ maxWidth: 400 }}>
-            {ownVoice
-              ? 'Read a short passage aloud and a story arrives the way you told it. Nothing is shared until you say so.'
-              : `${ownerFirstName} has not recorded a voice memory yet.`}
+            {real
+              ? (ownVoice
+                ? 'A story can be kept as a recording, the way you told it.'
+                : `${ownerFirstName} has not recorded a voice memory yet.`)
+              : (ownVoice
+                ? 'Record a short sample so the live avatar can use your voice. It is not saved as a story.'
+                : `${ownerFirstName} has not recorded a voice sample yet.`)}
           </Body>
           <PrivacyNote onDark>Voice and likeness require explicit permission</PrivacyNote>
         </Panel>

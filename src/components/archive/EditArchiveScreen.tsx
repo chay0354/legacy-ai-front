@@ -410,7 +410,7 @@ export default function EditArchiveScreen() {
               </Body>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Btn tone="quiet" size="sm" icon="voice" onClick={() => setVoiceOpen(true)}>
-                  {voiceUrl ? 'Record again' : CTA.recordVoice}
+                  {voiceUrl ? 'Record again' : 'Record a voice sample'}
                 </Btn>
               </div>
               <PrivacyNote>Voice and likeness require explicit permission</PrivacyNote>
