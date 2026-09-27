@@ -13,7 +13,7 @@ import {
 } from "../lib/interviewDepth";
 import { sanitizeForSessionLanguage, textMatchesSessionLanguage } from "../lib/languageScript";
 import { avatarApi, type CreatorGender, type CreatorPronouns } from "../lib/api";
-import { C, T, serif, sans } from "../design/tokens";
+import { C, T, radius, serif, sans } from "../design/tokens";
 
 /**
  * Legacy AI — Interview Session
@@ -1066,7 +1066,7 @@ export default function InterviewSession({
         background: embedded ? T.walnut : undefined,
         margin: embedded ? "0 -8px 8px" : undefined,
         padding: embedded ? "10px 16px 12px" : undefined,
-        borderRadius: embedded ? 4 : undefined,
+        borderRadius: embedded ? radius.control : undefined,
       }}>
         <div className="legacy-interview-top" style={{ maxWidth: 920, margin: "0 auto", padding: embedded ? "0 0" : "0 28px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1074,9 +1074,9 @@ export default function InterviewSession({
               <>
                 <Mark border={C.umber} color={C.umber} />
                 <div className="legacy-interview-brand" style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
-                <h1 style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, margin: 0, color: C.ink }}>Interview</h1>
               </>
             )}
+            <h1 style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, margin: 0, color: embedded ? T.onDark : C.ink }}>Interview</h1>
           </div>
           <div className="legacy-interview-status" style={{ fontFamily: sans, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600, color: embedded ? "rgba(240,231,214,.62)" : C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
             {running ? (
@@ -1091,7 +1091,7 @@ export default function InterviewSession({
               <button
                 type="button"
                 onClick={onBack}
-                style={{ cursor: "pointer", background: embedded ? "rgba(240,231,214,.10)" : C.card, border: `1px solid ${embedded ? "rgba(240,231,214,.22)" : C.line}`, color: embedded ? "#f0e7d6" : C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: 4, whiteSpace: "nowrap" }}
+                style={{ cursor: "pointer", background: embedded ? "rgba(240,231,214,.10)" : C.card, border: `1px solid ${embedded ? "rgba(240,231,214,.22)" : C.line}`, color: embedded ? T.onDark : C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: radius.control, whiteSpace: "nowrap" }}
               >
                 Back to home
               </button>
@@ -1116,13 +1116,13 @@ export default function InterviewSession({
               </div>
             </div>
             <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3, marginBottom: 14 }}>{stageLabel} · {stageGoal}</div>
-            <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
+            <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
               {stageLabel === "Foundation"
                 ? `Let's spend a little time together, ${subjectName}.`
                 : stageLabel === "Enriched"
                   ? `Let's go deeper, ${subjectName}.`
                   : `Let's capture what matters most, ${subjectName}.`}
-            </h1>
+            </h2>
             <p style={{ fontSize: 17, lineHeight: 1.6, color: C.ink2, margin: "20px 0 0", maxWidth: 480 }}>
               {aiVoice
                 ? "This is a conversation to preserve your life story for your family — not a test. When you press start, your interviewer will briefly explain how it works, then begin."
@@ -1312,7 +1312,7 @@ export default function InterviewSession({
                 </p>
               </div>
             ) : (
-              <h1 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h1>
+              <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h2>
             )}
 
             {/* mode toggle */}
@@ -1503,7 +1503,7 @@ export default function InterviewSession({
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, animation: "la-breathe 1.4s ease-in-out infinite" }}>
                   <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#fbf6ec" }} />
                 </div>
-                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h1>
+                <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   Your interview is finished. We're extracting your stories, values, and wisdom — this usually takes under a minute.
                 </p>
@@ -1511,7 +1511,7 @@ export default function InterviewSession({
             ) : (
               <>
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.sage, color: "#fbf6ec", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 26 }}>✓</div>
-                <h1 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h1>
+                <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 20, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   {processingError
                     ? processingError
