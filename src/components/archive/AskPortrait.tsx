@@ -154,7 +154,7 @@ export default function AskPortrait({
               }}>
                 <span style={{
                   background: 'rgba(30,23,18,.62)', color: T.onDark,
-                  padding: '7px 14px', borderRadius: radius.pill,
+                  padding: '7px 14px', borderRadius: radius.control,
                   fontFamily: sans, fontSize: 12,
                 }}>
                   {live.statusNote || ASK.connecting}
@@ -190,7 +190,7 @@ export default function AskPortrait({
               <div style={{
                 position: 'absolute', top: 10, left: 10,
                 display: 'flex', alignItems: 'center', gap: 7,
-                background: 'rgba(30,23,18,.5)', padding: '5px 10px', borderRadius: radius.pill,
+                background: 'rgba(30,23,18,.5)', padding: '5px 10px', borderRadius: radius.control,
               }}>
                 <span className="archive-live-dot" style={{
                   width: 7, height: 7, borderRadius: '50%', background: T.sienna,

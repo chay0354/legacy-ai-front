@@ -229,11 +229,11 @@ export default function VoiceRecordModal({
         )}
 
         {displayError && (
-          <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{displayError}</p>
+          <p style={{ color: T.error, fontSize: 13, marginTop: 12 }}>{displayError}</p>
         )}
 
         {blob && !recording && recordedSeconds < MIN_VOICE_SECONDS && (
-          <p style={{ fontFamily: sans, fontSize: 13, color: '#b04a3a', marginTop: 12 }}>
+          <p style={{ fontFamily: sans, fontSize: 13, color: T.error, marginTop: 12 }}>
             {UNDER_30S_MESSAGE}
           </p>
         )}

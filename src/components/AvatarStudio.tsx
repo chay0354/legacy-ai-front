@@ -10,14 +10,14 @@ import { ANAM_LANGUAGES, guessAnamLanguage, normalizeAnamLanguage } from '../lib
 import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
 import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImage'
 import { bindMediaStream } from '../lib/playMedia'
-import { C, sans, serif } from '../design/tokens'
+import { C, T, radius, sans, serif } from '../design/tokens'
 import { Select } from '../design/ui'
 
 const mono = sans
 
-const primaryBtn: React.CSSProperties = { background: C.ink, color: C.paper, border: 'none', borderRadius: 6, padding: '13px 26px', fontFamily: sans, fontWeight: 600, fontSize: 14, cursor: 'pointer' }
-const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: 6, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
-const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: '26px 28px' }
+const primaryBtn: React.CSSProperties = { background: T.sienna, color: T.onPrimary, border: 'none', borderRadius: radius.control, padding: '13px 26px', fontFamily: sans, fontWeight: 600, fontSize: 14, cursor: 'pointer' }
+const ghostBtn: React.CSSProperties = { background: 'transparent', border: `1px solid ${C.line}`, color: C.ink2, borderRadius: radius.control, padding: '12px 22px', fontFamily: sans, fontWeight: 500, fontSize: 14, cursor: 'pointer' }
+const card: React.CSSProperties = { background: C.card, border: `1px solid ${C.line}`, borderRadius: radius.card, padding: '26px 28px' }
 
 type StepId = 'intro' | 'voice' | 'photo' | 'generate'
 const STEPS: { id: StepId; label: string }[] = [
@@ -238,7 +238,7 @@ function Intro({
         {saved && !idError && (
           <div style={{ fontFamily: mono, fontSize: 11, color: C.sage, marginTop: 10 }}>✓ saved for your avatar &amp; interviews</div>
         )}
-        {idError && <div style={{ fontSize: 13, color: '#b04a3a', marginTop: 10 }}>{idError}</div>}
+        {idError && <div style={{ fontSize: 13, color: T.error, marginTop: 10 }}>{idError}</div>}
       </div>
 
       <ul style={{ fontSize: 14, lineHeight: 1.9, color: C.ink2, marginTop: 16 }}>
@@ -248,8 +248,8 @@ function Intro({
       </ul>
       <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
         <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update live avatar' : 'Begin'}</button>
-        {cloned && <span style={{ fontFamily: mono, fontSize: 11, color: C.sage }}>✓ your voice is cloned</span>}
-        {hasVoice && !cloned && <span style={{ fontFamily: mono, fontSize: 11, color: '#b04a3a' }}>⚠ voice not cloned — re-record in Voice step</span>}
+        {cloned && <span style={{ fontFamily: sans, fontSize: 13, color: C.sage }}>Your voice sample is cloned.</span>}
+        {hasVoice && !cloned && <span style={{ fontFamily: sans, fontSize: 13, color: T.error }}>Re-record the voice sample in the Voice step.</span>}
       </div>
       <p style={{ fontSize: 12, color: C.ink3, marginTop: 16 }}>You’ll be asked for microphone and camera permission. Nothing is shared — only you and people you invite can see it.</p>
     </div>
@@ -274,7 +274,7 @@ function StudioProgress({ label, named }: { label: string; named?: boolean }) {
   const current = named ? anamStepFromPhase(label) : null
   const idx = current ? ANAM_STEPS.findIndex((s) => s.id === current) : -1
   return (
-    <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
+    <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: radius.card }}>
       <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: C.terra }}>{label}</div>
       {named && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
@@ -442,7 +442,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
         </span>
       </div>
 
-      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10, padding: '16px 18px', marginTop: 16 }}>
+      <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: radius.card, padding: '16px 18px', marginTop: 16 }}>
         {language === 'en' ? (
           VOICE_SCRIPT.map((l, i) => (
             <p key={i} style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.5, color: C.ink, margin: i ? '10px 0 0' : 0 }}>{l}</p>
@@ -469,18 +469,18 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
       </div>
 
       {assets?.voice_status === 'ready' && !blob && (
-        <p style={{ fontFamily: mono, fontSize: 11, color: assets.metadata?.cloned === false ? '#b04a3a' : C.sage, marginTop: 12 }}>
+        <p style={{ fontFamily: mono, fontSize: 11, color: assets.metadata?.cloned === false ? T.error : C.sage, marginTop: 12 }}>
           {assets.metadata?.cloned === false
-            ? `⚠ Voice is not cloned yet — re-record here (${MIN_VOICE_SECONDS}+ seconds, quiet room).`
-            : '✓ Your cloned voice is saved. Re-recording replaces it.'}
+            ? `Voice is not cloned yet. Re-record here, at least ${MIN_VOICE_SECONDS} seconds, in a quiet room.`
+            : 'Your cloned voice is saved. Re-recording replaces it.'}
         </p>
       )}
-      {error && !busy && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+      {error && !busy && <p style={{ color: T.error, fontSize: 13, marginTop: 12 }}>{error}</p>}
 
       {busy && <StudioProgress label="Cloning your voice…" />}
 
       {blob && !recording && recordedSeconds < MIN_VOICE_SECONDS && !busy && (
-        <p style={{ fontFamily: sans, fontSize: 13, color: '#b04a3a', marginTop: 12 }}>
+        <p style={{ fontFamily: sans, fontSize: 13, color: T.error, marginTop: 12 }}>
           {UNDER_30S_MESSAGE}
         </p>
       )}
@@ -705,7 +705,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
           position: 'relative',
           width: 'min(100%, 360px)',
           aspectRatio: '1',
-          borderRadius: 18,
+          borderRadius: radius.card,
           overflow: 'hidden',
           background: '#1a1612',
           margin: '20px 0 12px',
@@ -781,7 +781,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
                 fontSize: 11,
                 letterSpacing: '.1em',
                 textTransform: 'uppercase',
-                color: '#fbf6ec',
+                color: T.onDark,
                 textShadow: '0 1px 4px rgba(0,0,0,.55)',
               }}
             >
@@ -845,7 +845,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
       </div>
 
       {hint && !error && <p style={{ color: C.sage, fontSize: 13, marginTop: 12, lineHeight: 1.45 }}>{hint}</p>}
-      {error && !busy && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+      {error && !busy && <p style={{ color: T.error, fontSize: 13, marginTop: 12 }}>{error}</p>}
 
       {busy && <StudioProgress label="Saving your photo…" />}
 
@@ -917,7 +917,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
       {status === 'generating' && <StudioProgress label={phase} named />}
 
       {status === 'done' && (
-        <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: 10 }}>
+        <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: radius.card }}>
           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Live avatar ready</div>
           <p style={{ fontSize: 14, color: C.ink2, margin: 0, lineHeight: 1.5 }}>
             {notice || 'Your face and voice are set up. Use Live Call on your legacy page for a real-time conversation.'}
@@ -925,7 +925,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         </div>
       )}
 
-      {error && <p style={{ color: '#b04a3a', fontSize: 13, marginTop: 12 }}>{error}</p>}
+      {error && <p style={{ color: T.error, fontSize: 13, marginTop: 12 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
         <button style={ghostBtn} onClick={onBack} disabled={status === 'generating'}>← Back</button>

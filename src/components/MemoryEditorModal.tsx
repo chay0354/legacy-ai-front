@@ -152,7 +152,7 @@ export default function MemoryEditorModal({
         </div>
 
         {error && (
-          <p style={{ fontFamily: sans, fontSize: 13, color: '#b04a3a', margin: '0 0 14px' }}>{error}</p>
+          <p style={{ fontFamily: sans, fontSize: 13, color: T.error, margin: '0 0 14px' }}>{error}</p>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -201,9 +201,9 @@ export default function MemoryEditorModal({
               style={{
                 marginLeft: 'auto',
                 cursor: 'pointer',
-                border: '1px solid #e8b4ab',
+                border: `1px solid ${T.error}`,
                 background: 'transparent',
-                color: '#b04a3a',
+                color: T.error,
                 fontFamily: sans,
                 fontWeight: 600,
                 fontSize: 13,

@@ -347,7 +347,7 @@ export function PricingPage() {
             maxWidth: 860, marginBottom: 22, padding: '14px 16px',
             border: `1px solid ${T.sienna}`, borderRadius: radius.sm, background: T.card,
           }}>
-            <Body size={14.5} color="#b04a3a">{error}</Body>
+            <Body size={14.5} color={T.error}>{error}</Body>
           </div>
         )}
         {ready && signedIn && billing?.hasSetup && (

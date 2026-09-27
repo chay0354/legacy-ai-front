@@ -1,4 +1,5 @@
 import { Fragment, useEffect } from 'react'
+import { T } from '../design/tokens'
 
 export interface StageStep {
   label: string
@@ -60,7 +61,7 @@ export default function StageProgressTrack({
                     status === 'done'
                       ? onDark ? '#a8c49a' : C.sage
                       : status === 'current'
-                        ? onDark ? '#fbf6ec' : C.ink
+                        ? onDark ? T.onDark : C.ink
                         : onDark ? 'rgba(240,231,214,.70)' : C.ink3,
                 }}
               >

@@ -89,7 +89,7 @@ export default function PaywallCard({
       >
         {kind === 'minutes' || hasSetup ? 'Go to billing' : 'See the package'}
       </button>
-      {error && <Body size={13.5} color="#b04a3a">{error}</Body>}
+      {error && <Body size={13.5} color={T.error}>{error}</Body>}
     </div>
   )
 }

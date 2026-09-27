@@ -191,7 +191,7 @@ export default function EditArchiveScreen() {
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: sans, fontSize: 12.5,
       color: done ? T.olive : T.ink3, border: `1px solid ${done ? 'rgba(60,68,51,.35)' : T.lineSoft}`,
-      borderRadius: radius.pill, padding: '4px 11px',
+      borderRadius: radius.control, padding: '4px 11px',
     }}>
       <Icon name={done ? 'check' : 'clock'} size={13} color={done ? T.olive : T.ink3} strokeWidth={1.4} />
       {label}

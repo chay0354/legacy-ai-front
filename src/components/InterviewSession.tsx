@@ -1244,7 +1244,7 @@ export default function InterviewSession({
                 </div>
               </div>
               {identityError && (
-                <div style={{ fontSize: 13, color: "#b04a3a", marginTop: 10 }}>{identityError}</div>
+                <div style={{ fontSize: 13, color: T.error, marginTop: 10 }}>{identityError}</div>
               )}
             </div>
             )}
@@ -1345,7 +1345,7 @@ export default function InterviewSession({
                       {convLive && (
                         <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 3, height: 30 }}>
                           {[0.5, 1, 0.7, 0.9, 0.6].map((h, i) => (
-                            <span key={i} style={{ width: 4, height: 30, borderRadius: 2, transformOrigin: "center", background: "#fbf6ec", transform: `scaleY(${h})`, animation: ambient ? `la-eq ${(0.7 + i * 0.1).toFixed(2)}s ease-in-out infinite` : "none", animationDelay: `${(i * 0.08).toFixed(2)}s` }} />
+                            <span key={i} style={{ width: 4, height: 30, borderRadius: 2, transformOrigin: "center", background: T.onPrimary, transform: `scaleY(${h})`, animation: ambient ? `la-eq ${(0.7 + i * 0.1).toFixed(2)}s ease-in-out infinite` : "none", animationDelay: `${(i * 0.08).toFixed(2)}s` }} />
                           ))}
                         </span>
                       )}
@@ -1359,12 +1359,12 @@ export default function InterviewSession({
                       {listening && (
                         <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 3, height: 30 }}>
                           {[0.5, 1, 0.7, 0.9, 0.6].map((h, i) => (
-                            <span key={i} style={{ width: 4, height: 30, borderRadius: 2, transformOrigin: "center", background: "#fbf6ec", transform: `scaleY(${h})`, animation: ambient ? `la-eq ${(0.7 + i * 0.1).toFixed(2)}s ease-in-out infinite` : "none", animationDelay: `${(i * 0.08).toFixed(2)}s` }} />
+                            <span key={i} style={{ width: 4, height: 30, borderRadius: 2, transformOrigin: "center", background: T.onPrimary, transform: `scaleY(${h})`, animation: ambient ? `la-eq ${(0.7 + i * 0.1).toFixed(2)}s ease-in-out infinite` : "none", animationDelay: `${(i * 0.08).toFixed(2)}s` }} />
                           ))}
                         </span>
                       )}
-                      {asking && <span style={{ position: "relative", width: 16, height: 16, borderRadius: "50%", background: "#fbf6ec", animation: "la-breathe 1.4s ease-in-out infinite" }} />}
-                      {doneV && <span style={{ position: "relative", fontSize: 34, color: "#fbf6ec", lineHeight: 1 }}>✓</span>}
+                      {asking && <span style={{ position: "relative", width: 16, height: 16, borderRadius: "50%", background: T.onPrimary, animation: "la-breathe 1.4s ease-in-out infinite" }} />}
+                      {doneV && <span style={{ position: "relative", fontSize: 34, color: T.onPrimary, lineHeight: 1 }}>✓</span>}
                     </button>
                   )}
                   <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: statusColor, marginTop: 18 }}>{statusLabel}</div>
@@ -1501,7 +1501,7 @@ export default function InterviewSession({
             {processing ? (
               <>
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, animation: "la-breathe 1.4s ease-in-out infinite" }}>
-                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#fbf6ec" }} />
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", background: T.onPrimary }} />
                 </div>
                 <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
@@ -1510,7 +1510,7 @@ export default function InterviewSession({
               </>
             ) : (
               <>
-                <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.sage, color: "#fbf6ec", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 26 }}>✓</div>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.sage, color: T.onPrimary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 26 }}>✓</div>
                 <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 20, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   {processingError
@@ -1544,7 +1544,7 @@ export default function InterviewSession({
                           { label: "Wisdom", n: extractionResult.counts.wisdom },
                           { label: "Threads", n: extractionResult.counts.threads },
                         ].map(({ label, n }) => (
-                          <span key={label} style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 999, padding: "6px 12px", color: C.ink2 }}>
+                          <span key={label} style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".08em", textTransform: "uppercase", background: C.panel, border: `1px solid ${C.line}`, borderRadius: radius.control, padding: "6px 12px", color: C.ink2 }}>
                             {n} {label}
                           </span>
                         ))}

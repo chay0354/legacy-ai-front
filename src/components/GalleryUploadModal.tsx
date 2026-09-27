@@ -151,7 +151,7 @@ export default function GalleryUploadModal({
         </label>
 
         {error && (
-          <p style={{ fontFamily: sans, fontSize: 13, color: '#b04a3a', margin: '14px 0 0' }}>{error}</p>
+          <p style={{ fontFamily: sans, fontSize: 13, color: T.error, margin: '14px 0 0' }}>{error}</p>
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>

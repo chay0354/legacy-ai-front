@@ -100,6 +100,25 @@ function BootScreen({ label }: { label: string }) {
   )
 }
 
+/** New routes open at the top. A hash jumps to that section instead. */
+function ScrollToTop() {
+  const { pathname, hash } = useLocation()
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (hash) {
+        const el = document.getElementById(decodeURIComponent(hash.slice(1)))
+        if (el) {
+          el.scrollIntoView()
+          return
+        }
+      }
+      window.scrollTo(0, 0)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, hash])
+  return null
+}
+
 function PaneNotice({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
@@ -903,6 +922,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* public site */}
         <Route path="/" element={<PublicHome session={session} />} />

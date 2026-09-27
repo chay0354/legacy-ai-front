@@ -251,7 +251,7 @@ export default function BillingScreen() {
           )}
         </Panel>
 
-        {error && <Body size={14} color="#b04a3a">{error}</Body>}
+        {error && <Body size={14} color={T.error}>{error}</Body>}
       </div>
     </>
   )

@@ -11,10 +11,7 @@ import {
 } from '../lib/anamSessionGate'
 import { textMatchesSessionLanguage } from '../lib/languageScript'
 import { bindMediaStream, playMedia } from '../lib/playMedia'
-
-const C = { line: '#ddccb0', terra: '#c06a44' }
-const sans = "'Hanken Grotesk', system-ui, sans-serif"
-const serif = "'Newsreader', Georgia, serif"
+import { T, radius, sans, serif } from '../design/tokens'
 
 /** Keep captions to a spoken subtitle — never a wall of text over the face. */
 const CAPTION_MAX_CHARS = 160
@@ -450,13 +447,13 @@ export default function LiveAvatarCall({ creatorId, name = 'your legacy', onClos
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0d0b09', zIndex: 1000, display: 'flex', flexDirection: 'column', fontFamily: sans }}>
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#0d0b09' }}>
+    <div style={{ position: 'fixed', inset: 0, background: T.walnutDeep, zIndex: 1000, display: 'flex', flexDirection: 'column', fontFamily: sans }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', background: T.walnutDeep }}>
         <video
           id={VIDEO_ID}
           autoPlay
           playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#0d0b09' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', background: T.walnutDeep }}
         />
 
         {live.phase === 'connecting' && (
@@ -468,11 +465,11 @@ export default function LiveAvatarCall({ creatorId, name = 'your legacy', onClos
 
         {live.phase === 'error' && (
           <Overlay>
-            <div style={{ fontFamily: serif, fontSize: 22, color: '#ffb4a3' }}>Live call couldn’t start</div>
+            <div style={{ fontFamily: serif, fontSize: 22, color: T.onDark }}>Live call couldn’t start</div>
             <div style={{ fontSize: 13, opacity: 0.85, marginTop: 10, maxWidth: 460, textAlign: 'center' }}>{live.error}</div>
             <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-              <button style={btn(C.terra)} onClick={() => void live.retry()}>Try again</button>
-              <button style={btn('#3a322a')} onClick={onClose}>Close</button>
+              <button style={btn(T.sienna)} onClick={() => void live.retry()}>Try again</button>
+              <button style={btn(T.walnutSoft)} onClick={onClose}>Close</button>
             </div>
           </Overlay>
         )}
@@ -481,9 +478,9 @@ export default function LiveAvatarCall({ creatorId, name = 'your legacy', onClos
           <div className="legacy-live-call-captions" style={{ position: 'absolute', left: 0, right: 0, bottom: 24, display: 'flex', justifyContent: 'center', padding: '0 24px', pointerEvents: 'none' }}>
             <div style={{
               background: 'rgba(0,0,0,.55)',
-              color: '#fff',
+              color: T.onDark,
               padding: '10px 18px',
-              borderRadius: 12,
+              borderRadius: radius.card,
               fontSize: 16,
               lineHeight: 1.35,
               maxWidth: 520,
@@ -520,7 +517,7 @@ export function LiveCallControls({
       display: 'flex',
       justifyContent: 'center',
       padding: compact ? '12px 0 0' : '18px',
-      background: compact ? 'transparent' : '#16120e',
+      background: compact ? 'transparent' : T.walnut,
     }}>
       <button
         type="button"
@@ -530,7 +527,7 @@ export function LiveCallControls({
           width: size,
           height: size,
           borderRadius: '50%',
-          background: '#e0563f',
+          background: T.error,
           border: 'none',
           cursor: 'pointer',
           boxShadow: '0 4px 16px rgba(224,86,63,.42)',
@@ -552,9 +549,9 @@ function Overlay({ children }: { children: React.ReactNode }) {
 function btn(bg: string): React.CSSProperties {
   return {
     background: bg,
-    color: '#fff',
+    color: T.onPrimary,
     border: 'none',
-    borderRadius: 999,
+    borderRadius: radius.control,
     padding: '11px 20px',
     fontFamily: sans,
     fontWeight: 600,
