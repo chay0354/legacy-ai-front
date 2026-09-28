@@ -6,6 +6,7 @@ import {
   postThemePreview, sanitizeTheme, themeDefaults,
   type ThemeDraft, type ThemeKey, type ThemeOverrides,
 } from '../design/theme'
+import { emptyContent, sanitizeContent, THEME_CONTENT_EDIT, type ThemeContent } from '../design/themeContent'
 import { Body, Btn } from '../design/ui'
 
 const SCREENS: { id: string; label: string; path: string; group: 'Site' | 'Archive' }[] = [
@@ -63,6 +64,7 @@ function previewSrc(path: string) {
 
 export default function DesignDesk() {
   const [draft, setDraft] = useState<ThemeDraft | null>(null)
+  const [content, setContent] = useState<ThemeContent>(emptyContent())
   const [screenId, setScreenId] = useState('home')
   const [device, setDevice] = useState<(typeof DEVICES)[number]['id']>('desktop')
   const [busy, setBusy] = useState(false)
@@ -79,6 +81,7 @@ export default function DesignDesk() {
       .then((data) => {
         if (!live) return
         published.current = sanitizeTheme(data.tokens)
+        setContent(sanitizeContent(data.tokens))
         setDraft(mergeTheme(data.tokens))
       })
       .catch((e) => {
@@ -92,7 +95,7 @@ export default function DesignDesk() {
   useEffect(() => {
     if (!draft) return
     const frame = frameRef.current
-    const send = () => postThemePreview(frame, draft)
+    const send = () => postThemePreview(frame, draft, content)
     send()
     const onReady = (event: MessageEvent) => {
       if (event.origin !== location.origin) return
@@ -102,7 +105,7 @@ export default function DesignDesk() {
     }
     window.addEventListener('message', onReady)
     return () => window.removeEventListener('message', onReady)
-  }, [draft, screenId])
+  }, [draft, content, screenId])
 
   function setColor(key: ThemeKey, value: string) {
     const next = value.toLowerCase()
@@ -119,14 +122,35 @@ export default function DesignDesk() {
     setNote(null)
   }
 
+  useEffect(() => {
+    const onEdit = (event: MessageEvent) => {
+      if (event.origin !== location.origin) return
+      if (event.source !== frameRef.current?.contentWindow) return
+      if (event.data?.type !== THEME_CONTENT_EDIT) return
+      setContent(sanitizeContent(event.data.content))
+      setNote(null)
+    }
+    window.addEventListener('message', onEdit)
+    return () => window.removeEventListener('message', onEdit)
+  }, [])
+
+  function savedTokens(colors: ThemeOverrides, next: ThemeContent) {
+    return {
+      ...colors,
+      ...(Object.keys(next.copy).length ? { copy: next.copy } : {}),
+      ...(Object.keys(next.images).length ? { images: next.images } : {}),
+    }
+  }
+
   async function publish() {
     if (!draft) return
     setBusy(true)
     setError(null)
     setNote(null)
     try {
-      const saved = await adminApi.setTheme(sanitizeTheme(draft))
+      const saved = await adminApi.setTheme(savedTokens(sanitizeTheme(draft), content))
       published.current = sanitizeTheme(saved.tokens)
+      setContent(sanitizeContent(saved.tokens))
       setDraft(mergeTheme(saved.tokens))
       setNote('Published. Every visitor sees this.')
     } catch (e) {
@@ -143,6 +167,7 @@ export default function DesignDesk() {
     try {
       const saved = await adminApi.setTheme({})
       published.current = {}
+      setContent(emptyContent())
       setDraft(mergeTheme(saved.tokens))
       setNote('Restored the original appearance.')
     } catch (e) {
@@ -162,7 +187,7 @@ export default function DesignDesk() {
             Screens
           </div>
           <p style={{ fontFamily: sans, fontSize: 13, color: T.ink2, margin: '8px 0 0', lineHeight: 1.45 }}>
-            The frame is the real page. Edits show there immediately and stay private until you publish.
+            Click wording to change it. Click a photo, drag to move it, and use the size slider. Nothing is public until you publish.
           </p>
         </div>
         {(['Site', 'Archive'] as const).map((group) => (
@@ -243,6 +268,7 @@ export default function DesignDesk() {
           background: T.walnut, color: T.onDark, flexWrap: 'wrap',
         }}>
           <span style={{ fontFamily: sans, fontSize: 14 }}>{screen.label}</span>
+          <span style={{ fontFamily: sans, fontSize: 13, color: T.onDark2 }}>Click text. Drag a photo.</span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
             {DEVICES.map((item) => (
               <button
@@ -271,7 +297,7 @@ export default function DesignDesk() {
             src={previewSrc(screen.path)}
             className="theme-customizer-frame"
             style={{ width, maxWidth: '100%' }}
-            onLoad={() => { if (draft) postThemePreview(frameRef.current, draft) }}
+            onLoad={() => { if (draft) postThemePreview(frameRef.current, draft, content) }}
           />
         </div>
       </section>

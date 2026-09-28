@@ -1,4 +1,5 @@
 import { apiUrl } from '../lib/apiUrl'
+import { sanitizeContent, watchContent, type ThemeContent } from './themeContent'
 
 /** Seed values. Must match `:root` in index.css and the backend sanitizer. */
 export const THEME_DEFAULTS = {
@@ -141,20 +142,22 @@ export const THEME_PREVIEW_MESSAGE = 'legacy-theme-preview'
 export const THEME_PREVIEW_READY = 'legacy-theme-ready'
 
 /** The staff desk posts unsaved tokens into a same-origin preview frame. */
-export function postThemePreview(frame: HTMLIFrameElement | null, draft: ThemeDraft) {
+export function postThemePreview(frame: HTMLIFrameElement | null, draft: ThemeDraft, content: ThemeContent) {
   frame?.contentWindow?.postMessage(
-    { type: THEME_PREVIEW_MESSAGE, tokens: draft },
+    { type: THEME_PREVIEW_MESSAGE, tokens: draft, copy: content.copy, images: content.images },
     location.origin,
   )
 }
 
 export function installThemePreviewBridge() {
   if (new URLSearchParams(location.search).get('themePreview') !== '1') return false
+  watchContent({ copy: {}, images: {} }, 'edit')
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.origin !== location.origin) return
     const data = event.data as { type?: string; tokens?: unknown } | null
     if (!data || data.type !== THEME_PREVIEW_MESSAGE) return
     paintTheme(mergeTheme(data.tokens))
+    watchContent(sanitizeContent(data), 'edit')
   })
   window.parent.postMessage({ type: THEME_PREVIEW_READY }, location.origin)
   return true
@@ -167,6 +170,7 @@ export async function bootTheme() {
     if (!res.ok) return
     const data = await res.json() as { tokens?: unknown }
     applyTheme(data.tokens || {})
+    watchContent(sanitizeContent(data.tokens), 'live')
   } catch {
     /* stylesheet defaults stay in place */
   }

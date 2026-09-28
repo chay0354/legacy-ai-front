@@ -133,13 +133,13 @@ export const adminApi = {
     prices: { id: string; name: string; amount: number; displayPrice: string; interval: string | null; stripePriceId: string | null }[]
   }>,
 
-  theme: () => adminFetch('/api/admin/theme') as Promise<{ tokens: Record<string, string | number> }>,
+  theme: () => adminFetch('/api/admin/theme') as Promise<{ tokens: Record<string, unknown> }>,
 
-  setTheme: (tokens: Record<string, string | number>) =>
+  setTheme: (tokens: Record<string, unknown>) =>
     adminFetch('/api/admin/theme', {
       method: 'PUT',
       body: JSON.stringify({ tokens }),
-    }) as Promise<{ tokens: Record<string, string | number> }>,
+    }) as Promise<{ tokens: Record<string, unknown> }>,
 
   setPrice: (plan: string, dollars: number) =>
     adminFetch('/api/admin/prices', {

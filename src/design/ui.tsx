@@ -264,7 +264,7 @@ export function ImageSlot({
   const [broken, setBroken] = useState(false)
   if (src && !broken) {
     return (
-      <div style={{ height, borderRadius: radius.sm, overflow: 'hidden', background: T.paperDeep, ...style }}>
+      <div data-la-frame={label} style={{ height, borderRadius: radius.sm, overflow: 'hidden', background: T.paperDeep, ...style }}>
         <img
           src={src}
           alt=""
@@ -275,7 +275,7 @@ export function ImageSlot({
     )
   }
   return (
-    <div style={{
+    <div data-la-frame={label} style={{
       height, borderRadius: radius.sm, border: `1px solid ${T.cardEdge}`,
       background: `linear-gradient(140deg, ${T.paperDeep}, ${T.paper})`,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
