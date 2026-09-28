@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { billingApi, type BillingInvoice, type BillingPlan, type BillingStatus } from '../../lib/api'
+import { editingSite } from '../../lib/siteEdit'
 import { T, sans } from '../../design/tokens'
 import { Body, Btn, Display, Panel } from '../../design/ui'
 import { SectionHeader } from './parts'
@@ -66,6 +67,13 @@ export default function BillingScreen() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    if (editingSite()) {
+      setBilling({ plan: 'monthly', status: 'active', paid: true, canViewArchive: true, hasSetup: true })
+      setPlans([])
+      setInvoices([])
+      setLoaded(true)
+      return
+    }
     let active = true
     Promise.all([
       billingApi.status().catch(() => null),

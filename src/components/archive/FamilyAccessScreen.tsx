@@ -5,6 +5,7 @@ import {
   accessApi, type InvitationRow, type MemberRow, type Role,
 } from '../../lib/api'
 import { ACTIONS, can, normalizeRole } from '../../lib/permissions'
+import { editingSite } from '../../lib/siteEdit'
 import { T, radius, sans } from '../../design/tokens'
 import { CTA, TRUST } from '../../design/copy'
 import { Body, Btn, Display, Divider, Icon, Panel, PrivacyNote, Select } from '../../design/ui'
@@ -46,7 +47,15 @@ export default function FamilyAccessScreen() {
     }
   }, [creatorId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (editingSite()) {
+      setMembers(ctx.members)
+      setInvitations([])
+      setError(null)
+      return
+    }
+    void load()
+  }, [load, ctx.members])
 
   if (!ctx.profile) return null
 

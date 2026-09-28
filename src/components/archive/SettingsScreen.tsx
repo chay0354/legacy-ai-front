@@ -6,6 +6,7 @@ import { SectionHeader } from './parts'
 import { canManageAccess, canRunInterview, isOwner } from './sections'
 import { supabase } from '../../lib/supabase'
 import { billingApi, clearAuthTokenCache, type BillingStatus } from '../../lib/api'
+import { archiveQuery, editingSite } from '../../lib/siteEdit'
 import { T, radius, sans } from '../../design/tokens'
 import { CTA, TRUST, archiveSetupLabel, countsLine } from '../../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel, PrivacyNote } from '../../design/ui'
@@ -29,7 +30,9 @@ function renewalNote(iso?: string | null) {
 
 /** Account, profile, privacy, sign out. Never a second edit surface. */
 export default function SettingsScreen() {
-  const { viewerEmail, viewerName } = useOutletContext<ArchiveOutlet>()
+  const outlet = useOutletContext<ArchiveOutlet>()
+  const viewerEmail = editingSite() ? null : outlet.viewerEmail
+  const viewerName = editingSite() ? 'Alex' : outlet.viewerName
   const navigate = useNavigate()
   const ctx = useArchiveContext()
   const owner = isOwner(ctx.role)
@@ -37,6 +40,11 @@ export default function SettingsScreen() {
   const [billingLoaded, setBillingLoaded] = useState(false)
 
   useEffect(() => {
+    if (editingSite()) {
+      setBilling({ plan: 'monthly', status: 'active', paid: true, canViewArchive: true, hasSetup: true })
+      setBillingLoaded(true)
+      return
+    }
     if (!owner) return
     let active = true
     billingApi.status()
@@ -50,7 +58,7 @@ export default function SettingsScreen() {
 
   const { role, creatorId, profile, counts, setupPct, level } = ctx
   const name = profile.creator?.display_name || 'This archive'
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const cQuery = archiveQuery(creatorId)
 
   const profileName = owner ? name : (viewerName || viewerEmail || 'Your account')
 

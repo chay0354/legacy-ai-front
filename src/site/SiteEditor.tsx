@@ -13,21 +13,27 @@ import {
 import { T, radius, sans } from '../design/tokens'
 
 const PAGES: [string, string][] = [
-  ['/', 'Home'],
-  ['/how-it-works', 'How it works'],
-  ['/the-archive', 'The Archive'],
-  ['/pricing', 'Pricing'],
-  ['/about', 'About'],
-  ['/signin', 'Sign in'],
+  ['/', 'Landing screen'],
+  ['/how-it-works', 'Guide screen'],
+  ['/the-archive', 'Archive page'],
+  ['/pricing', 'Pricing screen'],
+  ['/about', 'About screen'],
+  ['/signin', 'Sign in screen'],
+  ['/overview', 'Legacy screen'],
+]
+
+const LEGACY_PAGES: [string, string][] = [
   ['/overview', 'Overview'],
   ['/interview', 'Interview'],
-  ['/edit', 'Edit archive'],
-  ['/voice-and-photo', 'Voice & photograph'],
-  ['/family-access', 'Family access'],
+  ['/edit', 'Edit'],
+  ['/voice-and-photo', 'Voice'],
+  ['/family-access', 'Family'],
   ['/ask', 'Ask'],
   ['/settings', 'Settings'],
   ['/billing', 'Billing'],
 ]
+
+const LEGACY_PATHS = new Set(LEGACY_PAGES.map(([path]) => path))
 
 const COLORS: { key: ThemeKey; label: string }[] = [
   { key: 'paper', label: 'Paper' },
@@ -189,16 +195,35 @@ export default function SiteEditor() {
             onClick={() => open(path)}
             style={{
               ...quiet,
-              background: location.pathname === path ? T.sienna : 'transparent',
-              color: location.pathname === path ? T.onPrimary : T.ink,
+              background: (path === '/overview' ? LEGACY_PATHS.has(location.pathname) : location.pathname === path) ? T.sienna : 'transparent',
+              color: (path === '/overview' ? LEGACY_PATHS.has(location.pathname) : location.pathname === path) ? T.onPrimary : T.ink,
             }}
           >
             {label}
           </button>
         ))}
       </div>
+      {LEGACY_PATHS.has(location.pathname) && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {LEGACY_PAGES.map(([path, label]) => (
+            <button
+              key={path}
+              type="button"
+              onClick={() => open(path)}
+              style={{
+                ...quiet,
+                background: location.pathname === path ? T.walnut : 'transparent',
+                color: location.pathname === path ? T.onDark : T.ink,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ fontFamily: sans, fontSize: 13, color: T.ink2, lineHeight: 1.4 }}>
         Click any wording to change it. Drag a heading, button, or section to move it.
+        {LEGACY_PATHS.has(location.pathname) ? ' Legacy screen shows the same sample archive for every editor.' : ''}
         {selected ? ` Selected: ${selected.label}` : ''}
       </div>
       {selected && (

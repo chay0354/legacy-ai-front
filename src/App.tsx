@@ -19,6 +19,8 @@ import { checkAiVoiceAvailable } from './lib/openaiRealtimeInterview'
 import InterviewSession, { type Answer } from './components/InterviewSession'
 import RequireAction from './components/archive/RequireAction'
 import { ACTIONS, can, normalizeRole } from './lib/permissions'
+import { adminToken } from './lib/adminApi'
+import { editingSite } from './lib/siteEdit'
 
 import HomePage from './site/HomePage'
 import { AboutPage, HowItWorksPage, PricingPage, TheArchivePage } from './site/InfoPages'
@@ -377,6 +379,7 @@ function ArchiveRoute({
   const [params] = useSearchParams()
   const creatorIdParam = params.get('c') || undefined
   const [resolving, setResolving] = useState(true)
+  const sampleEdit = params.get('edit') === '1' && Boolean(adminToken())
 
   /**
    * Sending someone to the page they are already on would leave the boot screen up forever —
@@ -403,7 +406,7 @@ function ArchiveRoute({
   }, [navigate])
 
   useEffect(() => {
-    if (!session) return
+    if (sampleEdit || !session) return
     let active = true
     accessApi.me()
       .then((me) => {
@@ -456,8 +459,12 @@ function ArchiveRoute({
         else setResolving(false)
       })
     return () => { active = false }
-  }, [session, creatorIdParam, navigate, leaveOrStay])
+  }, [session, creatorIdParam, navigate, leaveOrStay, sampleEdit])
 
+  if (sampleEdit) {
+    const standIn = session ?? ({ user: { id: 'sample-editor', email: null } } as unknown as Session)
+    return <>{render(undefined, standIn)}</>
+  }
   if (!session) return <Navigate to="/" replace />
   if (resolving) return <BootScreen label="Opening your archive…" />
   return <>{render(creatorIdParam, session)}</>
@@ -486,7 +493,7 @@ function InterviewPage({ session }: { session: Session | null }) {
   const [archiveLocked, setArchiveLocked] = useState(false)
 
   useEffect(() => {
-    if (!session?.user?.id) return
+    if (editingSite() || !session?.user?.id) return
     let active = true
     checkAiVoiceAvailable()
       .then((ok) => { if (active) setAiVoice(ok) })
@@ -495,7 +502,7 @@ function InterviewPage({ session }: { session: Session | null }) {
   }, [session?.user?.id])
 
   useEffect(() => {
-    if (!session) return
+    if (editingSite() || !session) return
     let active = true
     setLoading(true)
     setRedirecting(false)
@@ -549,6 +556,19 @@ function InterviewPage({ session }: { session: Session | null }) {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [session?.user?.id, navigate, requestedStage, params])
+
+  if (editingSite()) {
+    return (
+      <InterviewSession
+        embedded
+        subjectName="Alex"
+        onAnswerCommit={() => {}}
+        onComplete={() => {}}
+        onBack={() => navigate('/overview?edit=1')}
+        onViewLegacy={() => navigate('/overview?edit=1')}
+      />
+    )
+  }
 
   if (!session) return <Navigate to="/" replace />
 

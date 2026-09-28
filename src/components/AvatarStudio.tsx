@@ -12,6 +12,7 @@ import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImag
 import { bindMediaStream } from '../lib/playMedia'
 import { C, T, radius, sans, serif } from '../design/tokens'
 import { Select } from '../design/ui'
+import { editingSite } from '../lib/siteEdit'
 
 const mono = sans
 
@@ -43,6 +44,12 @@ export default function AvatarStudio({ onExit, embedded = false }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (editingSite()) {
+      setCreatorId('sample')
+      setVoiceCloned(true)
+      setLoading(false)
+      return
+    }
     avatarApi.getAssets()
       .then((r) => {
         setCreatorId(r.creatorId)

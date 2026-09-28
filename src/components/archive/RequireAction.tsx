@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useArchiveContext } from './data'
 import { can, type Action } from '../../lib/permissions'
+import { archiveQuery } from '../../lib/siteEdit'
 
 /** Send viewers away from screens they are not allowed to use. */
 export default function RequireAction({
@@ -12,8 +13,7 @@ export default function RequireAction({
   const need = Array.isArray(action) ? action : [action]
   const allowed = need.some((a) => can(ctx.role, a))
   if (!allowed) {
-    const c = ctx.creatorId ? `?c=${ctx.creatorId}` : ''
-    return <Navigate to={`/overview${c}`} replace />
+    return <Navigate to={`/overview${archiveQuery(ctx.creatorId)}`} replace />
   }
   return <>{children}</>
 }

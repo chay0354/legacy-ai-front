@@ -4,6 +4,7 @@ import { T, radius, sans, serif } from '../../design/tokens'
 import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
+import { archiveQuery } from '../../lib/siteEdit'
 import {
   canEditArchive, canManageAccess, canRunInterview, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
@@ -92,7 +93,7 @@ export default function ArchiveShell({
   const [menuOpen, setMenuOpen] = useState(false)
   const menuBtn = useRef<HTMLButtonElement>(null)
   const drawerWasOpen = useRef(false)
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const cQuery = archiveQuery(creatorId)
   const sections = sectionsForRole(role).filter((s) => s.inNav)
   const identityReady = Boolean(creatorName && creatorName !== 'This archive')
   const firstName = identityReady ? (creatorName.split(' ')[0] || creatorName) : ''
@@ -137,8 +138,8 @@ export default function ArchiveShell({
     <div className="archive-shell" style={{
       minHeight: '100dvh', display: 'flex', background: T.paper, color: T.ink,
     }}>
-      <div className="archive-mobile-bar">
-        <Link to="/" style={{ textDecoration: 'none' }}>
+      <div className="archive-mobile-bar" data-la-nav="">
+        <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} style={{ textDecoration: 'none' }}>
           <span style={{ fontFamily: serif, fontSize: 20, color: T.onDark }}>{BRAND}</span>
         </Link>
         <button
@@ -152,6 +153,7 @@ export default function ArchiveShell({
       </div>
       {menuOpen && <button type="button" className="archive-nav-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
       <nav
+        data-la-nav=""
         className={`archive-sidebar${menuOpen ? ' is-open' : ''}`}
         style={{
           width: 244, flex: '0 0 244px',
@@ -161,7 +163,7 @@ export default function ArchiveShell({
           position: 'sticky', top: 0, height: '100dvh',
         }}
       >
-        <Link to="/" className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
+        <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
           <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark, letterSpacing: '.01em' }}>{BRAND}</div>
           <div style={{ marginTop: 5 }}>
             <Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow>
@@ -243,7 +245,7 @@ export default function ArchiveShell({
                     type="button"
                     onClick={() => {
                       localStorage.setItem('legacy-ai:last-creator-id', m.creatorId)
-                      navigate(`/overview?c=${m.creatorId}`)
+                      navigate(`/overview${archiveQuery(m.creatorId)}`)
                       setMenuOpen(false)
                     }}
                     style={itemStyle(false)}

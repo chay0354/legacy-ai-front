@@ -3,12 +3,73 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  accessApi, avatarApi, interviewApi,
+  accessApi, avatarApi, interviewApi, permissionsForRole,
   type AvatarAssetsResponse, type MemberRow, type Membership, type Role,
 } from '../../lib/api'
 import type { LegacyProfile } from '../../lib/mapAvatarData'
 import { ACTIONS, can, normalizeRole, resolveViewerRole } from '../../lib/permissions'
 import { ACTIVITY_LABEL } from '../../design/copy'
+import { editingSite } from '../../lib/siteEdit'
+
+const SAMPLE_PROFILE: LegacyProfile = {
+  creator: { id: 'sample', display_name: 'Alex Morgan', completion_score: 68, avatar_level: 2 },
+  coverage: [
+    { category: 'family', score: 70 },
+    { category: 'work', score: 55 },
+  ],
+  memories: [
+    { id: 'm1', title: 'Sunday mornings', summary: 'The kitchen radio, fresh bread, and a few quiet hours before the week began.', category: 'Family', year: '1978', people_involved: ['Ruth Morgan'] },
+    { id: 'm2', title: 'The repair shop', summary: 'A small shop on the corner, and the rule that you finish what you start.', category: 'Work', year: '1986', people_involved: ['Sam Morgan'] },
+    { id: 'm3', title: 'The move across town', summary: 'One truck, two children, and the first night in the new house.', category: 'Home', year: '1994', people_involved: ['Jordan Lee'] },
+  ],
+  gallery: [
+    { id: 'g1', caption: 'The front step, late afternoon', title: 'Front step' },
+    { id: 'g2', caption: 'A birthday at the kitchen table', title: 'Birthday' },
+  ],
+  relationships: [
+    { name: 'Ruth Morgan', relationship_type: 'Mother', description: 'Kept the house steady.', importance_score: 9 },
+    { name: 'Sam Morgan', relationship_type: 'Father', description: 'Ran the repair shop.', importance_score: 8 },
+    { name: 'Jordan Lee', relationship_type: 'Child', description: 'Asks for the old stories.', importance_score: 8 },
+  ],
+  values: [{ value_name: 'Keep your word', description: 'Say what you will do, then do it.', is_core: true }],
+  wisdom: [{ title: 'Call them', advice_statement: 'Do not wait years to say the thing that matters.', life_category: 'Family' }],
+  sessionCount: 2,
+  latestSessionSummary: 'Two conversations so far: family, work, and the move across town.',
+}
+
+const SAMPLE_ASSETS: AvatarAssetsResponse = {
+  creatorId: 'sample',
+  displayName: 'Alex Morgan',
+  assets: {
+    creator_id: 'sample',
+    voice_id: null,
+    voice_status: 'ready',
+    voice_sample_path: 'sample',
+    portrait_path: null,
+    idle_video_path: null,
+    speaking_video_path: null,
+  },
+  voiceCloned: true,
+  hasPortrait: false,
+  liveReady: false,
+}
+
+const SAMPLE_MEMBERS: MemberRow[] = [
+  { user_id: 'sample-owner', role: 'creator', created_at: '2024-01-01T00:00:00.000Z', email: null, name: 'Alex Morgan' },
+  { user_id: 'sample-family', role: 'member', created_at: '2024-03-01T00:00:00.000Z', email: null, name: 'Jordan Lee' },
+]
+
+const SAMPLE_MEMBERSHIPS: Membership[] = [
+  {
+    creatorId: 'sample',
+    role: 'creator',
+    displayName: 'Alex Morgan',
+    completionScore: 68,
+    avatarLevel: 2,
+    isOwner: true,
+    permissions: permissionsForRole('creator'),
+  },
+]
 
 export interface ArchiveActivity {
   label: string
@@ -60,6 +121,15 @@ export function useArchiveLoader(creatorIdParam?: string): ArchiveContext {
   profileRef.current = profile
 
   useEffect(() => {
+    if (editingSite()) {
+      setProfile({ ...SAMPLE_PROFILE, role: 'creator' })
+      setAssets(SAMPLE_ASSETS)
+      setMembers(SAMPLE_MEMBERS)
+      setMemberships(SAMPLE_MEMBERSHIPS)
+      setError(null)
+      setLoading(false)
+      return
+    }
     let active = true
     const loadedId = profileRef.current?.creator?.id
     const switching = Boolean(creatorIdParam && loadedId && loadedId !== creatorIdParam)

@@ -12,6 +12,7 @@ import { normalizePortrait } from '../../lib/portraitImage'
 import { supabase } from '../../lib/supabase'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { CTA, TRUST } from '../../design/copy'
+import { archiveQuery } from '../../lib/siteEdit'
 import {
   Body, Btn, Display, Divider, Eyebrow, Icon, ImageSlot, Meta, Panel, PrivacyNote,
 } from '../../design/ui'
@@ -57,11 +58,11 @@ export default function EditArchiveScreen() {
 
   if (!ctx.profile) return null
   if (!canEditArchive(ctx.role)) {
-    return <Navigate to={`/overview${ctx.creatorId ? `?c=${ctx.creatorId}` : ''}`} replace />
+    return <Navigate to={`/overview${archiveQuery(ctx.creatorId)}`} replace />
   }
 
   const { profile, role, creatorId, counts, setupPct } = ctx
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const cQuery = archiveQuery(creatorId)
   const entries: Entry[] = profile.memories || []
   const photos = profile.gallery || []
   const voiceUrl = ctx.assets?.urls?.voiceSample || null

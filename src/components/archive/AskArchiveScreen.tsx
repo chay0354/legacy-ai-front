@@ -10,6 +10,7 @@ import { ASK, CTA, NAV, STATUS, TRUST } from '../../design/copy'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { Body, Btn, Display, Eyebrow, ImageSlot, Meta, Panel, PrivacyNote } from '../../design/ui'
 import { playMedia } from '../../lib/playMedia'
+import { archiveQuery } from '../../lib/siteEdit'
 
 export default function AskArchiveScreen() {
   const ctx = useArchiveContext()
@@ -44,7 +45,7 @@ export default function AskArchiveScreen() {
   const voiceSampleUrl = ctx.assets?.urls?.voiceSample || null
   const name = profile.creator?.display_name || 'This archive'
   const firstName = name.split(' ')[0]
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const cQuery = archiveQuery(creatorId)
   const memories = profile.memories || []
   const people = profile.relationships || []
   const gallery = profile.gallery || []

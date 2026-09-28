@@ -15,6 +15,7 @@ import { T, sans } from '../../design/tokens'
 import { ASK, CTA, STAGES, STATUS, archiveSetupLabel } from '../../design/copy'
 import { Body, Btn, Display, Eyebrow, Panel, PrivacyNote } from '../../design/ui'
 import { playMedia } from '../../lib/playMedia'
+import { archiveQuery, editingSite } from '../../lib/siteEdit'
 import { avatarApi, interviewApi, uploadMedia } from '../../lib/api'
 import AddMemoryChooser from './AddMemoryChooser'
 import GalleryUploadModal from '../GalleryUploadModal'
@@ -130,7 +131,7 @@ export default function ArchiveHome() {
   if (!ctx.profile || ctx.locked) return null
 
   const { profile, role, creatorId, counts, level, setupPct, activity, members } = ctx
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const cQuery = archiveQuery(creatorId)
   const owner = isOwner(role)
   const ownerName = profile.creator?.display_name || 'This archive'
   const ownerFirst = ownerName.split(' ')[0]
@@ -151,9 +152,11 @@ export default function ArchiveHome() {
   const ask = stageAsk(level, interviewStarted)
   const invited = Math.max(0, members.length - 1)
   const hasRealMemory = Boolean((firstMemory?.summary || firstMemory?.title || '').trim())
-  const interviewHref = creatorId
-    ? `/interview?c=${creatorId}${ask.stage === 'memory' ? '&mode=memory' : ask.stage ? `&stage=${ask.stage}` : ''}`
-    : ask.stage === 'memory' ? '/interview?mode=memory' : ask.stage ? `/interview?stage=${ask.stage}` : '/interview'
+  const interviewHref = editingSite()
+    ? '/interview?edit=1'
+    : creatorId
+      ? `/interview?c=${creatorId}${ask.stage === 'memory' ? '&mode=memory' : ask.stage ? `&stage=${ask.stage}` : ''}`
+      : ask.stage === 'memory' ? '/interview?mode=memory' : ask.stage ? `/interview?stage=${ask.stage}` : '/interview'
   const voiceCloned = ctx.assets?.voiceCloned === true
   const memoryText = (firstMemory?.summary || firstMemory?.full_transcript || '').trim()
   const canPlayVoice = Boolean((memoryText && voiceCloned && creatorId) || voiceUrl)

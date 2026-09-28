@@ -311,7 +311,7 @@ function bindEditing() {
   document.addEventListener('pointerdown', (event) => {
     if (!editEnabled) return
     const target = event.target
-    if (!(target instanceof Element) || target.closest('[data-la-editor]')) return
+    if (!(target instanceof Element) || target.closest('[data-la-editor], [data-la-nav]')) return
     const block = target.closest(BLOCK_SELECTOR)
     if (!(block instanceof HTMLElement)) return
     const key = nudgeKey(block)
@@ -350,7 +350,7 @@ function bindEditing() {
     if (!editEnabled) return
     const target = event.target
     if (!(target instanceof Element)) return
-    if (target.closest('[data-la-editor]')) {
+    if (target.closest('[data-la-editor], [data-la-nav]')) {
       suppressClick = false
       return
     }

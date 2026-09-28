@@ -4,6 +4,7 @@ import {
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import ArchiveShell, { type ArchiveRouteKey } from './ArchiveShell'
 import { ArchiveProvider, useArchiveLoader } from './data'
+import { archiveQuery, editingSite } from '../../lib/siteEdit'
 import { Loading } from './parts'
 import type { SectionKey } from './sections'
 
@@ -54,8 +55,11 @@ export default function ArchiveWorkspace({
   const [activeSection, setActiveSection] = useState<SectionKey>('setup')
   const scroller = useRef<Scroller | null>(null)
 
-  const creatorId = ctx.creatorId || creatorIdParam
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const sample = editingSite()
+  const shownName = sample ? 'Alex' : viewerName
+  const shownEmail = sample ? null : viewerEmail
+  const creatorId = sample ? undefined : (ctx.creatorId || creatorIdParam)
+  const cQuery = archiveQuery(creatorId)
   const activeRoute = routeFromPath(location.pathname)
 
   const attach = useCallback((fn: Scroller | null) => { scroller.current = fn }, [])
@@ -95,12 +99,12 @@ export default function ArchiveWorkspace({
         >
           <div key={activeRoute || 'main'} className="archive-pane">
             {location.pathname.startsWith('/billing')
-              ? <Outlet context={{ viewerName, viewerEmail } satisfies ArchiveOutlet} />
+              ? <Outlet context={{ viewerName: shownName, viewerEmail: shownEmail } satisfies ArchiveOutlet} />
               : ctx.loading && !ctx.profile
                 ? <Loading label="Opening your archive…" />
                 : ctx.error && !ctx.profile
                   ? <Loading label={ctx.error} />
-                  : <Outlet context={{ viewerName, viewerEmail } satisfies ArchiveOutlet} />}
+                  : <Outlet context={{ viewerName: shownName, viewerEmail: shownEmail } satisfies ArchiveOutlet} />}
           </div>
         </ArchiveShell>
       </SectionNavContext.Provider>

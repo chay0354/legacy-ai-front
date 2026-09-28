@@ -5,6 +5,7 @@ import { canSetUpLiveAvatar } from './sections'
 import AvatarStudio from '../AvatarStudio'
 import { T } from '../../design/tokens'
 import { Body, Btn, Display, Eyebrow, Panel } from '../../design/ui'
+import { archiveQuery } from '../../lib/siteEdit'
 
 /**
  * Portrait and voice capture, and live-avatar provisioning. Owner only —
@@ -17,7 +18,7 @@ export default function VoiceAndPhotoScreen() {
   if (!ctx.profile) return null
 
   const { role, creatorId } = ctx
-  const cQuery = creatorId ? `?c=${creatorId}` : ''
+  const cQuery = archiveQuery(creatorId)
   const liveReady = ctx.assets?.liveReady === true
   const voiceCloned = ctx.assets?.voiceCloned === true
 
