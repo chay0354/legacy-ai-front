@@ -144,14 +144,14 @@ export const THEME_PREVIEW_READY = 'legacy-theme-ready'
 /** The staff desk posts unsaved tokens into a same-origin preview frame. */
 export function postThemePreview(frame: HTMLIFrameElement | null, draft: ThemeDraft, content: ThemeContent) {
   frame?.contentWindow?.postMessage(
-    { type: THEME_PREVIEW_MESSAGE, tokens: draft, copy: content.copy, images: content.images },
+    { type: THEME_PREVIEW_MESSAGE, tokens: draft, copy: content.copy, images: content.images, blocks: content.blocks },
     location.origin,
   )
 }
 
 export function installThemePreviewBridge() {
   if (new URLSearchParams(location.search).get('themePreview') !== '1') return false
-  watchContent({ copy: {}, images: {} }, 'edit')
+  watchContent({ copy: {}, images: {}, blocks: {} }, 'edit')
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.origin !== location.origin) return
     const data = event.data as { type?: string; tokens?: unknown } | null

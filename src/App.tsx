@@ -24,6 +24,7 @@ import HomePage from './site/HomePage'
 import { AboutPage, HowItWorksPage, PricingPage, TheArchivePage } from './site/InfoPages'
 import BillingSuccessPage from './site/BillingSuccessPage'
 import AdminPage from './site/AdminPage'
+import SiteEditor from './site/SiteEditor'
 import PaywallCard from './components/PaywallCard'
 import UnlockArchiveScreen from './components/UnlockArchiveScreen'
 import AuthPage from './site/AuthPage'
@@ -923,6 +924,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <SiteEditor />
       <Routes>
         {/* public site */}
         <Route path="/" element={<PublicHome session={session} />} />

@@ -139,6 +139,7 @@ export default function DesignDesk() {
       ...colors,
       ...(Object.keys(next.copy).length ? { copy: next.copy } : {}),
       ...(Object.keys(next.images).length ? { images: next.images } : {}),
+      ...(Object.keys(next.blocks).length ? { blocks: next.blocks } : {}),
     }
   }
 

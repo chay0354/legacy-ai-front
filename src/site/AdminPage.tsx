@@ -446,7 +446,8 @@ export default function AdminPage() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setDesk('accounts')} style={deskTab(desk === 'accounts')}>Accounts</button>
           <button type="button" onClick={() => setDesk('appearance')} style={deskTab(desk === 'appearance')}>Appearance</button>
-          <Link to="/" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark2, textDecoration: 'none', marginLeft: 8 }}>Site</Link>
+          <Link to="/?edit=1" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark, textDecoration: 'none', marginLeft: 8 }}>Edit the site</Link>
+          <Link to="/" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark2, textDecoration: 'none' }}>Site</Link>
           <Btn
             tone="onDark"
             size="sm"
