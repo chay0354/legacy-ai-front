@@ -28,10 +28,10 @@ export function sanitizeContent(input: unknown): ThemeContent {
   const blocksIn = src.blocks && typeof src.blocks === 'object' ? src.blocks as Record<string, unknown> : {}
   const copy: Record<string, string> = {}
   for (const [key, value] of Object.entries(copyIn)) {
-    if (Object.keys(copy).length >= 400) break
+    if (Object.keys(copy).length >= 800) break
     if (!validKey(key) || typeof value !== 'string') continue
     const text = value.trim()
-    if (!text || text.length > 800) continue
+    if (!text || text.length > 2000) continue
     const original = key.split(SEP).slice(1).join(SEP)
     if (text === original) continue
     copy[key] = text
@@ -58,9 +58,9 @@ function collectNudges(input: Record<string, unknown>, out: Record<string, Image
 }
 
 function validKey(key: string) {
-  if (key.length < 3 || key.length > 700 || !key.startsWith('/')) return false
+  if (key.length < 3 || key.length > 4000 || !key.startsWith('/')) return false
   const parts = key.split(SEP)
-  return parts.length >= 2 && parts.every((part) => part.length > 0 && part.length < 500)
+  return parts.length >= 2 && parts.every((part) => part.length > 0 && part.length < 2500)
 }
 
 let current = emptyContent()
@@ -136,20 +136,65 @@ function textNodes(el: HTMLElement) {
   ))
 }
 
+const MAX_TEXT = 2000
+const TEXT_ATTRS = ['placeholder', 'aria-label', 'alt', 'title'] as const
+
+function sourceOf(shown: string) {
+  const prefix = `${location.pathname}${SEP}`
+  for (const [key, value] of Object.entries(current.copy)) {
+    if (value === shown && key.startsWith(prefix)) return key.slice(prefix.length)
+  }
+  return shown
+}
+
+function paintString(raw: string, next: string) {
+  const trimmed = raw.trim()
+  if (!trimmed || trimmed === next) return raw
+  const start = raw.indexOf(trimmed)
+  if (start < 0) return next
+  return raw.slice(0, start) + next + raw.slice(start + trimmed.length)
+}
+
+const paintedText = new Map<Text, string>()
+
 function applyCopy() {
   const path = location.pathname
-  for (const el of document.querySelectorAll<HTMLElement>('body *')) {
-    if (el.closest('[data-la-editor], svg, script, style')) continue
-    const nodes = textNodes(el)
-    if (nodes.length !== 1) continue
-    const marked = el.getAttribute('data-la-copy')
-    const direct = nodes[0].textContent?.trim() || ''
-    const original = marked || direct
-    if (!original) continue
-    if (!marked) el.setAttribute('data-la-copy', original)
-    const next = current.copy[`${path}${SEP}${original}`]
-    const shown = next ?? original
-    if (nodes[0].textContent?.trim() !== shown) nodes[0].textContent = shown
+  for (const [node, original] of paintedText) {
+    if (!node.isConnected) {
+      paintedText.delete(node)
+      continue
+    }
+    const next = current.copy[`${path}${SEP}${original}`] || original
+    if ((node.textContent?.trim() || '') !== next) node.textContent = paintString(node.textContent || '', next)
+  }
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  let node = walker.nextNode()
+  while (node) {
+    const text = node as Text
+    const parent = text.parentElement
+    node = walker.nextNode()
+    if (!parent || parent.closest('[data-la-editor], script, style, svg')) continue
+    const trimmed = text.textContent?.trim() || ''
+    if (!trimmed || trimmed.length > MAX_TEXT) continue
+    const next = current.copy[`${path}${SEP}${trimmed}`]
+    if (!next || next === trimmed) continue
+    paintedText.set(text, trimmed)
+    text.textContent = paintString(text.textContent || '', next)
+  }
+  const attrSelector = TEXT_ATTRS.flatMap((attr) => [`[${attr}]`, `[data-la-src-${attr}]`]).join(',')
+  for (const el of document.querySelectorAll<HTMLElement>(attrSelector)) {
+    if (el.closest('[data-la-editor], script, style')) continue
+    for (const attr of TEXT_ATTRS) {
+      const marked = el.getAttribute(`data-la-src-${attr}`)
+      const raw = el.getAttribute(attr)?.trim() || ''
+      const original = marked || raw
+      if (!original || original.length > MAX_TEXT) continue
+      const next = current.copy[`${path}${SEP}${original}`]
+      const shown = next || original
+      if (el.getAttribute(attr)?.trim() !== shown) el.setAttribute(attr, shown)
+      if (next) el.setAttribute(`data-la-src-${attr}`, original)
+      else el.removeAttribute(`data-la-src-${attr}`)
+    }
   }
 }
 
@@ -299,9 +344,11 @@ function bindEditing() {
   const blockCursor = BLOCK_SELECTOR.split(',').map((tag) => `html.la-theme-edit ${tag.trim()}`).join(',')
   style.textContent = `
     ${textCursor} { cursor: text; }
+    html.la-theme-edit, html.la-theme-edit * { cursor: text; }
     ${blockCursor} { cursor: grab; }
+    html.la-theme-edit img, html.la-theme-edit [data-la-frame] { cursor: grab; }
     html.la-theme-edit .la-picked { outline: 2px solid var(--la-sienna); outline-offset: 3px; }
-    [data-la-editor] button, [data-la-editor] textarea, [data-la-editor] input, [data-la-editor] a { cursor: auto; }
+    [data-la-editor], [data-la-editor] * { cursor: auto; }
   `
   document.head.appendChild(style)
 
@@ -350,7 +397,7 @@ function bindEditing() {
     if (!editEnabled) return
     const target = event.target
     if (!(target instanceof Element)) return
-    if (target.closest('[data-la-editor], [data-la-nav]')) {
+    if (target.closest('[data-la-editor]')) {
       suppressClick = false
       return
     }
@@ -360,30 +407,83 @@ function bindEditing() {
       event.stopPropagation()
       return
     }
-    const block = target.closest(BLOCK_SELECTOR)
-    if (!(block instanceof HTMLElement)) return
+    const wording = wordingAt(event)
+    if (wording) {
+      event.preventDefault()
+      event.stopPropagation()
+      openCopyEditor(wording.anchor, wording.shown)
+      const block = wording.anchor.closest(BLOCK_SELECTOR)
+      if (block instanceof HTMLElement) {
+        const key = nudgeKey(block)
+        selectedKey = key
+        applyNow()
+        announce(block, key)
+      }
+      return
+    }
+    const frame = target.closest('img, [data-la-frame]')
+    if (!(frame instanceof HTMLElement)) return
     event.preventDefault()
     event.stopPropagation()
-    const key = nudgeKey(block)
+    const key = nudgeKey(frame)
     selectedKey = key
     applyNow()
-    announce(block, key)
-    const text = textFrom(target)
-    if (text) openText(text)
-    else openImage(block, key)
+    announce(frame, key)
+    openImage(frame, key)
   }, true)
 }
 
-function textFrom(target: Element) {
-  if (target.closest('[data-la-editor], input, textarea, svg')) return null
+function readAttr(el: HTMLElement) {
+  if (el.closest('[data-la-editor], script, style')) return ''
+  for (const attr of TEXT_ATTRS) {
+    const value = el.getAttribute(attr)?.trim() || ''
+    if (value && value.length <= MAX_TEXT) return value
+  }
+  return ''
+}
+
+function wordingFromNode(node: Node | null): { anchor: HTMLElement; shown: string } | null {
+  if (!node) return null
+  if (node.nodeType === Node.TEXT_NODE) {
+    const text = node as Text
+    const parent = text.parentElement
+    const shown = text.textContent?.trim() || ''
+    if (!parent || !shown || shown.length > MAX_TEXT) return null
+    if (parent.closest('[data-la-editor], script, style')) return null
+    if (parent.closest('svg')) {
+      const host = parent.closest('svg')?.parentElement
+      const label = host ? readAttr(host) : ''
+      return label ? { anchor: host as HTMLElement, shown: label } : null
+    }
+    return { anchor: parent, shown }
+  }
+  if (node instanceof HTMLElement) {
+    const label = readAttr(node)
+    if (label) return { anchor: node, shown: label }
+  }
+  return null
+}
+
+function wordingAt(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof Element) || target.closest('[data-la-editor]')) return null
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node } | null
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+  }
+  const pointed = doc.caretPositionFromPoint?.(event.clientX, event.clientY)?.offsetNode
+    ?? doc.caretRangeFromPoint?.(event.clientX, event.clientY)?.startContainer
+    ?? null
+  const fromPoint = wordingFromNode(pointed)
+  if (fromPoint) return fromPoint
   let el: Element | null = target
-  while (el && el !== document.body) {
+  for (let depth = 0; el && el !== document.body && depth < 4; depth += 1) {
     if (el instanceof HTMLElement) {
-      const nodes = textNodes(el)
-      if (nodes.length === 1) {
-        const text = nodes[0].textContent?.trim() || ''
-        if (text && text.length <= 800 && !/^\$\d/.test(text)) return el
-      }
+      const direct = [...el.childNodes].find((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim())
+      const fromChild = wordingFromNode(direct ?? null)
+      if (fromChild) return fromChild
+      const label = readAttr(el)
+      if (label) return { anchor: el, shown: label }
     }
     el = el.parentElement
   }
@@ -413,11 +513,10 @@ function place(shell: HTMLElement, anchor: HTMLElement) {
   shell.style.left = `${Math.min(Math.max(8, rect.left), window.innerWidth - shell.offsetWidth - 8)}px`
 }
 
-function openText(el: HTMLElement) {
-  const nodes = textNodes(el)
-  if (nodes.length !== 1) return
-  const original = el.getAttribute('data-la-copy') || nodes[0].textContent?.trim() || ''
-  el.setAttribute('data-la-copy', original)
+function openCopyEditor(anchor: HTMLElement, shown: string) {
+  const trimmed = shown.trim()
+  if (!trimmed || trimmed.length > MAX_TEXT) return
+  const original = sourceOf(trimmed)
   const key = `${location.pathname}${SEP}${original}`
   const shell = editorShell()
   shell.innerHTML = ''
@@ -425,7 +524,7 @@ function openText(el: HTMLElement) {
   title.textContent = 'Edit text'
   title.style.cssText = 'font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;color:var(--la-ink-2)'
   const field = document.createElement('textarea')
-  field.value = current.copy[key] ?? original
+  field.value = current.copy[key] ?? trimmed
   field.style.cssText = 'width:100%;box-sizing:border-box;min-height:72px;padding:8px;border:1px solid var(--la-line);border-radius:6px;background:var(--la-paper);color:var(--la-ink);font:inherit'
   const row = document.createElement('div')
   row.style.cssText = 'display:flex;gap:8px;margin-top:8px'
@@ -450,7 +549,7 @@ function openText(el: HTMLElement) {
   })
   row.append(done, reset)
   shell.append(title, field, row)
-  place(shell, el)
+  place(shell, anchor)
   field.focus()
 }
 
