@@ -135,6 +135,11 @@ export const adminApi = {
 
   theme: () => adminFetch('/api/admin/theme') as Promise<{ tokens: Record<string, unknown> }>,
 
+  uploadSiteImage: (type: string, data: string) =>
+    adminFetch('/api/admin/theme/image', {
+      method: 'POST',
+      body: JSON.stringify({ type, data }),
+    }) as Promise<{ url: string }>,
   setTheme: (tokens: Record<string, unknown>) =>
     adminFetch('/api/admin/theme', {
       method: 'PUT',

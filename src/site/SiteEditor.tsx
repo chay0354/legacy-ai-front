@@ -7,7 +7,7 @@ import {
   type ThemeDraft, type ThemeKey, type ThemeOverrides,
 } from '../design/theme'
 import {
-  closePanel, emptyContent, sanitizeContent, setContentListener, setEditEnabled, watchContent, type ThemeContent,
+  closePanel, emptyContent, sanitizeContent, setContentListener, setEditEnabled, setImageUploader, watchContent, type ThemeContent,
 } from '../design/themeContent'
 import { T, radius, sans } from '../design/tokens'
 
@@ -46,7 +46,20 @@ function packTokens(draft: ThemeDraft | null, content: ThemeContent) {
     ...(Object.keys(content.images).length ? { images: content.images } : {}),
     ...(Object.keys(content.blocks).length ? { blocks: content.blocks } : {}),
     ...(Object.keys(content.styles).length ? { styles: content.styles } : {}),
+    ...(Object.keys(content.added).length ? { added: content.added } : {}),
   }
+}
+
+async function uploadPicture(file: File) {
+  if (file.size > 8 * 1024 * 1024) throw new Error('Pictures must be under 8 MB.')
+  const data = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '')
+    reader.onerror = () => reject(new Error('Could not read the picture'))
+    reader.readAsDataURL(file)
+  })
+  const { url } = await adminApi.uploadSiteImage(file.type, data)
+  return url
 }
 
 export default function SiteEditor() {
@@ -94,9 +107,11 @@ export default function SiteEditor() {
       return
     }
     setContentListener((next) => { setContent(next); setDirty(true); setNote(null) })
+    setImageUploader(uploadPicture)
     watchContent(contentRef.current, 'edit')
     return () => {
       setContentListener(null)
+      setImageUploader(null)
       watchContent(publishedContent.current, 'live')
       applyTheme(publishedColors.current)
       setEditEnabled(false)
@@ -245,7 +260,7 @@ export default function SiteEditor() {
       </select>
 
       <span style={hint}>
-        {note ?? (legacy ? 'Sample archive. Click anything to edit it.' : 'Click anything to edit it. Drag to move.')}
+        {note ?? (legacy ? 'Sample archive. Click anything to edit it.' : 'Click anything to edit it or add text and pictures after it.')}
       </span>
 
       <button type="button" style={quiet} onClick={() => { closePanel(); setColorsOpen((open) => !open) }}>Site colors</button>

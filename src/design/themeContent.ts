@@ -7,17 +7,43 @@ export type ImageNudge = { scale: number; x: number; y: number }
 
 export type ElementStyle = { color?: string; background?: string }
 
+export type AddedItem =
+  | { kind: 'text'; after: string; text: string }
+  | { kind: 'image'; after: string; src: string; alt?: string }
+
 export type ThemeContent = {
   copy: Record<string, string>
   images: Record<string, ImageNudge>
   blocks: Record<string, ImageNudge>
   styles: Record<string, ElementStyle>
+  added: Record<string, AddedItem>
 }
 
 export const THEME_CONTENT_EDIT = 'legacy-theme-edit'
 
 export function emptyContent(): ThemeContent {
-  return { copy: {}, images: {}, blocks: {}, styles: {} }
+  return { copy: {}, images: {}, blocks: {}, styles: {}, added: {} }
+}
+
+function collectAdded(input: unknown) {
+  const out: Record<string, AddedItem> = {}
+  const src = input && typeof input === 'object' ? input as Record<string, unknown> : {}
+  for (const [key, value] of Object.entries(src)) {
+    if (Object.keys(out).length >= 100) break
+    if (!validKey(key) || !key.includes(`${SEP}add:`) || !value || typeof value !== 'object') continue
+    const raw = value as Record<string, unknown>
+    if (typeof raw.after !== 'string' || !validKey(raw.after)) continue
+    if (raw.kind === 'text') {
+      const text = typeof raw.text === 'string' ? raw.text.trim() : ''
+      if (text && text.length <= 2000) out[key] = { kind: 'text', after: raw.after, text }
+    } else if (raw.kind === 'image') {
+      const url = typeof raw.src === 'string' ? raw.src.trim() : ''
+      if (!/^https:\/\/\S+$/.test(url) || url.length > 1000) continue
+      const alt = typeof raw.alt === 'string' ? raw.alt.trim().slice(0, 300) : ''
+      out[key] = { kind: 'image', after: raw.after, src: url, ...(alt ? { alt } : {}) }
+    }
+  }
+  return out
 }
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -56,7 +82,7 @@ export function sanitizeContent(input: unknown): ThemeContent {
     if (typeof raw.background === 'string' && HEX_COLOR.test(raw.background)) style.background = raw.background.toLowerCase()
     if (style.color || style.background) styles[key] = style
   }
-  return { copy, images, blocks, styles }
+  return { copy, images, blocks, styles, added: collectAdded(src.added) }
 }
 
 function collectNudges(input: Record<string, unknown>, out: Record<string, ImageNudge>, limit: number) {
@@ -144,12 +170,90 @@ export function applyNow() {
   if (!document.body) return
   applying = true
   try {
+    applyAdded()
     applyCopy()
     applyImages()
     applyBlocks()
   } finally {
     applying = false
   }
+}
+
+let uploadImage: ((file: File) => Promise<string>) | null = null
+
+export function setImageUploader(fn: typeof uploadImage) {
+  uploadImage = fn
+}
+
+function addedPrefix() {
+  return `${location.pathname}${SEP}add:`
+}
+
+function applyAdded() {
+  const prefix = addedPrefix()
+  const items = Object.entries(current.added)
+    .filter(([key]) => key.startsWith(prefix))
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+  const wanted = new Set(items.map(([key]) => key.slice(prefix.length)))
+  for (const node of document.querySelectorAll<HTMLElement>('[data-la-added]')) {
+    if (!wanted.has(node.dataset.laAdded || '')) node.remove()
+  }
+  if (!items.length) return
+  const needed = new Set(items.map(([, item]) => item.after))
+  const anchors = new Map<string, HTMLElement>()
+  for (const el of document.querySelectorAll<HTMLElement>('body *')) {
+    if (el.hasAttribute('data-la-added') || el.closest('[data-la-editor], script, style, svg')) continue
+    const key = blockKey(el)
+    if (needed.has(key) && !anchors.has(key)) anchors.set(key, el)
+  }
+  for (const [key, item] of items) {
+    const id = key.slice(prefix.length)
+    let node = document.querySelector<HTMLElement>(`[data-la-added="${CSS.escape(id)}"]`)
+    const anchor = anchors.get(item.after)
+    if (!anchor) {
+      node?.remove()
+      continue
+    }
+    const tag = item.kind === 'image' ? 'IMG' : 'P'
+    if (!node || node.tagName !== tag) {
+      node?.remove()
+      node = document.createElement(tag)
+      node.dataset.laAdded = id
+      node.style.cssText = item.kind === 'image'
+        ? 'display:block;width:min(100%, 520px);height:auto;margin:16px 0;border-radius:var(--la-radius-card)'
+        : 'margin:12px 0;white-space:pre-wrap'
+      if (item.kind === 'text') matchText(node, anchor)
+    }
+    if (item.kind === 'image' && node instanceof HTMLImageElement) {
+      if (node.getAttribute('src') !== item.src) node.src = item.src
+      if (node.alt !== (item.alt ?? '')) node.alt = item.alt ?? ''
+    } else if (item.kind === 'text' && node.textContent !== item.text) {
+      node.textContent = item.text
+    }
+    let ref: Element = anchor
+    for (let next = ref.nextElementSibling; next && next !== node && next.hasAttribute('data-la-added'); next = ref.nextElementSibling) {
+      if ((next as HTMLElement).dataset.laAdded! > id) break
+      ref = next
+    }
+    if (ref.nextElementSibling !== node) ref.after(node)
+  }
+}
+
+function matchText(node: HTMLElement, anchor: HTMLElement) {
+  const source = /^(P|LI|FIGCAPTION|BLOCKQUOTE)$/.test(anchor.tagName)
+    ? anchor
+    : anchor.querySelector<HTMLElement>('p') ?? anchor.parentElement?.querySelector<HTMLElement>(':scope > p') ?? null
+  if (!source) {
+    const bg = shownBackground(anchor).slice(1)
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(bg.slice(i, i + 2), 16))
+    node.style.color = r * 0.299 + g * 0.587 + b * 0.114 < 140 ? 'var(--la-on-dark)' : 'var(--la-ink)'
+    return
+  }
+  const shown = getComputedStyle(source)
+  node.style.color = shown.color
+  node.style.fontFamily = shown.fontFamily
+  node.style.fontSize = shown.fontSize
+  node.style.lineHeight = shown.lineHeight
 }
 
 function textNodes(el: HTMLElement) {
@@ -195,7 +299,7 @@ function applyCopy() {
     const text = node as Text
     const parent = text.parentElement
     node = walker.nextNode()
-    if (!parent || parent.closest('[data-la-editor], script, style, svg')) continue
+    if (!parent || parent.closest('[data-la-editor], [data-la-added], script, style, svg')) continue
     const trimmed = text.textContent?.trim() || ''
     if (!trimmed || trimmed.length > MAX_TEXT) continue
     const next = current.copy[`${path}${SEP}${trimmed}`]
@@ -205,7 +309,7 @@ function applyCopy() {
   }
   const attrSelector = TEXT_ATTRS.flatMap((attr) => [`[${attr}]`, `[data-la-src-${attr}]`]).join(',')
   for (const el of document.querySelectorAll<HTMLElement>(attrSelector)) {
-    if (el.closest('[data-la-editor], script, style')) continue
+    if (el.closest('[data-la-editor], [data-la-added], script, style')) continue
     for (const attr of TEXT_ATTRS) {
       const marked = el.getAttribute(`data-la-src-${attr}`)
       const raw = el.getAttribute(attr)?.trim() || ''
@@ -239,7 +343,7 @@ function imageKey(el: HTMLElement) {
 
 function applyImages() {
   const visuals = [
-    ...document.querySelectorAll<HTMLImageElement>('img'),
+    ...document.querySelectorAll<HTMLImageElement>('img:not([data-la-added])'),
     ...[...document.querySelectorAll<HTMLElement>('[data-la-frame]')].filter((frame) => !frame.querySelector('img')),
   ]
   for (const el of visuals) {
@@ -268,6 +372,7 @@ function applyImages() {
 const BLOCK_SELECTOR = 'section, article, header, footer, nav, main, h1, h2, h3, h4, p, button, a, li, img, figure, form, [data-la-frame]'
 
 function blockKey(el: HTMLElement) {
+  if (el.dataset.laAdded) return `${location.pathname}${SEP}block:add:${el.dataset.laAdded}`
   const parts: string[] = []
   let node: HTMLElement | null = el
   let depth = 0
@@ -277,7 +382,7 @@ function blockKey(el: HTMLElement) {
     let index = 1
     for (const sib of parent.children) {
       if (sib === node) break
-      if (sib.tagName === node.tagName) index += 1
+      if (sib.tagName === node.tagName && !sib.hasAttribute('data-la-added')) index += 1
     }
     parts.unshift(`${node.tagName.toLowerCase()}${index}`)
     node = parent
@@ -287,6 +392,7 @@ function blockKey(el: HTMLElement) {
 }
 
 function nudgeKey(el: HTMLElement) {
+  if (el.dataset.laAdded) return blockKey(el)
   if (el instanceof HTMLImageElement || el.hasAttribute('data-la-frame')) return imageKey(el)
   return blockKey(el)
 }
@@ -332,7 +438,7 @@ function applyBlocks() {
     if (el.closest('[data-la-editor], script, style, svg')) continue
     const key = blockKey(el)
     paintStyle(el, key)
-    if (el instanceof HTMLImageElement || el.hasAttribute('data-la-frame')) continue
+    if ((el instanceof HTMLImageElement || el.hasAttribute('data-la-frame')) && !el.dataset.laAdded) continue
     paintNudge(el, key)
   }
 }
@@ -659,7 +765,190 @@ function swatch(label: string, value: string, onChange: (hex: string) => void) {
   return wrap
 }
 
+function flowAnchor(el: HTMLElement) {
+  let node = el
+  while (node.parentElement && node.parentElement !== document.body && node.parentElement.id !== 'root') {
+    const display = getComputedStyle(node).display
+    const parent = node.parentElement
+    const inText = parent.closest('p, h1, h2, h3, h4, button, a, label, li')
+    if (!display.startsWith('inline') && !inText) break
+    node = parent
+  }
+  return node
+}
+
+function addedKeyOf(el: HTMLElement) {
+  return `${addedPrefix()}${el.dataset.laAdded}`
+}
+
+function panelHead(shell: HTMLElement, label: string) {
+  const head = document.createElement('div')
+  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px'
+  const title = document.createElement('strong')
+  title.textContent = label
+  title.style.cssText = 'font-size:14px;font-weight:600'
+  const close = document.createElement('button')
+  close.type = 'button'
+  close.setAttribute('aria-label', 'Close')
+  close.textContent = '×'
+  close.style.cssText = 'border:none;background:transparent;font-size:20px;line-height:1;color:var(--la-ink-2);cursor:pointer;padding:0 4px'
+  close.addEventListener('click', () => { commit(); closePanel() })
+  head.append(title, close)
+  shell.append(head)
+}
+
+function pickPicture(onPicked: (url: string) => void, status: HTMLElement) {
+  if (!uploadImage) return
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/jpeg,image/png,image/webp,image/gif'
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0]
+    if (!file || !uploadImage) return
+    const before = status.textContent
+    status.textContent = 'Uploading…'
+    try {
+      onPicked(await uploadImage(file))
+    } catch (err) {
+      status.textContent = err instanceof Error ? err.message : 'Could not upload'
+      return
+    }
+    status.textContent = before
+  })
+  input.click()
+}
+
+function addAfter(el: HTMLElement, item: { kind: 'text'; text: string } | { kind: 'image'; src: string }) {
+  const anchor = el.dataset.laAdded ? el : flowAnchor(el)
+  const after = anchor.dataset.laAdded
+    ? current.added[addedKeyOf(anchor)]?.after
+    : blockKey(anchor)
+  if (!after) return
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const key = `${addedPrefix()}${id}`
+  current = { ...current, added: { ...current.added, [key]: { ...item, after } } }
+  commit()
+  const node = document.querySelector<HTMLElement>(`[data-la-added="${CSS.escape(id)}"]`)
+  if (!node) return
+  selectedKey = blockKey(node)
+  applyNow()
+  node.scrollIntoView({ block: 'nearest' })
+  const open = () => openAddedPanel(node)
+  if (node instanceof HTMLImageElement && !node.complete) node.addEventListener('load', open, { once: true })
+  open()
+}
+
+function addRow(el: HTMLElement) {
+  const row = document.createElement('div')
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--la-line)'
+  const label = document.createElement('span')
+  label.textContent = 'Add after this'
+  label.style.cssText = 'font-size:12.5px;color:var(--la-ink-2);flex:1'
+  const text = button('+ Text', false)
+  text.addEventListener('click', () => addAfter(el, { kind: 'text', text: 'New text' }))
+  row.append(label, text)
+  if (uploadImage) {
+    const picture = button('+ Picture', false)
+    picture.addEventListener('click', () => pickPicture((src) => addAfter(el, { kind: 'image', src }), label))
+    row.append(picture)
+  }
+  return row
+}
+
+function sizeSlider(key: string) {
+  const slider = document.createElement('input')
+  slider.type = 'range'
+  slider.min = '50'
+  slider.max = '200'
+  slider.value = String(Math.round(readNudge(key).scale * 100))
+  slider.dataset.laSlider = key
+  slider.style.cssText = 'width:100%'
+  slider.addEventListener('input', () => {
+    writeNudge(key, { ...readNudge(key), scale: Number(slider.value) / 100 })
+    commit()
+  })
+  return slider
+}
+
+function openAddedPanel(el: HTMLElement) {
+  const key = addedKeyOf(el)
+  const item = current.added[key]
+  if (!item) return
+  const styleKey = blockKey(el)
+  const shell = editorShell()
+  shell.innerHTML = ''
+  panelHead(shell, item.kind === 'image' ? 'Your picture' : 'Your text')
+
+  let field: HTMLTextAreaElement | null = null
+  const status = document.createElement('span')
+  status.style.cssText = 'font-size:12.5px;color:var(--la-ink-2);flex:1'
+  if (item.kind === 'text') {
+    field = document.createElement('textarea')
+    field.value = item.text
+    field.rows = Math.min(6, Math.max(2, Math.ceil(item.text.length / 34)))
+    field.style.cssText = 'width:100%;box-sizing:border-box;margin-top:10px;padding:8px 10px;border:1px solid var(--la-line);border-radius:6px;background:var(--la-paper);color:var(--la-ink);font:inherit;resize:vertical'
+    field.addEventListener('input', () => {
+      const text = field!.value.trim()
+      if (!text) return
+      current = { ...current, added: { ...current.added, [key]: { ...item, text } } }
+      commit()
+    })
+    shell.append(field)
+    const colors = document.createElement('div')
+    colors.style.cssText = 'display:flex;gap:12px;margin-top:12px'
+    colors.append(swatch('Text', current.styles[styleKey]?.color ?? toHex(getComputedStyle(el).color) ?? '#241c15', (hex) => {
+      writeStyle(styleKey, { color: hex })
+      commit()
+    }))
+    colors.append(swatch('Background', current.styles[styleKey]?.background ?? shownBackground(el), (hex) => {
+      writeStyle(styleKey, { background: hex })
+      commit()
+    }))
+    shell.append(colors)
+  } else {
+    const replace = button('Replace picture', false)
+    replace.style.marginTop = '10px'
+    replace.addEventListener('click', () => pickPicture((src) => {
+      current = { ...current, added: { ...current.added, [key]: { ...item, src } } }
+      commit()
+    }, status))
+    shell.append(replace)
+  }
+
+  shell.append(fieldLabel('Size'), sizeSlider(styleKey))
+
+  const foot = document.createElement('div')
+  foot.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px'
+  status.textContent = 'Drag it on the page to move.'
+  const remove = button('Delete', false)
+  remove.style.color = 'var(--la-error)'
+  remove.addEventListener('click', () => {
+    const added = { ...current.added }
+    delete added[key]
+    const styles = { ...current.styles }
+    delete styles[styleKey]
+    const blocks = { ...current.blocks }
+    delete blocks[styleKey]
+    current = { ...current, added, styles, blocks }
+    commit()
+    closePanel()
+  })
+  foot.append(status, remove)
+  shell.append(foot, addRow(el))
+
+  place(shell, el)
+  if (field) {
+    field.focus()
+    if (field.value === 'New text') field.select()
+  }
+}
+
 function openPanel(el: HTMLElement, wording: { anchor: HTMLElement; shown: string } | null) {
+  const added = el.closest<HTMLElement>('[data-la-added]')
+  if (added) {
+    openAddedPanel(added)
+    return
+  }
   const moveKey = nudgeKey(el)
   const colorEl = wording?.anchor ?? el
   const colorKey = blockKey(colorEl)
@@ -670,20 +959,7 @@ function openPanel(el: HTMLElement, wording: { anchor: HTMLElement; shown: strin
 
   const shell = editorShell()
   shell.innerHTML = ''
-
-  const head = document.createElement('div')
-  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px'
-  const title = document.createElement('strong')
-  title.textContent = kindOf(wording?.anchor ?? el)
-  title.style.cssText = 'font-size:14px;font-weight:600'
-  const close = document.createElement('button')
-  close.type = 'button'
-  close.setAttribute('aria-label', 'Close')
-  close.textContent = '×'
-  close.style.cssText = 'border:none;background:transparent;font-size:20px;line-height:1;color:var(--la-ink-2);cursor:pointer;padding:0 4px'
-  close.addEventListener('click', () => { commit(); closePanel() })
-  head.append(title, close)
-  shell.append(head)
+  panelHead(shell, kindOf(wording?.anchor ?? el))
 
   let field: HTMLTextAreaElement | null = null
   if (wording) {
@@ -716,19 +992,7 @@ function openPanel(el: HTMLElement, wording: { anchor: HTMLElement; shown: strin
   }))
   shell.append(colors)
 
-  shell.append(fieldLabel('Size'))
-  const slider = document.createElement('input')
-  slider.type = 'range'
-  slider.min = '50'
-  slider.max = '200'
-  slider.value = String(Math.round(readNudge(moveKey).scale * 100))
-  slider.dataset.laSlider = moveKey
-  slider.style.cssText = 'width:100%'
-  slider.addEventListener('input', () => {
-    writeNudge(moveKey, { ...readNudge(moveKey), scale: Number(slider.value) / 100 })
-    commit()
-  })
-  shell.append(slider)
+  shell.append(fieldLabel('Size'), sizeSlider(moveKey))
 
   const foot = document.createElement('div')
   foot.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px'
@@ -748,7 +1012,7 @@ function openPanel(el: HTMLElement, wording: { anchor: HTMLElement; shown: strin
     openPanel(el, wording ? { anchor: wording.anchor, shown: original } : null)
   })
   foot.append(hint, reset)
-  shell.append(foot)
+  shell.append(foot, addRow(el))
 
   place(shell, wording?.anchor ?? el)
   field?.focus()
