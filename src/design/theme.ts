@@ -1,5 +1,5 @@
 import { apiUrl } from '../lib/apiUrl'
-import { sanitizeContent, watchContent, type ThemeContent } from './themeContent'
+import { emptyContent, sanitizeContent, watchContent, type ThemeContent } from './themeContent'
 
 /** Seed values. Must match `:root` in index.css and the backend sanitizer. */
 export const THEME_DEFAULTS = {
@@ -144,14 +144,14 @@ export const THEME_PREVIEW_READY = 'legacy-theme-ready'
 /** The staff desk posts unsaved tokens into a same-origin preview frame. */
 export function postThemePreview(frame: HTMLIFrameElement | null, draft: ThemeDraft, content: ThemeContent) {
   frame?.contentWindow?.postMessage(
-    { type: THEME_PREVIEW_MESSAGE, tokens: draft, copy: content.copy, images: content.images, blocks: content.blocks },
+    { type: THEME_PREVIEW_MESSAGE, tokens: draft, ...content },
     location.origin,
   )
 }
 
 export function installThemePreviewBridge() {
   if (new URLSearchParams(location.search).get('themePreview') !== '1') return false
-  watchContent({ copy: {}, images: {}, blocks: {} }, 'edit')
+  watchContent(emptyContent(), 'edit')
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.origin !== location.origin) return
     const data = event.data as { type?: string; tokens?: unknown } | null
