@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { adminApi, adminToken } from '../lib/adminApi'
 import { apiUrl } from '../lib/apiUrl'
-import { sanitizeTheme, type ThemeOverrides } from '../design/theme'
+import {
+  applyTheme, contrastWarnings, mergeTheme, paintTheme, sanitizeTheme, THEME_DEFAULTS, THEME_NUMBERS,
+  type ThemeDraft, type ThemeKey, type ThemeOverrides,
+} from '../design/theme'
 import {
   emptyContent, resetBlock, sanitizeContent, setBlockScale, setContentListener,
   setEditEnabled, setSelectionListener, watchContent, type ThemeContent,
@@ -18,8 +21,36 @@ const PAGES: [string, string][] = [
   ['/signin', 'Sign in'],
   ['/overview', 'Overview'],
   ['/interview', 'Interview'],
+  ['/edit', 'Edit archive'],
+  ['/voice-and-photo', 'Voice & photograph'],
+  ['/family-access', 'Family access'],
+  ['/ask', 'Ask'],
   ['/settings', 'Settings'],
   ['/billing', 'Billing'],
+]
+
+const COLORS: { key: ThemeKey; label: string }[] = [
+  { key: 'paper', label: 'Paper' },
+  { key: 'card', label: 'Card' },
+  { key: 'ink', label: 'Text' },
+  { key: 'ink2', label: 'Secondary text' },
+  { key: 'status', label: 'Status text' },
+  { key: 'walnut', label: 'Walnut' },
+  { key: 'sienna', label: 'Primary button' },
+  { key: 'olive', label: 'Olive' },
+  { key: 'gold', label: 'Gold' },
+  { key: 'onDark', label: 'Text on dark' },
+  { key: 'onPrimary', label: 'Text on button' },
+  { key: 'error', label: 'Error' },
+]
+
+const NUMBERS: { key: keyof typeof THEME_NUMBERS; label: string }[] = [
+  { key: 'radiusControl', label: 'Button corners' },
+  { key: 'radiusCard', label: 'Card corners' },
+  { key: 'gutterDesktop', label: 'Desktop margin' },
+  { key: 'gutterMobile', label: 'Phone margin' },
+  { key: 'contentMax', label: 'Column width' },
+  { key: 'controlHeight', label: 'Button height' },
 ]
 
 export default function SiteEditor() {
@@ -34,22 +65,27 @@ export default function SiteEditor() {
   const [selected, setSelected] = useState<{ key: string; scale: number; label: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
-  const colors = useRef<ThemeOverrides>({})
+  const [draft, setDraft] = useState<ThemeDraft | null>(null)
+  const [styleOpen, setStyleOpen] = useState(false)
+  const publishedColors = useRef<ThemeOverrides>({})
+  const publishedContent = useRef<ThemeContent>(emptyContent())
 
   useEffect(() => {
-    if (!staff) return
+    if (hidden) return
     let live = true
     fetch(apiUrl('/api/theme'))
       .then((res) => res.json())
       .then((data: { tokens?: unknown }) => {
         if (!live) return
-        colors.current = sanitizeTheme(data.tokens)
-        setContent(sanitizeContent(data.tokens))
+        publishedColors.current = sanitizeTheme(data.tokens)
+        publishedContent.current = sanitizeContent(data.tokens)
+        setDraft(mergeTheme(data.tokens))
+        setContent(publishedContent.current)
         setReady(true)
       })
       .catch(() => { if (live) setReady(true) })
     return () => { live = false }
-  }, [staff])
+  }, [hidden])
 
   const contentRef = useRef(content)
   contentRef.current = content
@@ -68,10 +104,18 @@ export default function SiteEditor() {
     return () => {
       setContentListener(null)
       setSelectionListener(null)
+      watchContent(publishedContent.current, 'live')
+      applyTheme(publishedColors.current)
+      setEditEnabled(false)
     }
   }, [editing, ready, hidden])
 
-  if (hidden) return null
+  useEffect(() => {
+    if (!editing || !draft) return
+    paintTheme(draft)
+  }, [editing, draft])
+
+  if (hidden || !editing) return null
 
   function open(path: string) {
     navigate(`${path}?edit=1`)
@@ -82,14 +126,16 @@ export default function SiteEditor() {
     setNote(null)
     try {
       const saved = await adminApi.setTheme({
-        ...colors.current,
+        ...sanitizeTheme(draft),
         ...(Object.keys(content.copy).length ? { copy: content.copy } : {}),
         ...(Object.keys(content.images).length ? { images: content.images } : {}),
         ...(Object.keys(content.blocks).length ? { blocks: content.blocks } : {}),
       })
-      colors.current = sanitizeTheme(saved.tokens)
-      setContent(sanitizeContent(saved.tokens))
-      watchContent(sanitizeContent(saved.tokens), 'edit')
+      publishedColors.current = sanitizeTheme(saved.tokens)
+      publishedContent.current = sanitizeContent(saved.tokens)
+      setDraft(mergeTheme(saved.tokens))
+      setContent(publishedContent.current)
+      watchContent(publishedContent.current, 'edit')
       setNote('Published')
     } catch (err) {
       setNote(err instanceof Error ? err.message : 'Could not publish')
@@ -98,18 +144,40 @@ export default function SiteEditor() {
     }
   }
 
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        data-la-editor=""
-        onClick={() => open(location.pathname)}
-        style={chip}
-      >
-        Edit this page
-      </button>
-    )
+  function setColor(key: ThemeKey, value: string) {
+    const next = value.toLowerCase()
+    if (!/^#[0-9a-f]{6}$/.test(next)) return
+    setDraft((prev) => prev ? { ...prev, [key]: next } : prev)
+    setNote(null)
   }
+
+  function setNumber(key: keyof typeof THEME_NUMBERS, value: string) {
+    const n = Math.round(Number(value))
+    if (!Number.isFinite(n)) return
+    const { min, max } = THEME_NUMBERS[key]
+    setDraft((prev) => prev ? { ...prev, [key]: Math.min(max, Math.max(min, n)) } : prev)
+    setNote(null)
+  }
+
+  async function restore() {
+    setBusy(true)
+    setNote(null)
+    try {
+      const saved = await adminApi.setTheme({})
+      publishedColors.current = {}
+      publishedContent.current = emptyContent()
+      setDraft(mergeTheme(saved.tokens))
+      setContent(emptyContent())
+      watchContent(emptyContent(), 'edit')
+      setNote('Restored the original appearance.')
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : 'Could not restore')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const warnings = draft ? contrastWarnings(draft) : []
 
   return (
     <div data-la-editor="" style={bar}>
@@ -152,18 +220,45 @@ export default function SiteEditor() {
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
         {note && <span style={{ fontFamily: sans, fontSize: 13, color: T.ink2 }}>{note}</span>}
-        <button type="button" style={quiet} onClick={() => navigate(location.pathname)}>Close</button>
-        <button type="button" style={primary} disabled={busy} onClick={() => void publish()}>{busy ? 'Saving…' : 'Publish'}</button>
+        <button type="button" style={quiet} onClick={() => setStyleOpen((open) => !open)}>{styleOpen ? 'Hide style' : 'Style'}</button>
+        <button type="button" style={quiet} disabled={busy} onClick={() => void restore()}>Restore</button>
+        <button type="button" style={quiet} onClick={() => navigate('/admin')}>Close</button>
+        <button type="button" style={primary} disabled={busy || !draft} onClick={() => void publish()}>{busy ? 'Saving…' : 'Publish'}</button>
       </div>
+      {styleOpen && draft && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, width: '100%' }}>
+          {COLORS.map(({ key, label }) => (
+            <label key={key} style={{ display: 'grid', gridTemplateColumns: '1fr 36px', gap: 8, alignItems: 'center', minWidth: 160, fontFamily: sans, fontSize: 13, color: T.ink }}>
+              {label}
+              <input
+                type="color"
+                aria-label={label}
+                value={String(draft[key])}
+                onChange={(event) => setColor(key, event.target.value)}
+                style={{ width: 36, height: 28, padding: 0, border: `1px solid ${T.line}`, background: 'transparent', borderRadius: radius.control }}
+              />
+            </label>
+          ))}
+          {NUMBERS.map(({ key, label }) => (
+            <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 160, fontFamily: sans, fontSize: 13, color: T.ink }}>
+              {label}
+              <input
+                type="range"
+                min={THEME_NUMBERS[key].min}
+                max={THEME_NUMBERS[key].max}
+                value={draft[key]}
+                onChange={(event) => setNumber(key, event.target.value)}
+              />
+              <span style={{ fontSize: 12, color: T.ink2 }}>{draft[key]}px · default {THEME_DEFAULTS[key]}</span>
+            </label>
+          ))}
+          {warnings.map((line) => (
+            <span key={line} style={{ fontFamily: sans, fontSize: 13, color: T.siennaDeep }}>{line}</span>
+          ))}
+        </div>
+      )}
     </div>
   )
-}
-
-const chip: CSSProperties = {
-  position: 'fixed', right: 16, bottom: 16, zIndex: 100001,
-  background: T.walnut, color: T.onDark, border: 'none', borderRadius: radius.control,
-  padding: '10px 14px', fontFamily: sans, fontSize: 14, cursor: 'pointer',
-  boxShadow: '0 10px 28px rgba(20,15,11,.28)',
 }
 
 const bar: CSSProperties = {

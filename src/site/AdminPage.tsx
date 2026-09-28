@@ -14,8 +14,6 @@ import {
 import { T, radius, sans, serif } from '../design/tokens'
 import { BRAND, BRAND_SUB } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Panel } from '../design/ui'
-import DesignDesk from './DesignDesk'
-
 const input: CSSProperties = {
   width: '100%', boxSizing: 'border-box', background: T.card,
   border: `1px solid ${T.line}`, borderRadius: radius.sm, padding: '11px 13px',
@@ -402,7 +400,6 @@ function deskTab(on: boolean): CSSProperties {
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(() => Boolean(adminToken()))
-  const [desk, setDesk] = useState<'accounts' | 'appearance'>('accounts')
   const [overview, setOverview] = useState<AdminOverview | null>(null)
   const [users, setUsers] = useState<AdminUserRow[]>([])
   const [query, setQuery] = useState('')
@@ -429,12 +426,7 @@ export default function AdminPage() {
   if (!authed) return <Login onIn={() => setAuthed(true)} />
 
   return (
-    <div style={{
-      minHeight: '100dvh', background: T.paper,
-      height: desk === 'appearance' ? '100dvh' : undefined,
-      display: 'flex', flexDirection: 'column',
-      overflow: desk === 'appearance' ? 'hidden' : undefined,
-    }}>
+    <div style={{ minHeight: '100dvh', background: T.paper, display: 'flex', flexDirection: 'column' }}>
       <header style={{
         background: T.walnutDeep, color: T.onDark, padding: '18px 28px',
         display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
@@ -444,9 +436,8 @@ export default function AdminPage() {
           <Eyebrow color="rgba(179,144,47,.85)">Staff desk · {adminEmail()}</Eyebrow>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => setDesk('accounts')} style={deskTab(desk === 'accounts')}>Accounts</button>
-          <button type="button" onClick={() => setDesk('appearance')} style={deskTab(desk === 'appearance')}>Appearance</button>
-          <Link to="/?edit=1" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark, textDecoration: 'none', marginLeft: 8 }}>Edit the site</Link>
+          <button type="button" style={deskTab(true)}>Accounts</button>
+          <Link to="/?edit=1" style={{ ...deskTab(false), textDecoration: 'none' }}>Appearance</Link>
           <Link to="/" style={{ fontFamily: sans, fontSize: 13.5, color: T.onDark2, textDecoration: 'none' }}>Site</Link>
           <Btn
             tone="onDark"
@@ -458,9 +449,6 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {desk === 'appearance' ? (
-        <DesignDesk />
-      ) : (
       <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px 72px', display: 'flex', flexDirection: 'column', gap: 22 }}>
         {selected ? (
           <UserDetail id={selected} onBack={() => { setSelected(null); refresh() }} onGone={() => { setSelected(null); refresh() }} />
@@ -516,7 +504,6 @@ export default function AdminPage() {
           </>
         )}
       </div>
-      )}
     </div>
   )
 }
