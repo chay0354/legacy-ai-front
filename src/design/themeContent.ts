@@ -34,7 +34,7 @@ function collectAdded(input: unknown) {
     const raw = value as Record<string, unknown>
     if (typeof raw.after !== 'string' || !validKey(raw.after)) continue
     if (raw.kind === 'text') {
-      const text = typeof raw.text === 'string' ? raw.text.trim() : ''
+      const text = sanitizeRich(typeof raw.text === 'string' ? raw.text.trim() : '')
       if (text && text.length <= 2000) out[key] = { kind: 'text', after: raw.after, text }
     } else if (raw.kind === 'image') {
       const url = typeof raw.src === 'string' ? raw.src.trim() : ''
@@ -61,7 +61,7 @@ export function sanitizeContent(input: unknown): ThemeContent {
   for (const [key, value] of Object.entries(copyIn)) {
     if (Object.keys(copy).length >= 800) break
     if (!validKey(key) || typeof value !== 'string') continue
-    const text = value.trim()
+    const text = sanitizeRich(value.trim())
     if (!text || text.length > 2000) continue
     const original = key.split(SEP).slice(1).join(SEP)
     if (text === original) continue
@@ -227,8 +227,13 @@ function applyAdded() {
     if (item.kind === 'image' && node instanceof HTMLImageElement) {
       if (node.getAttribute('src') !== item.src) node.src = item.src
       if (node.alt !== (item.alt ?? '')) node.alt = item.alt ?? ''
-    } else if (item.kind === 'text' && node.textContent !== item.text) {
-      node.textContent = item.text
+    } else if (item.kind === 'text') {
+      if (hasMarkup(item.text)) {
+        if (node.dataset.laHtml !== item.text) fillRich(node, item.text)
+      } else if (node.textContent !== item.text) {
+        node.textContent = item.text
+        delete node.dataset.laHtml
+      }
     }
     let ref: Element = anchor
     for (let next = ref.nextElementSibling; next && next !== node && next.hasAttribute('data-la-added'); next = ref.nextElementSibling) {
@@ -273,6 +278,51 @@ function sourceOf(shown: string) {
   return shown
 }
 
+function sanitizeRich(value: string) {
+  const doc = new DOMParser().parseFromString(`<div>${value}</div>`, 'text/html')
+  const root = doc.body.firstElementChild
+  if (!root) return ''
+  let out = ''
+  const walk = (node: Node) => {
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) out += child.textContent || ''
+      else if (child instanceof HTMLElement) {
+        const tag = child.tagName
+        if (tag === 'B' || tag === 'STRONG') { out += '<b>'; walk(child); out += '</b>' }
+        else if (tag === 'I' || tag === 'EM') { out += '<i>'; walk(child); out += '</i>' }
+        else if (tag === 'BR') out += '\n'
+        else if (tag === 'DIV' || tag === 'P') {
+          if (out && !out.endsWith('\n')) out += '\n'
+          walk(child)
+        } else walk(child)
+      }
+    }
+  }
+  walk(root)
+  return out.replace(/<b>\s*<\/b>|<i>\s*<\/i>/g, '').replace(/\n+$/g, '').trim()
+}
+
+function hasMarkup(value: string) {
+  return /<\/?[bi]>/.test(value)
+}
+
+function fillRich(host: HTMLElement, value: string) {
+  host.replaceChildren()
+  const clean = sanitizeRich(value)
+  host.dataset.laHtml = clean
+  const stack: HTMLElement[] = [host]
+  for (const part of clean.split(/(<\/?b>|<\/?i>|\n)/)) {
+    if (part === '<b>' || part === '<i>') {
+      const el = document.createElement(part === '<b>' ? 'b' : 'i')
+      stack[stack.length - 1].append(el)
+      stack.push(el)
+    } else if (part === '</b>' || part === '</i>') {
+      if (stack.length > 1) stack.pop()
+    } else if (part === '\n') stack[stack.length - 1].append(document.createElement('br'))
+    else if (part) stack[stack.length - 1].append(document.createTextNode(part))
+  }
+}
+
 function paintString(raw: string, next: string) {
   const trimmed = raw.trim()
   if (!trimmed || trimmed === next) return raw
@@ -283,15 +333,34 @@ function paintString(raw: string, next: string) {
 
 const paintedText = new Map<Text, string>()
 
+function showCopy(node: Text, original: string, next: string) {
+  if (hasMarkup(next)) {
+    const span = document.createElement('span')
+    span.dataset.laRich = original
+    fillRich(span, next)
+    node.replaceWith(span)
+    paintedText.delete(node)
+    return
+  }
+  const plain = next.replace(/<\/?[bi]>/g, '')
+  if ((node.textContent?.trim() || '') !== plain) node.textContent = paintString(node.textContent || '', plain)
+}
+
 function applyCopy() {
   const path = location.pathname
+  for (const span of document.querySelectorAll<HTMLElement>('[data-la-rich]')) {
+    if (span.closest('[data-la-editor]')) continue
+    const original = span.dataset.laRich || ''
+    const next = current.copy[`${path}${SEP}${original}`]
+    if (!next || !hasMarkup(next)) span.replaceWith(document.createTextNode(next ? next.replace(/<\/?[bi]>/g, '') : original))
+    else if (span.dataset.laHtml !== next) fillRich(span, next)
+  }
   for (const [node, original] of paintedText) {
     if (!node.isConnected) {
       paintedText.delete(node)
       continue
     }
-    const next = current.copy[`${path}${SEP}${original}`] || original
-    if ((node.textContent?.trim() || '') !== next) node.textContent = paintString(node.textContent || '', next)
+    showCopy(node, original, current.copy[`${path}${SEP}${original}`] || original)
   }
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   let node = walker.nextNode()
@@ -299,13 +368,13 @@ function applyCopy() {
     const text = node as Text
     const parent = text.parentElement
     node = walker.nextNode()
-    if (!parent || parent.closest('[data-la-editor], [data-la-added], script, style, svg')) continue
+    if (!parent || parent.closest('[data-la-editor], [data-la-added], [data-la-rich], script, style, svg')) continue
     const trimmed = text.textContent?.trim() || ''
     if (!trimmed || trimmed.length > MAX_TEXT) continue
     const next = current.copy[`${path}${SEP}${trimmed}`]
     if (!next || next === trimmed) continue
     paintedText.set(text, trimmed)
-    text.textContent = paintString(text.textContent || '', next)
+    showCopy(text, trimmed, next)
   }
   const attrSelector = TEXT_ATTRS.flatMap((attr) => [`[${attr}]`, `[data-la-src-${attr}]`]).join(',')
   for (const el of document.querySelectorAll<HTMLElement>(attrSelector)) {
@@ -316,7 +385,7 @@ function applyCopy() {
       const original = marked || raw
       if (!original || original.length > MAX_TEXT) continue
       const next = current.copy[`${path}${SEP}${original}`]
-      const shown = next || original
+      const shown = (next || original).replace(/<\/?[bi]>/g, '')
       if (el.getAttribute(attr)?.trim() !== shown) el.setAttribute(attr, shown)
       if (next) el.setAttribute(`data-la-src-${attr}`, original)
       else el.removeAttribute(`data-la-src-${attr}`)
@@ -658,6 +727,8 @@ function wordingFromNode(node: Node | null): { anchor: HTMLElement; shown: strin
     const shown = text.textContent?.trim() || ''
     if (!parent || !shown || shown.length > MAX_TEXT) return null
     if (parent.closest('[data-la-editor], script, style')) return null
+    const rich = parent.closest<HTMLElement>('[data-la-rich]')
+    if (rich?.dataset.laRich) return { anchor: rich, shown: rich.dataset.laRich }
     if (parent.closest('svg')) {
       const host = parent.closest('svg')?.parentElement
       const label = host ? readAttr(host) : ''
@@ -870,6 +941,39 @@ function sizeSlider(key: string) {
   return slider
 }
 
+function richField(value: string, onChange: (next: string) => void) {
+  const wrap = document.createElement('div')
+  wrap.style.cssText = 'margin-top:10px'
+  const tools = document.createElement('div')
+  tools.style.cssText = 'display:flex;gap:6px;margin-bottom:6px'
+  const field = document.createElement('div')
+  field.contentEditable = 'true'
+  field.setAttribute('role', 'textbox')
+  field.spellcheck = true
+  field.style.cssText = 'width:100%;box-sizing:border-box;min-height:72px;max-height:180px;overflow:auto;padding:8px 10px;border:1px solid var(--la-line);border-radius:6px;background:var(--la-paper);color:var(--la-ink);font:inherit;white-space:pre-wrap'
+  if (hasMarkup(value)) fillRich(field, value)
+  else field.textContent = value
+  const mark = (label: string, name: string, command: 'bold' | 'italic') => {
+    const el = document.createElement('button')
+    el.type = 'button'
+    el.textContent = label
+    el.setAttribute('aria-label', name)
+    el.style.cssText = `width:32px;height:32px;font-family:inherit;background:transparent;color:var(--la-ink);border:1px solid var(--la-line);border-radius:6px;cursor:pointer;${command === 'bold' ? 'font-weight:700' : 'font-style:italic'}`
+    el.addEventListener('pointerdown', (event) => {
+      event.preventDefault()
+      field.focus()
+      document.execCommand('styleWithCss', false, 'false')
+      document.execCommand(command)
+      onChange(sanitizeRich(field.innerHTML))
+    })
+    return el
+  }
+  tools.append(mark('B', 'Bold', 'bold'), mark('I', 'Italic', 'italic'))
+  field.addEventListener('input', () => onChange(sanitizeRich(field.innerHTML)))
+  wrap.append(tools, field)
+  return { wrap, field }
+}
+
 function openAddedPanel(el: HTMLElement) {
   const key = addedKeyOf(el)
   const item = current.added[key]
@@ -879,21 +983,17 @@ function openAddedPanel(el: HTMLElement) {
   shell.innerHTML = ''
   panelHead(shell, item.kind === 'image' ? 'Your picture' : 'Your text')
 
-  let field: HTMLTextAreaElement | null = null
+  let field: HTMLElement | null = null
   const status = document.createElement('span')
   status.style.cssText = 'font-size:12.5px;color:var(--la-ink-2);flex:1'
   if (item.kind === 'text') {
-    field = document.createElement('textarea')
-    field.value = item.text
-    field.rows = Math.min(6, Math.max(2, Math.ceil(item.text.length / 34)))
-    field.style.cssText = 'width:100%;box-sizing:border-box;margin-top:10px;padding:8px 10px;border:1px solid var(--la-line);border-radius:6px;background:var(--la-paper);color:var(--la-ink);font:inherit;resize:vertical'
-    field.addEventListener('input', () => {
-      const text = field!.value.trim()
-      if (!text) return
+    const editor = richField(item.text, (text) => {
+      if (!text.replace(/<\/?[bi]>/g, '').trim()) return
       current = { ...current, added: { ...current.added, [key]: { ...item, text } } }
       commit()
     })
-    shell.append(field)
+    field = editor.field
+    shell.append(editor.wrap)
     const colors = document.createElement('div')
     colors.style.cssText = 'display:flex;gap:12px;margin-top:12px'
     colors.append(swatch('Text', current.styles[styleKey]?.color ?? toHex(getComputedStyle(el).color) ?? '#241c15', (hex) => {
@@ -939,7 +1039,13 @@ function openAddedPanel(el: HTMLElement) {
   place(shell, el)
   if (field) {
     field.focus()
-    if (field.value === 'New text') field.select()
+    if (field.textContent === 'New text') {
+      const range = document.createRange()
+      range.selectNodeContents(field)
+      const selection = getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    }
   }
 }
 
@@ -961,21 +1067,18 @@ function openPanel(el: HTMLElement, wording: { anchor: HTMLElement; shown: strin
   shell.innerHTML = ''
   panelHead(shell, kindOf(wording?.anchor ?? el))
 
-  let field: HTMLTextAreaElement | null = null
+  let field: HTMLElement | null = null
   if (wording) {
-    field = document.createElement('textarea')
-    field.value = current.copy[copyKey] ?? wording.shown.trim()
-    field.rows = Math.min(6, Math.max(2, Math.ceil(field.value.length / 34)))
-    field.style.cssText = 'width:100%;box-sizing:border-box;margin-top:10px;padding:8px 10px;border:1px solid var(--la-line);border-radius:6px;background:var(--la-paper);color:var(--la-ink);font:inherit;resize:vertical'
-    field.addEventListener('input', () => {
-      const text = field!.value.trim()
+    const editor = richField(current.copy[copyKey] ?? wording.shown.trim(), (text) => {
       const copy = { ...current.copy }
-      if (!text || text === original) delete copy[copyKey]
+      const plain = text.replace(/<\/?[bi]>/g, '').trim()
+      if (!plain || text === original) delete copy[copyKey]
       else copy[copyKey] = text
       current = { ...current, copy }
       commit()
     })
-    shell.append(field)
+    field = editor.field
+    shell.append(editor.wrap)
   }
 
   const colors = document.createElement('div')
