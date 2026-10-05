@@ -301,6 +301,9 @@ export async function startLiveSession(opts: {
   if (!start.usingOwnVoice) {
     throw new Error('Your voice was not cloned successfully. Re-record in Avatar Studio — Live Call will not use a stock voice.')
   }
+  if (!start.simliToken) {
+    throw new Error('Live call did not return a face session. Refresh the page and try again.')
+  }
   const languageCode = start.languageCode || 'en'
 
   handlers.onStatus('Turning on the microphone…')
