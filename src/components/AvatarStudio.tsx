@@ -6,7 +6,7 @@ import {
   type CreatorGender,
   type CreatorPronouns,
 } from '../lib/api'
-import { ANAM_LANGUAGES, guessAnamLanguage, normalizeAnamLanguage } from '../lib/anamLanguages'
+import { LIVE_LANGUAGES, guessLiveLanguage, normalizeLiveLanguage } from '../lib/liveLanguages'
 import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
 import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImage'
 import { bindMediaStream } from '../lib/playMedia'
@@ -263,29 +263,27 @@ function Intro({
   )
 }
 
-const ANAM_STEPS = [
+const LIVE_STEPS = [
   { id: 'photo', label: 'Photo' },
-  { id: 'voice', label: 'Voice' },
   { id: 'live_face', label: 'Live face' },
 ] as const
 
-function anamStepFromPhase(phase: string): (typeof ANAM_STEPS)[number]['id'] | null {
+function liveStepFromPhase(phase: string): (typeof LIVE_STEPS)[number]['id'] | null {
   const p = phase.toLowerCase()
-  if (p.includes('photo') || p.includes('portrait') || p.includes('face') && p.includes('photo')) return 'photo'
-  if (p.includes('voice') || p.includes('clon')) return 'voice'
+  if (p.includes('photo') || p.includes('portrait')) return 'photo'
   if (p.includes('live') || p.includes('almost') || p.includes('ready')) return 'live_face'
   return null
 }
 
 function StudioProgress({ label, named }: { label: string; named?: boolean }) {
-  const current = named ? anamStepFromPhase(label) : null
-  const idx = current ? ANAM_STEPS.findIndex((s) => s.id === current) : -1
+  const current = named ? liveStepFromPhase(label) : null
+  const idx = current ? LIVE_STEPS.findIndex((s) => s.id === current) : -1
   return (
     <div style={{ marginTop: 20, padding: '20px 22px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: radius.card }}>
       <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: C.terra }}>{label}</div>
       {named && (
         <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-          {ANAM_STEPS.map((s, i) => {
+          {LIVE_STEPS.map((s, i) => {
             const done = idx > i
             const active = s.id === current
             return (
@@ -316,7 +314,13 @@ function StudioProgress({ label, named }: { label: string; named?: boolean }) {
 /* ------------------------------- Voice step ------------------------------ */
 function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: AvatarAssets | null; onDone: () => void | Promise<void> }) {
   const [language, setLanguage] = useState(() =>
-    guessAnamLanguage(typeof assets?.metadata?.anam_language === 'string' ? assets.metadata.anam_language : null),
+    guessLiveLanguage(
+      typeof assets?.metadata?.live_language === 'string'
+        ? assets.metadata.live_language
+        : typeof assets?.metadata?.anam_language === 'string'
+          ? assets.metadata.anam_language
+          : null,
+    ),
   )
   const [recording, setRecording] = useState(false)
   const [blob, setBlob] = useState<Blob | null>(null)
@@ -438,9 +442,9 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
           label="Language for your live avatar voice"
           value={language}
           disabled={recording || busy}
-          onChange={(v) => setLanguage(normalizeAnamLanguage(v))}
+          onChange={(v) => setLanguage(normalizeLiveLanguage(v))}
         >
-          {ANAM_LANGUAGES.map((l) => (
+          {LIVE_LANGUAGES.map((l) => (
             <option key={l.code} value={l.code}>{l.label}</option>
           ))}
         </Select>
@@ -457,7 +461,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
         ) : (
           <p style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.55, color: C.ink, margin: 0 }}>
             Speak naturally for 60–90 seconds in{' '}
-            <strong>{ANAM_LANGUAGES.find((l) => l.code === language)?.label || language}</strong>
+            <strong>{LIVE_LANGUAGES.find((l) => l.code === language)?.label || language}</strong>
             — introduce yourself, talk about your family, a childhood memory, and something you care about.
             Clear speech in a quiet room works best for cloning.
           </p>
@@ -871,7 +875,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   )
 }
 
-/* ---------------- Live avatar provision (Anam) --------------- */
+/* ---------------- Live avatar provision (Simli face) --------------- */
 function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
   const [status, setStatus] = useState<'idle' | 'generating' | 'done' | 'error'>('idle')
   const [phase, setPhase] = useState('Preparing…')
@@ -894,7 +898,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         return
       }
       setError(
-        prov.assets?.metadata?.anam_error
+        prov.assets?.metadata?.simli_error
         || 'Live avatar setup did not finish — your voice must be cloned successfully (no stock voice). Re-record your voice and try again.',
       )
       setStatus('error')

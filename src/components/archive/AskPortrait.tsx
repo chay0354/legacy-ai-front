@@ -4,7 +4,7 @@ import { apiUrl } from '../../lib/apiUrl'
 import { ASK } from '../../design/copy'
 import { T, radius, sans, serif, shadow } from '../../design/tokens'
 import { Body, Btn, Eyebrow, Icon } from '../../design/ui'
-import { useAnamLiveCall } from '../LiveAvatarCall'
+import { useLiveCall } from '../LiveAvatarCall'
 
 function initials(name: string) {
   return name.split(/\s+/).map((w) => w[0]?.toUpperCase() || '').join('').slice(0, 2) || '—'
@@ -40,7 +40,7 @@ export default function AskPortrait({
   /** Unique per mounted portrait, so two surfaces never share one video element. */
   videoId?: string
 }) {
-  const live = useAnamLiveCall(talkCreatorId, videoId, liveKey)
+  const live = useLiveCall(talkCreatorId, videoId, liveKey)
   const videoLive = live.videoReady
   const [broken, setBroken] = useState(false)
   const [proxy, setProxy] = useState<string | null>(null)

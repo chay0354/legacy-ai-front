@@ -1,9 +1,8 @@
 /**
- * Languages Anam documents for multilingual / voice flows.
- * Source: https://docs.anam.ai/personas/voices/multilingual
- * Keep in sync with back/src/anamLanguages.js
+ * Languages offered for Live Call (OpenAI listens + answers, ElevenLabs speaks).
+ * Keep in sync with back/src/liveLanguages.js
  */
-export const ANAM_LANGUAGES = [
+export const LIVE_LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'he', label: 'Hebrew' },
   { code: 'ar', label: 'Arabic' },
@@ -63,23 +62,23 @@ export const ANAM_LANGUAGES = [
   { code: 'cy', label: 'Welsh' },
 ] as const
 
-export type AnamLanguageCode = (typeof ANAM_LANGUAGES)[number]['code']
+export type LiveLanguageCode = (typeof LIVE_LANGUAGES)[number]['code']
 
-const CODE_SET = new Set<string>(ANAM_LANGUAGES.map((l) => l.code))
+const CODE_SET = new Set<string>(LIVE_LANGUAGES.map((l) => l.code))
 
-export function normalizeAnamLanguage(code?: string | null): AnamLanguageCode {
+export function normalizeLiveLanguage(code?: string | null): LiveLanguageCode {
   const raw = String(code || '').trim().toLowerCase()
   if (!raw) return 'en'
   const base = raw.split(/[-_]/)[0]
-  if (CODE_SET.has(raw)) return raw as AnamLanguageCode
-  if (CODE_SET.has(base)) return base as AnamLanguageCode
+  if (CODE_SET.has(raw)) return raw as LiveLanguageCode
+  if (CODE_SET.has(base)) return base as LiveLanguageCode
   return 'en'
 }
 
 /** Prefer the browser locale so a Hebrew speaker is not cloned as English by default. */
-export function guessAnamLanguage(fallback?: string | null): AnamLanguageCode {
-  if (typeof navigator === 'undefined') return normalizeAnamLanguage(fallback)
-  return normalizeAnamLanguage(
+export function guessLiveLanguage(fallback?: string | null): LiveLanguageCode {
+  if (typeof navigator === 'undefined') return normalizeLiveLanguage(fallback)
+  return normalizeLiveLanguage(
     fallback
     || navigator.languages?.[0]
     || navigator.language,
