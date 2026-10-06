@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { T, radius, sans, serif } from '../../design/tokens'
-import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
+import { BAND, BRAND_SUB, NAV } from '../../design/copy'
+import { Wordmark } from '../../design/Wordmark'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
 import { archiveQuery } from '../../lib/siteEdit'
@@ -60,7 +61,7 @@ export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
         </button>
       </div>
       <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <span style={{ fontFamily: serif, fontSize: 15, color: T.ink2, letterSpacing: '.04em' }}>{BRAND}</span>
+        <Wordmark tone="dark" width={72} />
         <Eyebrow color={T.ink3}>{BRAND_SUB}</Eyebrow>
       </div>
     </footer>
@@ -140,7 +141,7 @@ export default function ArchiveShell({
     }}>
       <div className="archive-mobile-bar" data-la-nav="">
         <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: serif, fontSize: 20, color: T.onDark }}>{BRAND}</span>
+          <Wordmark tone="light" width={64} />
         </Link>
         <button
           ref={menuBtn}
@@ -164,10 +165,7 @@ export default function ArchiveShell({
         }}
       >
         <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
-          <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark, letterSpacing: '.01em' }}>{BRAND}</div>
-          <div style={{ marginTop: 5 }}>
-            <Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow>
-          </div>
+          <Wordmark tone="light" width={88} />
         </Link>
 
         <div style={{ padding: '0 26px 6px' }}>

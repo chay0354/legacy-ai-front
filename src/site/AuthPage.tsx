@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { requestPasswordReset, signInWithPassword, signUpWithPassword } from '../lib/auth'
 import { T, radius, sans, serif } from '../design/tokens'
-import { BRAND, BRAND_SUB, CTA, HERO } from '../design/copy'
+import { BRAND, CTA, HERO } from '../design/copy'
+import { Wordmark } from '../design/Wordmark'
 import { Body, Btn, Display, Eyebrow, Icon } from '../design/ui'
 import { billingApi, type BillingPlan } from '../lib/api'
 
@@ -102,9 +103,8 @@ export default function AuthPage() {
           position: 'relative', height: '100%', padding: '34px 44px 48px',
           display: 'flex', flexDirection: 'column',
         }}>
-          <Link to="/" style={{ textDecoration: 'none' }}>
-            <div style={{ fontFamily: serif, fontSize: 22, color: T.onDark }}>{BRAND}</div>
-            <div style={{ marginTop: 4 }}><Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow></div>
+          <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'block' }}>
+            <Wordmark tone="light" width={92} />
           </Link>
           <div style={{ marginTop: 'auto', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h1 style={{

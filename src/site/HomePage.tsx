@@ -3,6 +3,7 @@ import { SiteFooter, SiteHeader } from './SiteChrome'
 import { T, radius, sans, serif } from '../design/tokens'
 import { CTA, HERO, HOW_IT_WORKS, TRUST } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel } from '../design/ui'
+import heroDesk from '../assets/hero-desk.jpg'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -12,13 +13,7 @@ export default function HomePage() {
     <div style={{ minHeight: '100dvh', background: T.paper, display: 'flex', flexDirection: 'column' }}>
       {/* ── atmospheric hero: a room, not a black panel ── */}
       <section style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
-        {/* Hero photograph goes here — see HANDOFF.md. Until then: a warm room, lit from the right. */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(120% 90% at 82% 34%, rgba(176,94,55,.30) 0%, rgba(94,60,38,.22) 38%, rgba(24,18,13,0) 72%),
-            radial-gradient(70% 60% at 96% 76%, rgba(179,144,47,.18) 0%, rgba(24,18,13,0) 70%),
-            linear-gradient(100deg, ${T.walnutDeep} 0%, ${T.walnut} 52%, ${T.walnutMid} 100%)`,
-        }} />
+        <div className="site-hero-photo" style={{ backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
         <div style={{ position: 'relative' }}>
           <SiteHeader />
           <div className="site-hero-inner" style={{ padding: '72px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>

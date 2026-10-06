@@ -6,8 +6,8 @@
  * Website POV is the creator, second person: you, your archive, your stories.
  */
 
-export const BRAND = 'Legacy AI'
-export const BRAND_SUB = 'Private Archive'
+export const BRAND = 'As Told'
+export const BRAND_SUB = 'Private family archive'
 
 export const NAV = {
   overview: 'Overview',

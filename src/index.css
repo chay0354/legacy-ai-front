@@ -457,3 +457,32 @@ a:hover {
   background: rgba(36, 28, 21, 0.36);
   background-clip: padding-box;
 }
+
+
+/* Homepage hero: desk photograph, dark on the text side, light from the lamp on the right. */
+.site-hero-photo {
+  position: absolute;
+  inset: 0;
+  background-color: var(--la-walnut-deep);
+  background-size: cover;
+  background-position: 62% 40%;
+}
+
+.site-hero-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 32%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.12) 100%),
+    linear-gradient(180deg, rgba(23, 17, 12, 0.55) 0%, rgba(23, 17, 12, 0) 28%);
+}
+
+@media (max-width: 768px) {
+  .site-hero-photo {
+    background-position: 76% 50%;
+  }
+
+  .site-hero-photo::after {
+    background: linear-gradient(180deg, rgba(23, 17, 12, 0.86) 0%, rgba(23, 17, 12, 0.72) 55%, rgba(23, 17, 12, 0.55) 100%);
+  }
+}
