@@ -61,7 +61,7 @@ export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
         </button>
       </div>
       <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <Wordmark tone="dark" width={72} />
+        <Wordmark tone="dark" width={56} />
         <Eyebrow color={T.ink3}>{BRAND_SUB}</Eyebrow>
       </div>
     </footer>

@@ -474,7 +474,7 @@ a:hover {
   inset: 0;
   background:
     linear-gradient(90deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 32%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.12) 100%),
-    linear-gradient(180deg, rgba(23, 17, 12, 0.55) 0%, rgba(23, 17, 12, 0) 28%);
+    linear-gradient(180deg, rgba(23, 17, 12, 0.88) 0%, rgba(23, 17, 12, 0.66) 96px, rgba(23, 17, 12, 0.22) 190px, rgba(23, 17, 12, 0) 280px);
 }
 
 @media (max-width: 768px) {

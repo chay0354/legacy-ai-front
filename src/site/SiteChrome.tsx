@@ -149,7 +149,7 @@ export function SiteFooter() {
         gridTemplateColumns: 'minmax(220px,1.2fr) minmax(160px,.7fr) minmax(160px,.7fr) minmax(240px,1fr)',
       }}>
         <div style={col}>
-          <Wordmark tone="light" width={96} />
+          <Wordmark tone="light" width={60} />
           <Eyebrow color="rgba(179,144,47,.85)">{BAND.eyebrow}</Eyebrow>
           <span style={{ fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.62)', lineHeight: 1.6 }}>
             {BAND.line}
