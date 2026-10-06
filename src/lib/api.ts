@@ -305,8 +305,10 @@ export interface AvatarAssets {
   metadata?: {
     cloned?: boolean;
     avatar_status?: 'none' | 'processing' | 'ready' | 'failed';
-    anam_status?: 'none' | 'processing' | 'ready' | 'failed';
-    anam_error?: string | null;
+    simli_status?: 'none' | 'processing' | 'ready' | 'failed';
+    simli_phase?: 'photo' | 'live_face' | null;
+    simli_error?: string | null;
+    live_language?: string | null;
     heygen_photo_avatar_id?: string | null;
     heygen_avatar_preview_url?: string | null;
     [key: string]: unknown;
@@ -325,6 +327,7 @@ export interface AvatarAssetsResponse {
   voiceCloned?: boolean;
   avatarReady?: boolean;
   liveReady?: boolean;
+  liveStatus?: 'none' | 'processing' | 'ready' | 'failed';
   hasPortrait?: boolean;
   previewUrl?: string | null;
   urls?: { portrait?: string | null; idle?: string | null; speaking?: string | null; voiceSample?: string | null };
@@ -384,7 +387,7 @@ export const avatarApi = {
       body: JSON.stringify(payload),
     }) as Promise<{ success: boolean; gender: CreatorGender; pronouns: CreatorPronouns; displayName?: string | null }>,
 
-  /** Register portrait + voice as Anam live avatar. Polls until liveReady on Vercel. */
+  /** Build the live face (Simli) from the portrait. Generation takes a few minutes; polls until liveReady. */
   provision: async (opts?: { onProgress?: (phase: string) => void }) => {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     type ProvisionResult = {
@@ -401,16 +404,13 @@ export const avatarApi = {
     if (initial.status !== 'processing') return initial;
 
     const phaseLabel = (phase: unknown, i: number) => {
-      if (phase === 'photo') return 'Photo — building your live face…'
-      if (phase === 'voice') return 'Voice — cloning how you sound…'
-      if (phase === 'live_face') return 'Live face — finishing the avatar…'
-      if (i < 8) return 'Photo — building your live face…'
-      if (i < 25) return 'Voice — cloning how you sound…'
-      return 'Live face — finishing the avatar…'
+      if (phase === 'photo' || (phase !== 'live_face' && i < 4)) return 'Photo — preparing your portrait…'
+      return 'Live face — teaching it to speak (a few minutes)…'
     }
-    opts?.onProgress?.(phaseLabel(initial.assets?.metadata?.anam_phase, 0));
-    for (let i = 0; i < 90; i++) {
-      await sleep(3000);
+    opts?.onProgress?.(phaseLabel(initial.assets?.metadata?.simli_phase, 0));
+    // Face generation can take several minutes — poll for up to 12.
+    for (let i = 0; i < 144; i++) {
+      await sleep(5000);
       const polled = await avatarApi.getAssets({ light: true });
       if (polled.liveReady && polled.assets) {
         return {
@@ -421,13 +421,13 @@ export const avatarApi = {
           assets: polled.assets,
         };
       }
-      const anamStatus = polled.assets?.metadata?.anam_status;
-      if (anamStatus === 'failed') {
-        throw new Error(polled.assets?.metadata?.anam_error || 'Live avatar setup failed');
+      const status = polled.assets?.metadata?.simli_status;
+      if (status === 'failed') {
+        throw new Error(polled.assets?.metadata?.simli_error || 'Live avatar setup failed');
       }
-      opts?.onProgress?.(phaseLabel(polled.assets?.metadata?.anam_phase, i));
+      opts?.onProgress?.(phaseLabel(polled.assets?.metadata?.simli_phase, i));
     }
-    throw new Error('Live avatar setup is taking longer than expected. Refresh and try again.');
+    throw new Error('The live face is still being created. It will be ready soon — come back in a few minutes.');
   },
 
   /** Ask the avatar a question; resolves to the answer text (in the person's own voice). */
@@ -460,16 +460,33 @@ export const avatarApi = {
 
   greetingText: () => apiFetch('/api/avatar/greeting-text') as Promise<{ text: string }>,
 
-  /** Start a real-time Anam live call with the legacy's own face + voice; returns a session token. */
+  /** Start a live call: Simli face token + OpenAI listening token + a ticket for the cloned voice. */
   startLive: (creatorId?: string) =>
     apiFetch('/api/avatar/live/start', { method: 'POST', body: JSON.stringify({ creatorId }) }) as Promise<{
-      sessionToken: string;
+      simliToken: string;
+      realtimeToken: string;
+      speechTicket: string;
       usingOwnFace: boolean;
       usingOwnVoice: boolean;
       languageCode?: string;
       creatorId: string;
-      videoProfile?: { videoWidth?: number; videoHeight?: number; videoQuality?: string };
     }>,
+
+  /** One spoken sentence in the cloned voice as a raw PCM16 16 kHz stream (for the live face). */
+  liveSpeech: async (ticket: string, text: string, signal?: AbortSignal) => {
+    const headers = await authHeaders();
+    const res = await fetch(apiUrl('/api/avatar/live/speech'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ticket, text }),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as { error?: string }).error || `API error ${res.status}`);
+    }
+    return res.body;
+  },
 
 
   /** Render text in the cloned voice; resolves to a playable audio src (URL or object URL). */

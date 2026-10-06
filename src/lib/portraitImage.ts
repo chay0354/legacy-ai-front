@@ -1,12 +1,12 @@
 /**
- * Square portrait for display + Anam. Fill the frame (cover) so the photo
+ * Square portrait for display and the live face. Fill the frame (cover) so the photo
  * is not stamped inside a padded box — that looked like a picture-in-picture.
  */
 
 const PORTRAIT_MIN_PX = 1152
 const PORTRAIT_TARGET_PX = 1536
 const PORTRAIT_HARD_MIN_PX = 640
-const ANAM_MAX_BYTES = 4_200_000
+const PORTRAIT_MAX_BYTES = 4_200_000
 
 export function loadImageFile(file: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -26,7 +26,7 @@ function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob>
 async function jpegUnderLimit(canvas: HTMLCanvasElement): Promise<Blob> {
   for (const q of [0.92, 0.86, 0.78, 0.7]) {
     const blob = await canvasToJpeg(canvas, q)
-    if (blob.size <= ANAM_MAX_BYTES) return blob
+    if (blob.size <= PORTRAIT_MAX_BYTES) return blob
   }
   const small = document.createElement('canvas')
   small.width = PORTRAIT_MIN_PX

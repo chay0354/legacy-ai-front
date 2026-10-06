@@ -47,6 +47,7 @@ function packTokens(draft: ThemeDraft | null, content: ThemeContent) {
     ...(Object.keys(content.blocks).length ? { blocks: content.blocks } : {}),
     ...(Object.keys(content.styles).length ? { styles: content.styles } : {}),
     ...(Object.keys(content.added).length ? { added: content.added } : {}),
+    ...(Object.keys(content.fills).length ? { fills: content.fills } : {}),
   }
 }
 

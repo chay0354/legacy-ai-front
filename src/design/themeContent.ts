@@ -17,12 +17,26 @@ export type ThemeContent = {
   blocks: Record<string, ImageNudge>
   styles: Record<string, ElementStyle>
   added: Record<string, AddedItem>
+  /** Picture placed inside an existing image box, keyed like an image nudge. */
+  fills: Record<string, string>
 }
 
 export const THEME_CONTENT_EDIT = 'legacy-theme-edit'
 
 export function emptyContent(): ThemeContent {
-  return { copy: {}, images: {}, blocks: {}, styles: {}, added: {} }
+  return { copy: {}, images: {}, blocks: {}, styles: {}, added: {}, fills: {} }
+}
+
+function collectFills(input: unknown) {
+  const out: Record<string, string> = {}
+  const src = input && typeof input === 'object' ? input as Record<string, unknown> : {}
+  for (const [key, value] of Object.entries(src)) {
+    if (Object.keys(out).length >= 200) break
+    if (!validKey(key)) continue
+    const url = typeof value === 'string' ? value.trim() : ''
+    if (/^https:\/\/\S+$/.test(url) && url.length <= 1000) out[key] = url
+  }
+  return out
 }
 
 function collectAdded(input: unknown) {
@@ -82,7 +96,7 @@ export function sanitizeContent(input: unknown): ThemeContent {
     if (typeof raw.background === 'string' && HEX_COLOR.test(raw.background)) style.background = raw.background.toLowerCase()
     if (style.color || style.background) styles[key] = style
   }
-  return { copy, images, blocks, styles, added: collectAdded(src.added) }
+  return { copy, images, blocks, styles, added: collectAdded(src.added), fills: collectFills(src.fills) }
 }
 
 function collectNudges(input: Record<string, unknown>, out: Record<string, ImageNudge>, limit: number) {
@@ -171,6 +185,7 @@ export function applyNow() {
   applying = true
   try {
     applyAdded()
+    applyFills()
     applyCopy()
     applyImages()
     applyBlocks()
@@ -199,7 +214,12 @@ function applyAdded() {
     if (!wanted.has(node.dataset.laAdded || '')) node.remove()
   }
   if (!items.length) return
-  const needed = new Set(items.map(([, item]) => item.after))
+  const needed = new Set<string>()
+  for (const [, item] of items) {
+    needed.add(item.after)
+    const alt = editorShiftedKey(item.after, -1)
+    if (alt) needed.add(alt)
+  }
   const anchors = new Map<string, HTMLElement>()
   for (const el of document.querySelectorAll<HTMLElement>('body *')) {
     if (el.hasAttribute('data-la-added') || el.closest('[data-la-editor], script, style, svg')) continue
@@ -209,7 +229,7 @@ function applyAdded() {
   for (const [key, item] of items) {
     const id = key.slice(prefix.length)
     let node = document.querySelector<HTMLElement>(`[data-la-added="${CSS.escape(id)}"]`)
-    const anchor = anchors.get(item.after)
+    const anchor = anchors.get(item.after) ?? anchors.get(editorShiftedKey(item.after, -1) || '')
     if (!anchor) {
       node?.remove()
       continue
@@ -440,6 +460,27 @@ function applyImages() {
 
 const BLOCK_SELECTOR = 'section, article, header, footer, nav, main, h1, h2, h3, h4, p, button, a, li, img, figure, form, [data-la-frame]'
 
+/** Keys saved while the editor bar was on screen counted that bar as an extra div. */
+function editorShiftedKey(key: string, delta: number) {
+  const marker = `${SEP}block:`
+  const at = key.indexOf(marker)
+  if (at < 0) return null
+  const parts = key.slice(at + marker.length).split('.')
+  const match = /^div(\d+)$/.exec(parts[1] || '')
+  if (parts[0] !== 'div1' || !match) return null
+  const next = Number(match[1]) + delta
+  if (next < 1) return null
+  parts[1] = `div${next}`
+  return key.slice(0, at + marker.length) + parts.join('.')
+}
+
+function blockValue<T>(map: Record<string, T>, key: string): T | undefined {
+  if (Object.prototype.hasOwnProperty.call(map, key)) return map[key]
+  const alt = editorShiftedKey(key, 1)
+  if (alt && Object.prototype.hasOwnProperty.call(map, alt)) return map[alt]
+  return undefined
+}
+
 function blockKey(el: HTMLElement) {
   if (el.dataset.laAdded) return `${location.pathname}${SEP}block:add:${el.dataset.laAdded}`
   const parts: string[] = []
@@ -451,7 +492,7 @@ function blockKey(el: HTMLElement) {
     let index = 1
     for (const sib of parent.children) {
       if (sib === node) break
-      if (sib.tagName === node.tagName && !sib.hasAttribute('data-la-added')) index += 1
+      if (sib.tagName === node.tagName && !sib.hasAttribute('data-la-added') && !sib.hasAttribute('data-la-editor')) index += 1
     }
     parts.unshift(`${node.tagName.toLowerCase()}${index}`)
     node = parent
@@ -471,15 +512,17 @@ function isBlockKey(key: string) {
 }
 
 function readNudge(key: string): ImageNudge {
-  return (isBlockKey(key) ? current.blocks[key] : current.images[key]) ?? { scale: 1, x: 0, y: 0 }
+  return (isBlockKey(key) ? blockValue(current.blocks, key) : current.images[key]) ?? { scale: 1, x: 0, y: 0 }
 }
 
 function writeNudge(key: string, nudge: ImageNudge) {
   const clear = nudge.scale === 1 && nudge.x === 0 && nudge.y === 0
   if (isBlockKey(key)) {
     const blocks = { ...current.blocks }
+    const alt = editorShiftedKey(key, 1)
     if (clear) delete blocks[key]
     else blocks[key] = nudge
+    if (alt) delete blocks[alt]
     current = { ...current, blocks }
     return
   }
@@ -513,7 +556,7 @@ function applyBlocks() {
 }
 
 function paintStyle(el: HTMLElement, key: string) {
-  const style = current.styles[key]
+  const style = blockValue(current.styles, key)
   if (!style) {
     if (el.dataset.laStyled) {
       el.style.color = el.dataset.laColor0 ?? ''
@@ -542,11 +585,13 @@ function paintStyle(el: HTMLElement, key: string) {
 
 function writeStyle(key: string, patch: ElementStyle) {
   const styles = { ...current.styles }
-  const next: ElementStyle = { ...styles[key], ...patch }
+  const alt = editorShiftedKey(key, 1)
+  const next: ElementStyle = { ...(blockValue(styles, key)), ...patch }
   if (!next.color) delete next.color
   if (!next.background) delete next.background
   if (next.color || next.background) styles[key] = next
   else delete styles[key]
+  if (alt) delete styles[alt]
   current = { ...current, styles }
 }
 
@@ -577,8 +622,29 @@ function shownBackground(el: HTMLElement) {
   return '#ffffff'
 }
 
+function applyFills() {
+  for (const frame of document.querySelectorAll<HTMLElement>('[data-la-frame]')) {
+    if (frame.closest('[data-la-editor]')) continue
+    const src = current.fills[imageKey(frame)]
+    let img = frame.querySelector<HTMLImageElement>(':scope > img[data-la-fill]')
+    if (!src) {
+      img?.remove()
+      continue
+    }
+    if (!img) {
+      img = document.createElement('img')
+      img.dataset.laFill = '1'
+      img.alt = frame.getAttribute('data-la-frame') || ''
+      img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1'
+      frame.append(img)
+    }
+    if (getComputedStyle(frame).position === 'static') frame.style.position = 'relative'
+    if (img.getAttribute('src') !== src) img.src = src
+  }
+}
+
 function paintNudge(el: HTMLElement, key: string) {
-  const nudge = isBlockKey(key) ? current.blocks[key] : current.images[key]
+  const nudge = isBlockKey(key) ? blockValue(current.blocks, key) : current.images[key]
   el.classList.toggle('la-picked', key === selectedKey)
   if (!nudge) {
     if (el.dataset.laMoved) {
@@ -682,6 +748,17 @@ function bindEditing() {
       suppressClick = false
       event.preventDefault()
       event.stopPropagation()
+      return
+    }
+    const slot = target.closest('[data-la-frame]')
+    if (slot instanceof HTMLElement) {
+      event.preventDefault()
+      event.stopPropagation()
+      const key = imageKey(slot)
+      selectedKey = key
+      applyNow()
+      announce(slot, key)
+      openFramePanel(slot)
       return
     }
     const frame = target.closest('img, [data-la-frame]')
@@ -1047,6 +1124,49 @@ function openAddedPanel(el: HTMLElement) {
       selection?.addRange(range)
     }
   }
+}
+
+function openFramePanel(el: HTMLElement) {
+  const key = imageKey(el)
+  const src = current.fills[key]
+  const shell = editorShell()
+  shell.innerHTML = ''
+  panelHead(shell, 'Picture')
+  const status = document.createElement('span')
+  status.style.cssText = 'font-size:12.5px;color:var(--la-ink-2);flex:1'
+  status.textContent = 'This picture fills the box.'
+  if (src) {
+    const preview = document.createElement('img')
+    preview.src = src
+    preview.alt = ''
+    preview.style.cssText = 'width:100%;height:92px;object-fit:cover;border-radius:6px;margin-top:10px;display:block'
+    shell.append(preview)
+  }
+  const choose = button(src ? 'Replace picture' : 'Choose picture', true)
+  choose.style.marginTop = '10px'
+  choose.addEventListener('click', () => pickPicture((url) => {
+    current = { ...current, fills: { ...current.fills, [key]: url } }
+    commit()
+    openFramePanel(el)
+  }, status))
+  shell.append(choose)
+  shell.append(fieldLabel('Size'), sizeSlider(key))
+  const foot = document.createElement('div')
+  foot.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px'
+  if (src) {
+    const remove = button('Remove picture', false)
+    remove.style.color = 'var(--la-error)'
+    remove.addEventListener('click', () => {
+      const fills = { ...current.fills }
+      delete fills[key]
+      current = { ...current, fills }
+      commit()
+      openFramePanel(el)
+    })
+    foot.append(status, remove)
+  } else foot.append(status)
+  shell.append(foot, addRow(el))
+  place(shell, el)
 }
 
 function openPanel(el: HTMLElement, wording: { anchor: HTMLElement; shown: string } | null) {

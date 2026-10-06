@@ -44,7 +44,7 @@ export function createMediaRecorder(stream: MediaStream): { recorder: MediaRecor
   return { recorder: new MediaRecorder(stream), mimeType: 'audio/webm' }
 }
 
-/** Encode as 16-bit PCM mono WAV. 44.1 kHz keeps timbre for Anam + ElevenLabs clones. */
+/** Encode as 16-bit PCM mono WAV. 44.1 kHz keeps timbre for ElevenLabs clones. */
 export async function blobToWav(blob: Blob, targetRate = 44100): Promise<Blob> {
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
   const ctx = new AudioCtx()

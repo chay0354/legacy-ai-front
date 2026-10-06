@@ -5,7 +5,7 @@ import { normalizeRole, can, ACTIONS, type Role } from "../lib/permissions";
 import { authHeaders } from "../lib/api";
 import { apiUrl } from "../lib/apiUrl";
 import { openLiveCallMic, startLiveCallStt, type LiveCallSttSession } from "../lib/liveCallStt";
-import { useAnamLiveCall, LiveCallControls } from "./LiveAvatarCall";
+import { useLiveCall, LiveCallControls } from "./LiveAvatarCall";
 import { playMedia } from "../lib/playMedia";
 import GallerySection from "./GallerySection";
 import StageProgressTrack from "./StageProgressTrack";
@@ -510,7 +510,7 @@ interface LegacyAvatarProps {
   talkCreatorId?: string;
   /** When true, plays cloned voice audio for text answers (portrait stays static). */
   enableTalkingVideo?: boolean;
-  /** Anam live avatar (face + voice) is provisioned and ready for a real-time call. */
+  /** Live avatar (own face + cloned voice) is provisioned and ready for a real-time call. */
   liveReady?: boolean;
   /** Show the owner-only CTA to open Avatar Studio when no live avatar yet. */
   showCreateAvatar?: boolean;
@@ -1134,7 +1134,7 @@ function PortraitCard({
   onEndLive: () => void;
 }) {
   const firstName = D.name.split(" ")[0];
-  const live = useAnamLiveCall(talkCreatorId, PORTRAIT_LIVE_VIDEO_ID, portraitConnectKey);
+  const live = useLiveCall(talkCreatorId, PORTRAIT_LIVE_VIDEO_ID, portraitConnectKey);
   const videoLive = live.videoReady;
   const [portraitBroken, setPortraitBroken] = useState(false);
   const [proxyPortrait, setProxyPortrait] = useState<string | null>(null);
