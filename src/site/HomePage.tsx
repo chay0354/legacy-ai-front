@@ -12,7 +12,7 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100dvh', background: T.paper, display: 'flex', flexDirection: 'column' }}>
       {/* ── atmospheric hero: a room, not a black panel ── */}
-      <section style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
+      <section className="site-hero" style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
         <div className="site-hero-photo" style={{ backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
         <div style={{ position: 'relative' }}>
           <SiteHeader />

@@ -459,13 +459,22 @@ a:hover {
 }
 
 
-/* Homepage hero: desk photograph, dark on the text side, light from the lamp on the right. */
+/* Homepage hero: the photograph starts below the menu bar, so the menu always sits on plain dark walnut. */
 .site-hero-photo {
   position: absolute;
-  inset: 0;
+  top: 108px;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background-color: var(--la-walnut-deep);
   background-size: cover;
-  background-position: 62% 40%;
+  background-position: 62% 62%;
+}
+
+@media (min-width: 769px) {
+  .site-hero {
+    min-height: clamp(720px, 46vw, 900px);
+  }
 }
 
 .site-hero-photo::after {
@@ -474,7 +483,7 @@ a:hover {
   inset: 0;
   background:
     linear-gradient(90deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 32%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.12) 100%),
-    linear-gradient(180deg, rgba(23, 17, 12, 0.88) 0%, rgba(23, 17, 12, 0.66) 96px, rgba(23, 17, 12, 0.22) 190px, rgba(23, 17, 12, 0) 280px);
+    linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 120px);
 }
 
 @media (max-width: 768px) {
@@ -483,6 +492,8 @@ a:hover {
   }
 
   .site-hero-photo::after {
-    background: linear-gradient(180deg, rgba(23, 17, 12, 0.86) 0%, rgba(23, 17, 12, 0.72) 55%, rgba(23, 17, 12, 0.55) 100%);
+    background:
+      linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 90px),
+      linear-gradient(180deg, rgba(23, 17, 12, 0.86) 0%, rgba(23, 17, 12, 0.72) 55%, rgba(23, 17, 12, 0.55) 100%);
   }
 }
