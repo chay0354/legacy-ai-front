@@ -10,7 +10,7 @@ import { LIVE_LANGUAGES, guessLiveLanguage, normalizeLiveLanguage } from '../lib
 import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
 import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImage'
 import { bindMediaStream } from '../lib/playMedia'
-import { C, T, radius, sans, serif } from '../design/tokens'
+import { C, T, heading, radius, sans, serif } from '../design/tokens'
 import { Select } from '../design/ui'
 import { editingSite } from '../lib/siteEdit'
 
@@ -196,7 +196,7 @@ function Intro({
 
   return (
     <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: 0 }}>{hasVoice ? 'Update your live avatar' : 'Set up your live avatar'}</h2>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 28, margin: 0 }}>{hasVoice ? 'Update your live avatar' : 'Set up your live avatar'}</h2>
       <p style={{ fontSize: 15, lineHeight: 1.6, color: C.ink2, marginTop: 12 }}>
         Record your <strong>voice</strong> and take a <strong>photo</strong>. The system automatically
         clones your voice and builds a talking avatar from your face — no extra steps on other websites.
@@ -432,7 +432,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
 
   return (
     <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Record your voice</h2>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Record your voice</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
         Choose the language you’ll speak, then read the whole passage slowly and naturally. Aim for 60–90 seconds in a quiet room. Under 30 seconds cannot be cloned.
       </p>
@@ -695,7 +695,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
 
   return (
     <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 520 }}>
         Sit back so your head and shoulders have space around them — a close-up face crop is what makes
         the live avatar look warped. Look straight at the camera. You can also upload a photo from your phone.
@@ -918,7 +918,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
 
   return (
     <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
         We&apos;re building your live avatar from your photo and cloning your voice. This usually takes about a minute.
         If a previous version looked warped or didn&apos;t sound like you, retake the photo a little farther back

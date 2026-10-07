@@ -13,7 +13,7 @@ import {
 } from "../lib/interviewDepth";
 import { sanitizeForSessionLanguage, textMatchesSessionLanguage } from "../lib/languageScript";
 import { avatarApi, type CreatorGender, type CreatorPronouns } from "../lib/api";
-import { C, T, radius, serif, sans } from "../design/tokens";
+import { C, T, heading, radius, serif, sans } from "../design/tokens";
 
 /**
  * Legacy AI — Interview Session
@@ -1116,7 +1116,7 @@ export default function InterviewSession({
               </div>
             </div>
             <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3, marginBottom: 14 }}>{stageLabel} · {stageGoal}</div>
-            <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
+            <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
               {stageLabel === "Foundation"
                 ? `Let's spend a little time together, ${subjectName}.`
                 : stageLabel === "Enriched"
@@ -1312,7 +1312,7 @@ export default function InterviewSession({
                 </p>
               </div>
             ) : (
-              <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h2>
+              <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h2>
             )}
 
             {/* mode toggle */}
@@ -1503,7 +1503,7 @@ export default function InterviewSession({
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, animation: "la-breathe 1.4s ease-in-out infinite" }}>
                   <span style={{ width: 16, height: 16, borderRadius: "50%", background: T.onPrimary }} />
                 </div>
-                <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h2>
+                <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   Your interview is finished. We're extracting your stories, values, and wisdom — this usually takes under a minute.
                 </p>
@@ -1511,7 +1511,7 @@ export default function InterviewSession({
             ) : (
               <>
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.sage, color: T.onPrimary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 26 }}>✓</div>
-                <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h2>
+                <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 20, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   {processingError
                     ? processingError

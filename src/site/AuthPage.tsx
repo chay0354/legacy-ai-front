@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { requestPasswordReset, signInWithPassword, signUpWithPassword } from '../lib/auth'
-import { T, radius, sans, serif } from '../design/tokens'
+import { T, heading, radius, sans, serif } from '../design/tokens'
 import { BRAND, CTA, HERO } from '../design/copy'
 import { Wordmark } from '../design/Wordmark'
 import { Body, Btn, Display, Eyebrow, Icon } from '../design/ui'
@@ -103,16 +103,18 @@ export default function AuthPage() {
           position: 'relative', height: '100%', padding: '34px 44px 48px',
           display: 'flex', flexDirection: 'column',
         }}>
-          <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'block' }}>
-            <Wordmark tone="light" width={92} />
+          <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <Wordmark tone="light" width={56} />
+            <span aria-hidden="true" style={{ width: 1, height: 34, background: 'rgba(243,237,226,.28)' }} />
+            <Eyebrow color="rgba(179,144,47,.9)" style={{ lineHeight: 1.5 }}>Private<br />family archive</Eyebrow>
           </Link>
           <div style={{ marginTop: 'auto', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h1 style={{
-              fontFamily: serif, fontWeight: 400, fontSize: 44, lineHeight: 1.08,
+              fontFamily: serif, fontWeight: heading.weight, fontSize: 44, lineHeight: 1.08,
               color: T.onDark, margin: 0, letterSpacing: '-.015em',
             }}>
               {HERO.headline[0]}<br />
-              <em style={{ fontStyle: 'italic' }}>{HERO.headline[1]}</em>
+              <em style={{ fontStyle: 'italic', fontWeight: heading.italicWeight }}>{HERO.headline[1]}</em>
             </h1>
             <Body size={16} color="rgba(240,231,214,.78)">{HERO.sub}</Body>
             <span style={{

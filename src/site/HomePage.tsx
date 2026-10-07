@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { SiteFooter, SiteHeader } from './SiteChrome'
-import { T, radius, sans, serif } from '../design/tokens'
+import { T, heading, radius, sans, serif } from '../design/tokens'
 import { CTA, HERO, HOW_IT_WORKS, TRUST } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel } from '../design/ui'
 import heroDesk from '../assets/hero-desk.jpg'
@@ -20,12 +20,12 @@ export default function HomePage() {
             <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 22 }}>
               <Eyebrow color="rgba(179,144,47,.9)">{HERO.standfirst}</Eyebrow>
               <h1 className="site-hero-title" style={{
-                fontFamily: serif, fontWeight: 400, fontSize: 66, lineHeight: 1.03,
+                fontFamily: serif, fontWeight: heading.weight, fontSize: 66, lineHeight: 1.03,
                 letterSpacing: '-.02em', color: T.onDark, margin: 0, textWrap: 'balance',
               }}>
                 {HERO.headline[0]}
                 <br />
-                <em style={{ fontStyle: 'italic', fontWeight: 400 }}>{HERO.headline[1]}</em>
+                <em style={{ fontStyle: 'italic', fontWeight: heading.italicWeight }}>{HERO.headline[1]}</em>
               </h1>
               <p className="site-hero-sub" style={{
                 fontFamily: sans, fontSize: 18, lineHeight: 1.6, color: 'rgba(240,231,214,.82)',

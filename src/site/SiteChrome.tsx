@@ -46,8 +46,10 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
       padding: '18px 44px', paddingTop: 'max(18px, env(safe-area-inset-top))',
       position: 'relative', zIndex: 3,
     }}>
-      <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'block' }}>
-        <Wordmark tone={onDark ? 'light' : 'dark'} width={84} />
+      <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Wordmark tone={onDark ? 'light' : 'dark'} width={56} />
+        <span aria-hidden="true" style={{ width: 1, height: 34, background: onDark ? 'rgba(243,237,226,.28)' : T.line }} />
+        <Eyebrow color={onDark ? 'rgba(179,144,47,.9)' : T.ink3} style={{ lineHeight: 1.5 }}>Private<br />family archive</Eyebrow>
       </Link>
 
       <nav className="site-header-nav" style={{ display: 'flex', gap: 26, marginLeft: 'auto', marginRight: 8, alignItems: 'center' }}>
