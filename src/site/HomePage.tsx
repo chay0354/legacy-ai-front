@@ -18,7 +18,7 @@ export default function HomePage() {
           <SiteHeader />
           <div className="site-hero-inner" style={{ padding: '72px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
             <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <Eyebrow color="rgba(179,144,47,.9)">{HERO.standfirst}</Eyebrow>
+              <Eyebrow color="rgba(179,144,47,.9)" style={{ textWrap: 'balance', lineHeight: 1.7 }}>{HERO.standfirst}</Eyebrow>
               <h1 className="site-hero-title" style={{
                 fontFamily: serif, fontWeight: heading.weight, fontSize: 66, lineHeight: 1.03,
                 letterSpacing: '-.02em', color: T.onDark, margin: 0, textWrap: 'balance',
@@ -73,7 +73,7 @@ export default function HomePage() {
                 display: 'flex', flexDirection: 'column', gap: 10,
               }}>
                 <span style={{ fontFamily: serif, fontSize: 15, color: T.gold, letterSpacing: '.1em' }}>{s.n}</span>
-                <span style={{ fontFamily: serif, fontSize: 21, lineHeight: 1.25, color: T.ink }}>{s.title}</span>
+                <span style={{ fontFamily: serif, fontWeight: heading.cardWeight, fontSize: 21, lineHeight: 1.25, color: T.ink }}>{s.title}</span>
                 <Body size={14}>{s.body}</Body>
               </div>
             ))}
