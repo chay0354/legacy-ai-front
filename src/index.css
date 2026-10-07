@@ -497,3 +497,10 @@ a:hover {
       linear-gradient(180deg, rgba(23, 17, 12, 0.86) 0%, rgba(23, 17, 12, 0.72) 55%, rgba(23, 17, 12, 0.55) 100%);
   }
 }
+
+/* Sign-in and sign-up: the text sits low over the desk, so the photograph is darker toward the bottom. */
+.site-hero-photo--auth::after {
+  background:
+    linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 120px),
+    linear-gradient(0deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 34%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.10) 100%);
+}

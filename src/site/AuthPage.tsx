@@ -4,6 +4,7 @@ import { requestPasswordReset, signInWithPassword, signUpWithPassword } from '..
 import { T, heading, radius, sans, serif } from '../design/tokens'
 import { BRAND, CTA, HERO } from '../design/copy'
 import { Wordmark } from '../design/Wordmark'
+import heroDesk from '../assets/hero-desk.jpg'
 import { Body, Btn, Display, Eyebrow, Icon } from '../design/ui'
 import { billingApi, type BillingPlan } from '../lib/api'
 
@@ -93,12 +94,7 @@ export default function AuthPage() {
     <div className="auth-split" style={{ minHeight: '100dvh', display: 'grid', gridTemplateColumns: 'minmax(0,1.05fr) minmax(380px,.95fr)' }}>
       {/* atmosphere */}
       <section style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
-        {/* Photograph to place — a hallway of framed family photos. See HANDOFF.md. */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(110% 80% at 78% 28%, rgba(176,94,55,.26) 0%, rgba(24,18,13,0) 70%),
-            linear-gradient(120deg, #17110c 8%, #241a13 58%, #33251b 100%)`,
-        }} />
+        <div className="site-hero-photo site-hero-photo--auth" style={{ top: 0, backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
         <div style={{
           position: 'relative', height: '100%', padding: '34px 44px 48px',
           display: 'flex', flexDirection: 'column',
@@ -108,7 +104,7 @@ export default function AuthPage() {
             <span aria-hidden="true" style={{ width: 1, height: 34, background: 'rgba(243,237,226,.28)' }} />
             <Eyebrow color="rgba(179,144,47,.9)" style={{ lineHeight: 1.5 }}>Private<br />family archive</Eyebrow>
           </Link>
-          <div style={{ marginTop: 'auto', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ marginTop: 'auto', paddingTop: 72, maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <h1 style={{
               fontFamily: serif, fontWeight: heading.weight, fontSize: 44, lineHeight: 1.08,
               color: T.onDark, margin: 0, letterSpacing: '-.015em',
