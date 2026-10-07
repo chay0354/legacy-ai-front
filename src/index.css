@@ -310,11 +310,15 @@ a:hover {
 
   .archive-setup-stage {
     display: grid !important;
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
     padding: 0 !important;
     border-left: none !important;
     position: relative;
+  }
+
+  .archive-setup-stage > span {
+    padding-left: 35px;
   }
 
   .archive-setup-stage:not(:last-child)::after {

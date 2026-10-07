@@ -51,8 +51,7 @@ export function Band({
 
 function Quiet({ children }: { children: ReactNode }) {
   return (
-    <Panel pad="16px 18px" style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-      <Icon name="clock" size={16} color={T.ink2} strokeWidth={1.3} />
+    <Panel pad="16px 18px">
       <Body size={14.5} color={T.ink2}>{children}</Body>
     </Panel>
   )
