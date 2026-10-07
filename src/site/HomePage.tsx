@@ -16,9 +16,8 @@ export default function HomePage() {
         <div className="site-hero-photo" style={{ backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
         <div style={{ position: 'relative' }}>
           <SiteHeader />
-          <div className="site-hero-inner" style={{ padding: '72px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
+          <div className="site-hero-inner" style={{ padding: '112px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
             <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <Eyebrow color="rgba(179,144,47,.9)" style={{ textWrap: 'balance', lineHeight: 1.7 }}>{HERO.standfirst}</Eyebrow>
               <h1 className="site-hero-title" style={{
                 fontFamily: serif, fontWeight: heading.weight, fontSize: 66, lineHeight: 1.03,
                 letterSpacing: '-.02em', color: T.onDark, margin: 0, textWrap: 'balance',
