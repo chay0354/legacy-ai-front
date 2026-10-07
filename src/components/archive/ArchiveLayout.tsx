@@ -95,7 +95,7 @@ export default function ArchiveWorkspace({
           activeRoute={activeRoute}
           onSection={ctx.locked ? () => navigate('/unlock') : goSection}
           locked={ctx.locked}
-          band={false}
+          band
         >
           <div key={activeRoute || 'main'} className="archive-pane">
             {location.pathname.startsWith('/billing')

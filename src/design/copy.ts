@@ -151,7 +151,7 @@ export const TRUST = [
 ] as const
 
 export const BAND = {
-  eyebrow: 'Private Archive',
+  eyebrow: 'Private family archive',
   line: 'Your stories, voice, and memories, kept with care.',
   emotional: 'Every story you add now gives your family something real to return to.',
   link: 'Learn how the archive is built',

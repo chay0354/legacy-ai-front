@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { T, radius, sans, serif } from '../../design/tokens'
-import { BAND, BRAND_SUB, NAV } from '../../design/copy'
+import { BAND, NAV } from '../../design/copy'
 import { Wordmark } from '../../design/Wordmark'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
@@ -62,7 +62,6 @@ export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
       </div>
       <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
         <Wordmark tone="dark" width={56} />
-        <Eyebrow color={T.ink3}>{BRAND_SUB}</Eyebrow>
       </div>
     </footer>
   )
