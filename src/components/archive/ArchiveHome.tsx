@@ -253,7 +253,7 @@ export default function ArchiveHome() {
       />
       <header className="ask-hero overview-hero" style={{
         display: 'grid', gap: 28, marginBottom: 32,
-        gridTemplateColumns: 'minmax(220px, 300px) minmax(0, 1fr)', alignItems: 'start',
+        gridTemplateColumns: 'minmax(180px, 220px) minmax(0, 1fr)', alignItems: 'center',
       }}>
         <div className="overview-hero-portrait">
         <AskPortrait

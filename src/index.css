@@ -292,13 +292,16 @@ a:hover {
 
   .overview-hero {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 24px !important;
   }
 
-  .overview-hero-copy { order: 1; }
+  .overview-hero-copy { order: 1; flex: 1 1 auto; }
   .overview-hero-portrait {
     order: 2;
-    max-width: 200px;
+    flex: 0 0 180px;
+    max-width: 180px;
     width: 100%;
   }
 
@@ -535,5 +538,43 @@ a:hover {
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
+  }
+}
+
+@media (max-width: 560px) {
+  .overview-hero {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .overview-hero-portrait {
+    flex: none !important;
+    max-width: 170px;
+  }
+
+  .next-action-photo {
+    display: none;
+  }
+}
+
+/* Closing band on tablets and phones: one tidy column, logo first, no column rules. */
+@media (max-width: 900px) {
+  .editorial-band {
+    padding: 28px 20px 32px !important;
+    gap: 18px !important;
+  }
+
+  .editorial-band > div {
+    border-left: none !important;
+    padding-left: 0 !important;
+    gap: 6px !important;
+  }
+
+  .editorial-band > div:last-child {
+    order: -1;
+  }
+
+  .editorial-band > div:nth-child(2) span {
+    font-size: 16px !important;
   }
 }
