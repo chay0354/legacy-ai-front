@@ -164,8 +164,8 @@ export default function ArchiveShell({
           position: 'sticky', top: 0, height: '100dvh',
         }}
       >
-        <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
-          <Wordmark tone="light" width={88} />
+        <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '22px 26px 14px', display: 'block' }}>
+          <Wordmark tone="light" width={72} />
         </Link>
 
         <div style={{ padding: '0 26px 6px' }}>
