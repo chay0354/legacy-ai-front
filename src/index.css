@@ -504,3 +504,9 @@ a:hover {
     linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 120px),
     linear-gradient(0deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 34%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.10) 100%);
 }
+
+@media (max-width: 768px) {
+  .site-hero-photo--auth {
+    background-position: 46% 100%;
+  }
+}
