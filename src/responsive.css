@@ -233,7 +233,7 @@ a.legacy-touch {
   }
 
   .archive-paper {
-    padding: 24px 16px 40px !important;
+    padding: 24px 16px 56px !important;
     padding-top: max(24px, calc(12px + env(safe-area-inset-top))) !important;
   }
 }

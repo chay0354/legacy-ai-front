@@ -149,7 +149,7 @@ export function SiteFooter() {
     fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.70)', textDecoration: 'none',
   }
   return (
-    <footer className="site-footer" style={{ background: T.walnut, padding: '48px 44px 38px' }}>
+    <footer className="site-footer" style={{ background: T.walnut, padding: '36px 44px 26px' }}>
       <div className="site-footer-grid" style={{
         display: 'grid', gap: 44, maxWidth: 1280, margin: '0 auto',
         gridTemplateColumns: 'minmax(220px,1.2fr) minmax(160px,.7fr) minmax(160px,.7fr) minmax(240px,1fr)',

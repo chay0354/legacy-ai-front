@@ -317,7 +317,7 @@ export default function ArchiveShell({
       {/* paper workspace */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
         <div style={{ flex: 1, backgroundColor: T.paper }}>
-          <div className="archive-paper" style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '38px var(--la-gutter) 46px' }}>
+          <div className="archive-paper" style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '38px var(--la-gutter) 80px' }}>
             {children}
           </div>
         </div>

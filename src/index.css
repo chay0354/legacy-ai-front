@@ -556,3 +556,46 @@ a:hover {
     display: none;
   }
 }
+
+/* Footer on tablets and phones: brand on top, the two link lists side by side, the long sentence left out. */
+@media (max-width: 900px) {
+  .site-footer {
+    padding: 28px 20px 20px !important;
+  }
+
+  .site-footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 22px 20px !important;
+  }
+
+  .site-footer-grid > div:first-child {
+    grid-column: 1 / -1;
+    gap: 6px !important;
+  }
+
+  .site-footer-grid > div:nth-child(4) {
+    display: none !important;
+  }
+
+  .site-footer-grid > div:nth-child(2),
+  .site-footer-grid > div:nth-child(3) {
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .site-footer-grid > div:nth-child(2) > :first-child,
+  .site-footer-grid > div:nth-child(3) > :first-child {
+    display: none;
+  }
+
+  .site-footer > div:last-child {
+    margin-top: 18px !important;
+    padding-top: 14px !important;
+    gap: 4px !important;
+  }
+
+  .site-footer > div:last-child span {
+    font-size: 12.5px !important;
+  }
+}
