@@ -187,7 +187,6 @@ export default function AskArchiveScreen() {
               <Btn tone="quiet" icon="ask" onClick={focusAsk}>{ASK.write}</Btn>
             )}
           </div>
-          <PrivacyNote>{STATUS.sourced}</PrivacyNote>
         </div>
       </div>
 
@@ -195,7 +194,7 @@ export default function AskArchiveScreen() {
         <Panel pad="22px 24px" style={{ marginBottom: 22 }}>
           <Display size={22} style={{ marginBottom: 8 }}>Ask in writing</Display>
           <Body size={14.5} style={{ marginBottom: 16, maxWidth: 560 }}>
-            {STATUS.sourced}. {STATUS.unknown}
+            Ask about a story, a person or a moment in this archive.
           </Body>
           <label htmlFor="ask-question" style={{ display: 'block', fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.ink, marginBottom: 6 }}>
             Your question
