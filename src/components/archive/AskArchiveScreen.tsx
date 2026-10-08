@@ -197,8 +197,12 @@ export default function AskArchiveScreen() {
           <Body size={14.5} style={{ marginBottom: 16, maxWidth: 560 }}>
             {STATUS.sourced}. {STATUS.unknown}
           </Body>
+          <label htmlFor="ask-question" style={{ display: 'block', fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+            Your question
+          </label>
           <form ref={askRef} onSubmit={onSubmit} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <input
+              id="ask-question"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={ASK.placeholder}

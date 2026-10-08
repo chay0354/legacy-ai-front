@@ -614,3 +614,11 @@ a:hover {
     aspect-ratio: 16 / 10 !important;
   }
 }
+
+/* Ask the archive: on tablets and phones the portrait stays a compact card instead of filling the whole width. */
+@media (max-width: 900px) {
+  .ask-hero > :first-child {
+    max-width: 200px;
+    width: 100%;
+  }
+}
