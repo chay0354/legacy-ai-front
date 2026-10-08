@@ -59,9 +59,9 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
             <Link
               key={item.to} to={item.to}
               style={{
-                fontFamily: sans, fontSize: 14.5, textDecoration: 'none',
+                fontFamily: sans, fontSize: 14.5, lineHeight: '20px', textDecoration: 'none',
                 color: active ? fg : fg2, fontWeight: active ? 600 : 400,
-                paddingBottom: 2,
+                padding: '3px 0 2px',
                 borderBottom: active ? `1px solid ${T.gold}` : '1px solid transparent',
               }}
             >{item.label}</Link>
@@ -74,7 +74,7 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
           <Link
             className="site-header-signin"
             to="/signin"
-            style={{ fontFamily: sans, fontSize: 14.5, textDecoration: 'none', color: fg2 }}
+            style={{ fontFamily: sans, fontSize: 14.5, lineHeight: '20px', textDecoration: 'none', color: fg2, padding: '3px 0' }}
           >{CTA.signIn}</Link>
         )}
         <button
