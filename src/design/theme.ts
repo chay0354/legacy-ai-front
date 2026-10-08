@@ -3,12 +3,12 @@ import { emptyContent, sanitizeContent, watchContent, type ThemeContent } from '
 
 /** Seed values. Must match `:root` in index.css and the backend sanitizer. */
 export const THEME_DEFAULTS = {
-  paper: '#eee5d4',
-  card: '#faf5eb',
+  paper: '#ece2d6',
+  card: '#f0e8de',
   ink: '#241c15',
   ink2: '#5e5346',
   status: '#5c5246',
-  walnut: '#2b211a',
+  walnut: '#231f12',
   sienna: '#b05e37',
   olive: '#3c4433',
   gold: '#b3902f',

@@ -40,7 +40,8 @@ import VoiceAndPhotoScreen from './components/archive/VoiceAndPhotoScreen'
 import ArchiveWorkspace from './components/archive/ArchiveLayout'
 import { Loading } from './components/archive/parts'
 import { T, radius, sans, serif } from './design/tokens'
-import { BRAND, BRAND_SUB } from './design/copy'
+import { BRAND } from './design/copy'
+import { Wordmark } from './design/Wordmark'
 import { Body, Btn, Display, Eyebrow } from './design/ui'
 
 const LAST_CREATOR_KEY = 'legacy-ai:last-creator-id'
@@ -91,10 +92,7 @@ function BootScreen({ label }: { label: string }) {
         background: T.walnutDeep, padding: '18px 28px',
         paddingTop: 'max(18px, env(safe-area-inset-top))',
       }}>
-        <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark }}>{BRAND}</div>
-        <div style={{ marginTop: 5 }}>
-          <Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow>
-        </div>
+        <Wordmark tone="light" width={72} />
       </div>
       <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40 }}>
         <span style={{ fontFamily: serif, fontSize: 17, color: T.ink2 }}>{label}</span>

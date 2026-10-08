@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import readingChair from '../../assets/reading-chair.jpg'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { archiveSetupLabel, countsLine, stageStatusLine, STAGES } from '../../design/copy'
 import {
@@ -95,13 +96,20 @@ export function NextAction({
   eyebrow: string; title: string; note: string
 }) {
   return (
-    <Panel pad="22px 24px" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icon name="interview" size={17} color={T.siennaDeep} strokeWidth={1.4} />
-        <Eyebrow>{eyebrow}</Eyebrow>
+    <Panel pad={0} style={{ display: 'flex', overflow: 'hidden' }}>
+      <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="interview" size={17} color={T.siennaDeep} strokeWidth={1.4} />
+          <Eyebrow>{eyebrow}</Eyebrow>
+        </div>
+        <Display size={22}>{title}</Display>
+        <Body size={14} style={{ maxWidth: 420 }}>{note}</Body>
       </div>
-      <Display size={22}>{title}</Display>
-      <Body size={14} style={{ maxWidth: 420 }}>{note}</Body>
+      <div
+        className="next-action-photo"
+        aria-hidden="true"
+        style={{ flex: '0 0 34%', maxWidth: 170, backgroundImage: `url(${readingChair})`, backgroundSize: 'cover', backgroundPosition: '50% 40%' }}
+      />
     </Panel>
   )
 }
@@ -422,7 +430,7 @@ export function AccessSummary({
           ? 'No one has been invited yet. Only you can see this archive.'
           : `${invited} invited family ${invited === 1 ? 'member' : 'members'} can read what you have chosen to share.`}
       </Body>
-      <PrivacyNote>Only invited family can access this</PrivacyNote>
+      <PrivacyNote>Only you and the people you invite can access this archive.</PrivacyNote>
       {canManage && (
         <div style={{ marginTop: 4 }}>
           <Btn tone="quiet" size="sm" onClick={onManage}>

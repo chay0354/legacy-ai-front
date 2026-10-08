@@ -299,7 +299,7 @@ export async function startLiveSession(opts: {
   const start = await withTimeout(avatarApi.startLive(opts.creatorId), 45000, 'Starting live session')
   if (stale()) throw new Error('Connect cancelled')
   if (!start.usingOwnVoice) {
-    throw new Error('Your voice was not cloned successfully. Re-record in Avatar Studio — Live Call will not use a stock voice.')
+    throw new Error('Your voice was not cloned successfully. Re-record your voice in Voice & photograph — the live call will not use a stock voice.')
   }
   if (!start.simliToken) {
     throw new Error('Live call did not return a face session. Refresh the page and try again.')

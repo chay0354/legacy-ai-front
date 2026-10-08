@@ -13,7 +13,7 @@ import {
 } from "../lib/interviewDepth";
 import { sanitizeForSessionLanguage, textMatchesSessionLanguage } from "../lib/languageScript";
 import { avatarApi, type CreatorGender, type CreatorPronouns } from "../lib/api";
-import { C, T, radius, serif, sans } from "../design/tokens";
+import { C, T, heading, radius, serif, sans } from "../design/tokens";
 
 /**
  * Legacy AI — Interview Session
@@ -1064,7 +1064,7 @@ export default function InterviewSession({
         flex: "none",
         borderBottom: embedded ? "none" : `1px solid ${C.line}`,
         background: embedded ? T.walnut : undefined,
-        margin: embedded ? "0 -8px 8px" : undefined,
+        margin: embedded ? "0 0 8px" : undefined,
         padding: embedded ? "10px 16px 12px" : undefined,
         borderRadius: embedded ? radius.control : undefined,
       }}>
@@ -1116,7 +1116,7 @@ export default function InterviewSession({
               </div>
             </div>
             <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".2em", textTransform: "uppercase", color: C.ink3, marginBottom: 14 }}>{stageLabel} · {stageGoal}</div>
-            <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
+            <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 42, lineHeight: 1.12, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>
               {stageLabel === "Foundation"
                 ? `Let's spend a little time together, ${subjectName}.`
                 : stageLabel === "Enriched"
@@ -1129,7 +1129,7 @@ export default function InterviewSession({
                 : stageLabel === "Foundation"
                   ? "I'll ask gentle questions about your life — identity, family, chapters, and what makes you you. Just talk; I'll listen and move us along when you're ready."
                   : stageLabel === "Enriched"
-                    ? "This stage goes deeper into the stories, relationships, and wisdom behind your life. Take your time — each answer adds richness to your legacy."
+                    ? "This stage goes deeper into the stories, relationships, and wisdom behind your life. Take your time — each answer adds richness to your archive."
                     : "This is the reflective stage — values, personality, gratitude, and what you want preserved for generations. Silence is welcome."}
             </p>
             {(aiVoice || stageLabel === "Foundation") && (
@@ -1148,7 +1148,7 @@ export default function InterviewSession({
                   `About ${TOTAL} topics in this stage — one conversation, at your pace`,
                   "Talk naturally; the interviewer may ask a gentle follow-up before moving on",
                   "Pause anytime, skip a topic if you want, or ask how far you are",
-                  "When you finish, your answers help build your living legacy",
+                  "When you finish, your answers help build your living archive",
                 ].map((line) => (
                   <li key={line} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14.5, lineHeight: 1.45, color: C.ink2 }}>
                     <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: accent, marginTop: 7, flex: "none" }} />
@@ -1312,7 +1312,7 @@ export default function InterviewSession({
                 </p>
               </div>
             ) : (
-              <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h2>
+              <h2 className="legacy-interview-question" style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 28, lineHeight: 1.22, letterSpacing: "-.015em", margin: 0, color: C.ink, textWrap: "pretty" }}>{cur.q}</h2>
             )}
 
             {/* mode toggle */}
@@ -1388,7 +1388,7 @@ export default function InterviewSession({
                     {paused ? "Resume interview" : "Pause interview"}
                   </button>
                   {aiError && (
-                    <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{aiError}</p>
+                    <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{/permission denied|notallowed|permission dismissed|microphone/i.test(aiError) ? "We couldn’t reach your microphone. Allow it in your browser, or switch to Writing." : aiError}</p>
                   )}
                 </div>
               ) : (
@@ -1503,7 +1503,7 @@ export default function InterviewSession({
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, animation: "la-breathe 1.4s ease-in-out infinite" }}>
                   <span style={{ width: 16, height: 16, borderRadius: "50%", background: T.onPrimary }} />
                 </div>
-                <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h2>
+                <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your archive…</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   Your interview is finished. We're extracting your stories, values, and wisdom — this usually takes under a minute.
                 </p>
@@ -1511,15 +1511,15 @@ export default function InterviewSession({
             ) : (
               <>
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.sage, color: T.onPrimary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 26 }}>✓</div>
-                <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h2>
+                <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 38, lineHeight: 1.15, margin: 0, color: C.ink }}>Thank you, {subjectName}.</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 20, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   {processingError
                     ? processingError
                     : archiveLocked
                       ? "We kept what you recorded. To see the stories, people, and wisdom, you need to pay."
                       : extractionResult
-                        ? "We've extracted your stories, relationships, and wisdom. Your legacy dashboard is updated."
-                        : "This is your legacy. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
+                        ? "We've extracted your stories, relationships, and wisdom. Your archive is updated."
+                        : "This is your archive. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
                 </p>
                 {processingError && onRetryPreservation && (
                   <button

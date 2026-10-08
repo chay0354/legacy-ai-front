@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { SiteFooter, SiteHeader } from './SiteChrome'
-import { T, radius, sans, serif } from '../design/tokens'
+import { T, heading, radius, sans, serif } from '../design/tokens'
 import { CTA, HERO, HOW_IT_WORKS, TRUST } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel } from '../design/ui'
+import heroDesk from '../assets/hero-desk.jpg'
+import homeConversation from '../assets/photos/home-conversation.jpg'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -11,26 +13,19 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100dvh', background: T.paper, display: 'flex', flexDirection: 'column' }}>
       {/* ── atmospheric hero: a room, not a black panel ── */}
-      <section style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
-        {/* Hero photograph goes here — see HANDOFF.md. Until then: a warm room, lit from the right. */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(120% 90% at 82% 34%, rgba(176,94,55,.30) 0%, rgba(94,60,38,.22) 38%, rgba(24,18,13,0) 72%),
-            radial-gradient(70% 60% at 96% 76%, rgba(179,144,47,.18) 0%, rgba(24,18,13,0) 70%),
-            linear-gradient(100deg, ${T.walnutDeep} 0%, ${T.walnut} 52%, ${T.walnutMid} 100%)`,
-        }} />
+      <section className="site-hero" style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
+        <div className="site-hero-photo" style={{ backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
         <div style={{ position: 'relative' }}>
           <SiteHeader />
-          <div className="site-hero-inner" style={{ padding: '72px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
+          <div className="site-hero-inner" style={{ padding: '112px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
             <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <Eyebrow color="rgba(179,144,47,.9)">{HERO.standfirst}</Eyebrow>
               <h1 className="site-hero-title" style={{
-                fontFamily: serif, fontWeight: 400, fontSize: 66, lineHeight: 1.03,
+                fontFamily: serif, fontWeight: heading.weight, fontSize: 66, lineHeight: 1.03,
                 letterSpacing: '-.02em', color: T.onDark, margin: 0, textWrap: 'balance',
               }}>
                 {HERO.headline[0]}
                 <br />
-                <em style={{ fontStyle: 'italic', fontWeight: 400 }}>{HERO.headline[1]}</em>
+                <em style={{ fontStyle: 'italic', fontWeight: heading.italicWeight }}>{HERO.headline[1]}</em>
               </h1>
               <p className="site-hero-sub" style={{
                 fontFamily: sans, fontSize: 18, lineHeight: 1.6, color: 'rgba(240,231,214,.82)',
@@ -55,7 +50,8 @@ export default function HomePage() {
       {/* ── paper explanation ── */}
       <section className="site-section" style={{ background: T.paper, padding: '76px var(--la-gutter)' }}>
         <div style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto' }}>
-          <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="home-conversation" style={{ display: 'flex', gap: 48, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16, flex: '1 1 0', minWidth: 0 }}>
             <Eyebrow>A guided conversation</Eyebrow>
             <Display size={40}>
               Record the stories your family will one day ask for.
@@ -65,6 +61,11 @@ export default function HomePage() {
               a private archive of your words, your voice, and the people who matter to you. Nothing
               is public. Nothing leaves your archive unless you invite someone into it.
             </Body>
+          </div>
+          <img
+            className="home-conversation-photo" src={homeConversation} alt="" loading="lazy"
+            style={{ flex: '0 0 38%', maxWidth: 440, aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: radius.md, display: 'block' }}
+          />
           </div>
 
           <div style={{
@@ -78,7 +79,7 @@ export default function HomePage() {
                 display: 'flex', flexDirection: 'column', gap: 10,
               }}>
                 <span style={{ fontFamily: serif, fontSize: 15, color: T.gold, letterSpacing: '.1em' }}>{s.n}</span>
-                <span style={{ fontFamily: serif, fontSize: 21, lineHeight: 1.25, color: T.ink }}>{s.title}</span>
+                <span style={{ fontFamily: serif, fontWeight: heading.cardWeight, fontSize: 21, lineHeight: 1.25, color: T.ink }}>{s.title}</span>
                 <Body size={14}>{s.body}</Body>
               </div>
             ))}

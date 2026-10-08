@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { T, radius, sans, serif } from '../design/tokens'
-import { BAND, BRAND, BRAND_SUB, CTA, SITE_NAV } from '../design/copy'
+import { T, radius, sans } from '../design/tokens'
+import { BAND, BRAND, CTA, SITE_NAV } from '../design/copy'
+import { Wordmark } from '../design/Wordmark'
 import { Eyebrow, Icon } from '../design/ui'
 
 export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
@@ -45,11 +46,10 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
       padding: '18px 44px', paddingTop: 'max(18px, env(safe-area-inset-top))',
       position: 'relative', zIndex: 3,
     }}>
-      <Link to="/" style={{ textDecoration: 'none' }}>
-        <div style={{ fontFamily: serif, fontSize: 22, color: fg, letterSpacing: '.01em' }}>{BRAND}</div>
-        <div style={{ marginTop: 4 }}>
-          <Eyebrow color={onDark ? 'rgba(179,144,47,.85)' : T.ink3}>{BRAND_SUB}</Eyebrow>
-        </div>
+      <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <Wordmark tone={onDark ? 'light' : 'dark'} width={56} />
+        <span aria-hidden="true" style={{ width: 1, height: 34, background: onDark ? 'rgba(243,237,226,.28)' : T.line }} />
+        <Eyebrow color={onDark ? 'rgba(179,144,47,.9)' : T.ink3} style={{ lineHeight: 1.5 }}>Private<br />family archive</Eyebrow>
       </Link>
 
       <nav className="site-header-nav" style={{ display: 'flex', gap: 26, marginLeft: 'auto', marginRight: 8, alignItems: 'center' }}>
@@ -140,20 +140,24 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
 
 /** Walnut editorial footer — structured columns, quiet dividers, no ornament. */
 export function SiteFooter() {
+  const [session, setSession] = useState<Session | null>(null)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+  }, [])
   const col: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
   const link: CSSProperties = {
     fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.70)', textDecoration: 'none',
   }
   return (
-    <footer className="site-footer" style={{ background: T.walnut, padding: '48px 44px 38px' }}>
+    <footer className="site-footer" style={{ background: T.walnut, padding: '36px 44px 26px' }}>
       <div className="site-footer-grid" style={{
         display: 'grid', gap: 44, maxWidth: 1280, margin: '0 auto',
-        gridTemplateColumns: 'minmax(220px,1.2fr) minmax(160px,.7fr) minmax(160px,.7fr) minmax(240px,1fr)',
+        gridTemplateColumns: 'minmax(200px,1fr) minmax(150px,.6fr) minmax(150px,.6fr) minmax(240px,1fr)',
       }}>
-        <div style={col}>
-          <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark }}>{BRAND}</div>
+        <div style={{ ...col, gap: 12 }}>
+          <Wordmark tone="light" width={60} />
           <Eyebrow color="rgba(179,144,47,.85)">{BAND.eyebrow}</Eyebrow>
-          <span style={{ fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.62)', lineHeight: 1.6 }}>
+          <span style={{ fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.62)', lineHeight: 1.6, maxWidth: 240 }}>
             {BAND.line}
           </span>
         </div>
@@ -167,10 +171,10 @@ export function SiteFooter() {
           <Eyebrow color={T.onDark3}>The company</Eyebrow>
           <Link to="/about" style={link}>About</Link>
           <Link to="/about#privacy" style={link}>Security & privacy</Link>
-          <Link to="/signin" style={link}>Sign in</Link>
+          <Link to={session ? '/overview' : '/signin'} style={link}>{session ? 'Open archive' : 'Sign in'}</Link>
         </div>
         <div style={{ ...col, borderLeft: `1px solid ${T.darkLine}`, paddingLeft: 30 }}>
-          <span style={{ fontFamily: serif, fontSize: 18, color: T.onDark, lineHeight: 1.45 }}>
+          <span style={{ fontFamily: sans, fontSize: 16, fontWeight: 400, color: 'rgba(240,231,214,.78)', lineHeight: 1.5 }}>
             {BAND.emotional}
           </span>
           <Link

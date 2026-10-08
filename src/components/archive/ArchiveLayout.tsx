@@ -28,7 +28,8 @@ export function useSectionNav(): SectionNav {
 }
 
 function routeFromPath(pathname: string): ArchiveRouteKey | undefined {
-  if (pathname.startsWith('/edit') || pathname.startsWith('/voice-and-photo')) return 'edit'
+  if (pathname.startsWith('/voice-and-photo')) return 'voicePhoto'
+  if (pathname.startsWith('/edit')) return 'edit'
   if (pathname.startsWith('/family-access')) return 'access'
   if (pathname.startsWith('/settings')) return 'settings'
   if (pathname.startsWith('/billing')) return 'billing'
@@ -95,7 +96,7 @@ export default function ArchiveWorkspace({
           activeRoute={activeRoute}
           onSection={ctx.locked ? () => navigate('/unlock') : goSection}
           locked={ctx.locked}
-          band={false}
+          band
         >
           <div key={activeRoute || 'main'} className="archive-pane">
             {location.pathname.startsWith('/billing')

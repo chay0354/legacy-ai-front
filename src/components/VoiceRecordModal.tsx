@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, voiceScript } from '../lib/voiceRecord'
-import { T, radius, sans, serif, shadow } from '../design/tokens'
+import { T, heading, radius, sans, serif, shadow } from '../design/tokens'
 import { useDialogA11y } from '../lib/useDialogA11y'
 
 type Props = {
@@ -162,7 +162,7 @@ export default function VoiceRecordModal({
           outline: 'none',
         }}
       >
-        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 24, fontWeight: 400, color: T.ink, margin: 0 }}>Record your voice</h2>
+        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 24, fontWeight: heading.weight, color: T.ink, margin: 0 }}>Record your voice</h2>
         <p style={{ fontFamily: sans, fontSize: 14, color: T.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
           This recording clones your voice for the live avatar. It is not saved as a story. Read the passage slowly — at least 30 seconds, ideally 60–90 in a quiet room.
           {speakerName?.trim() ? ` Say “${speakerName.trim()}” where your name appears.` : ' Say your name clearly in the first line.'}

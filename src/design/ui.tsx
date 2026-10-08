@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode, type SelectHTMLAttributes } from 'react'
-import { T, layout, radius, sans, serif, shadow } from './tokens'
+import { T, heading, layout, radius, sans, serif, shadow } from './tokens'
 
 /* ─────────────────────────────── icons ─────────────────────────────── */
 /** Thin, minimal, useful line icons. No sparkles, robots, hearts, trophies. */
@@ -56,7 +56,7 @@ export function Eyebrow({
 }
 
 export function Display({
-  children, size = 34, italic, color = T.ink, weight = 400, style, as = 'h2',
+  children, size = 34, italic, color = T.ink, weight, style, as = 'h2',
 }: {
   children: ReactNode; size?: number; italic?: boolean; color?: string
   weight?: number; style?: CSSProperties
@@ -65,7 +65,7 @@ export function Display({
   const Tag = as
   return (
     <Tag style={{
-      fontFamily: serif, fontSize: size, fontWeight: weight, lineHeight: 1.12,
+      fontFamily: serif, fontSize: size, fontWeight: weight ?? (italic ? heading.italicWeight : heading.weight), lineHeight: 1.12,
       letterSpacing: '-.012em', color, margin: 0,
       fontStyle: italic ? 'italic' : 'normal', textWrap: 'pretty',
       ...style,

@@ -149,7 +149,7 @@ a.legacy-touch {
   }
 
   .site-hero-inner {
-    padding: 40px 20px 56px !important;
+    padding: 76px 20px 72px !important;
   }
 
   .site-hero-title {
@@ -233,7 +233,7 @@ a.legacy-touch {
   }
 
   .archive-paper {
-    padding: 24px 16px 40px !important;
+    padding: 24px 16px 56px !important;
     padding-top: max(24px, calc(12px + env(safe-area-inset-top))) !important;
   }
 }
@@ -411,7 +411,7 @@ a.legacy-touch {
   .legacy-interview .legacy-interview-top {
     height: auto !important;
     min-height: 56px;
-    padding: 10px 16px !important;
+    padding: 10px 0 !important;
     flex-wrap: wrap;
     gap: 8px;
   }
@@ -542,4 +542,20 @@ a.legacy-touch {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+/* Voice & photograph sits inside a page panel already — no second card around the studio. */
+.legacy-studio--embedded .studio-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.legacy-studio.legacy-studio--embedded { padding-bottom: 0 !important; }
+.legacy-studio.legacy-studio--embedded .legacy-studio-inner { padding: 8px 0 4px !important; }
+
+/* Interview stage track: keep all three stages on one line on phones. */
+@media (max-width: 640px) {
+  .legacy-interview .la-stage-track { padding-left: 0 !important; padding-right: 0 !important; }
+  .legacy-interview .la-stage-connector { min-width: 6px !important; margin: 0 8px !important; }
 }

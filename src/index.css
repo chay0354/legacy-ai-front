@@ -15,12 +15,12 @@
 }
 
 :root {
-  --la-paper: #eee5d4;
-  --la-card: #faf5eb;
+  --la-paper: #ece2d6;
+  --la-card: #f0e8de;
   --la-ink: #241c15;
-  --la-ink-2: #5e5346;
+  --la-ink-2: #4f4539;
   --la-status: #5c5246;
-  --la-walnut: #2b211a;
+  --la-walnut: #231f12;
   --la-sienna: #b05e37;
   --la-olive: #3c4433;
   --la-gold: #b3902f;
@@ -292,13 +292,16 @@ a:hover {
 
   .overview-hero {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 24px !important;
   }
 
-  .overview-hero-copy { order: 1; }
+  .overview-hero-copy { order: 1; flex: 1 1 auto; }
   .overview-hero-portrait {
     order: 2;
-    max-width: 200px;
+    flex: 0 0 180px;
+    max-width: 180px;
     width: 100%;
   }
 
@@ -310,11 +313,15 @@ a:hover {
 
   .archive-setup-stage {
     display: grid !important;
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
     padding: 0 !important;
     border-left: none !important;
     position: relative;
+  }
+
+  .archive-setup-stage > span {
+    padding-left: 35px;
   }
 
   .archive-setup-stage:not(:last-child)::after {
@@ -456,4 +463,162 @@ a:hover {
 .legacy-interview-chat-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(36, 28, 21, 0.36);
   background-clip: padding-box;
+}
+
+
+/* Homepage hero: the photograph starts below the menu bar, so the menu always sits on plain dark walnut. */
+.site-hero-photo {
+  position: absolute;
+  top: 108px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: var(--la-walnut-deep);
+  background-size: cover;
+  background-position: 62% 62%;
+}
+
+@media (min-width: 769px) {
+  .site-hero {
+    min-height: clamp(720px, 46vw, 900px);
+  }
+}
+
+.site-hero-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 32%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.12) 100%),
+    linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 120px);
+}
+
+@media (max-width: 768px) {
+  .site-hero-photo {
+    background-position: 76% 50%;
+  }
+
+  .site-hero-photo::after {
+    background:
+      linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 90px),
+      linear-gradient(180deg, rgba(23, 17, 12, 0.86) 0%, rgba(23, 17, 12, 0.72) 55%, rgba(23, 17, 12, 0.55) 100%);
+  }
+}
+
+/* Sign-in and sign-up: the text sits low over the desk, so the photograph is darker toward the bottom. */
+.site-hero-photo--auth::after {
+  background:
+    linear-gradient(180deg, var(--la-walnut-deep) 0%, rgba(27, 21, 16, 0) 120px),
+    linear-gradient(0deg, rgba(23, 17, 12, 0.94) 0%, rgba(23, 17, 12, 0.80) 34%, rgba(23, 17, 12, 0.30) 62%, rgba(23, 17, 12, 0.10) 100%);
+}
+
+@media (max-width: 768px) {
+  .site-hero-photo--auth {
+    background-position: 46% 100%;
+  }
+}
+
+/* Phones: nothing inside the archive may be wider than the screen, so the menu bar and cards are never pushed off the edge. */
+@media (max-width: 768px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .archive-shell {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
+  .archive-paper,
+  .legacy-interview,
+  .legacy-interview-top,
+  .legacy-interview .la-stage-track {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 560px) {
+  .overview-hero {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .overview-hero-portrait {
+    flex: none !important;
+    max-width: 240px;
+  }
+
+  .next-action-photo {
+    display: none;
+  }
+}
+
+/* Footer on tablets and phones: brand on top, the two link lists side by side, the long sentence left out. */
+@media (max-width: 900px) {
+  .site-footer {
+    padding: 28px 20px 20px !important;
+  }
+
+  .site-footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 22px 20px !important;
+  }
+
+  .site-footer-grid > div:first-child {
+    grid-column: 1 / -1;
+    gap: 6px !important;
+  }
+
+  .site-footer-grid > div:nth-child(4) {
+    display: none !important;
+  }
+
+  .site-footer-grid > div:nth-child(2),
+  .site-footer-grid > div:nth-child(3) {
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .site-footer-grid > div:nth-child(2) > :first-child,
+  .site-footer-grid > div:nth-child(3) > :first-child {
+    display: none;
+  }
+
+  .site-footer > div:last-child {
+    margin-top: 18px !important;
+    padding-top: 14px !important;
+    gap: 4px !important;
+  }
+
+  .site-footer > div:last-child span {
+    font-size: 12.5px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .home-conversation {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 28px !important;
+  }
+
+  .home-conversation-photo {
+    flex: none !important;
+    max-width: none !important;
+    width: 100%;
+    aspect-ratio: 16 / 10 !important;
+  }
+}
+
+/* Ask the archive: on tablets and phones the portrait stays a compact card instead of filling the whole width. */
+@media (max-width: 900px) {
+  .ask-hero > :first-child {
+    max-width: 200px;
+    width: 100%;
+  }
 }

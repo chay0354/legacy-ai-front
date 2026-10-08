@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { CTA } from '../../design/copy'
-import { T, radius, sans, serif } from '../../design/tokens'
+import { T, heading, radius, sans, serif } from '../../design/tokens'
 import { Body, Btn } from '../../design/ui'
 import { useDialogA11y } from '../../lib/useDialogA11y'
 
@@ -44,7 +44,7 @@ export default function AddMemoryChooser({
           display: 'flex', flexDirection: 'column', gap: 14,
         }}
       >
-        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 26, fontWeight: 400, color: T.ink, margin: 0 }}>{CTA.addMemory}</h2>
+        <h2 id={titleId} style={{ fontFamily: serif, fontSize: 26, fontWeight: heading.weight, color: T.ink, margin: 0 }}>{CTA.addMemory}</h2>
         <Body size={15}>Talk, write, or add a photograph. The structured interviews are done — the archive stays open.</Body>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
           <Btn onClick={onTalk}>Talk</Btn>

@@ -147,7 +147,6 @@ export default function BillingScreen() {
         <Panel pad="22px 24px">
           <Display size={20} style={{ marginBottom: 8 }}>Current plan</Display>
           <Body size={15}>{loaded ? statusLine(billing) : 'Checking your plan…'}</Body>
-          {billing?.notes && <Body size={13.5} color={T.ink3} style={{ marginTop: 8 }}>{billing.notes}</Body>}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
             {billing?.paid && (
               <Btn tone="quiet" disabled={Boolean(busy)} onClick={() => void openPortal()}>

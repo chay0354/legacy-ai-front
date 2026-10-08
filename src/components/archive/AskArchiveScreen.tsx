@@ -187,7 +187,6 @@ export default function AskArchiveScreen() {
               <Btn tone="quiet" icon="ask" onClick={focusAsk}>{ASK.write}</Btn>
             )}
           </div>
-          <PrivacyNote>{STATUS.sourced}</PrivacyNote>
         </div>
       </div>
 
@@ -195,10 +194,14 @@ export default function AskArchiveScreen() {
         <Panel pad="22px 24px" style={{ marginBottom: 22 }}>
           <Display size={22} style={{ marginBottom: 8 }}>Ask in writing</Display>
           <Body size={14.5} style={{ marginBottom: 16, maxWidth: 560 }}>
-            {STATUS.sourced}. {STATUS.unknown}
+            Ask about a story, a person or a moment in this archive.
           </Body>
+          <label htmlFor="ask-question" style={{ display: 'block', fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+            Your question
+          </label>
           <form ref={askRef} onSubmit={onSubmit} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <input
+              id="ask-question"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={ASK.placeholder}
@@ -358,7 +361,7 @@ export default function AskArchiveScreen() {
       <div style={{
         marginTop: 22, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
       }}>
-        <PrivacyNote>Only invited family can access this</PrivacyNote>
+        <PrivacyNote>Only you and the people you invite can access this archive.</PrivacyNote>
         <span style={{ fontFamily: sans, fontSize: 13, color: T.ink3 }}>{TRUST[2]}</span>
       </div>
     </>

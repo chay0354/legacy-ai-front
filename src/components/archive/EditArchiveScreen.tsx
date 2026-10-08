@@ -254,7 +254,7 @@ export default function EditArchiveScreen() {
             {statusChip(voiceUrl ? 'Voice recorded' : 'No voice yet', Boolean(voiceUrl))}
             {statusChip(`${counts.photographs} photographs`, counts.photographs > 0)}
             {statusChip(hasPortrait ? 'Portrait added' : 'No portrait yet', hasPortrait)}
-            {statusChip(liveReady ? 'Live avatar ready' : 'No live avatar yet', liveReady)}
+            {statusChip(liveReady ? 'Ready for a live call' : 'Not ready for a live call', liveReady)}
           </span>
         </Panel>
 
@@ -333,7 +333,7 @@ export default function EditArchiveScreen() {
           </div>
           {entries.length === 0 ? (
             <Body size={14.5}>
-              Nothing yet. The guided interview is the quickest way to fill this in, or add an entry by hand.
+              No entries yet. Begin with a guided conversation, or write a story in your own words.
             </Body>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -406,7 +406,7 @@ export default function EditArchiveScreen() {
               <Display size={22}>Voice sample</Display>
               <Body size={14.5}>
                 {voiceUrl
-                  ? 'A clone sample is saved. Record again to replace the sample, not a story.'
+                  ? 'Your voice sample is saved. It is used to create the AI-generated voice for live calls. Recording again replaces this sample, not your saved stories.'
                   : 'Read the passage aloud so the live avatar can use your voice. This is setup, not a saved story.'}
               </Body>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -440,13 +440,13 @@ export default function EditArchiveScreen() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
                     <Body size={14.5}>
                       {liveReady
-                        ? 'Ready for a live call. Edit to replace the photograph or voice and generate again.'
+                        ? 'Ready for a live call. You can update the voice sample or photograph used for your AI-generated voice and moving image.'
                         : 'Record a voice, take or upload a front-facing photograph, then generate. Family talks with you on Ask the archive.'}
                     </Body>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {statusChip(hasPortrait ? 'Portrait added' : 'Portrait needed', hasPortrait)}
                       {statusChip(voiceCloned ? 'Voice ready' : 'Voice needed', voiceCloned)}
-                      {statusChip(liveReady ? 'Live avatar ready' : 'Not set up', liveReady)}
+                      {statusChip(liveReady ? 'Ready for a live call' : 'Not set up', liveReady)}
                     </div>
                   </div>
                 </div>

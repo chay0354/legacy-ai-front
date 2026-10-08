@@ -10,7 +10,7 @@ import { LIVE_LANGUAGES, guessLiveLanguage, normalizeLiveLanguage } from '../lib
 import { blobToWav, CLONE_AUDIO_CONSTRAINTS, createMediaRecorder, MIN_VOICE_SECONDS, UNDER_30S_MESSAGE, VOICE_SCRIPT } from '../lib/voiceRecord'
 import { capturePortraitFromVideo, normalizePortrait } from '../lib/portraitImage'
 import { bindMediaStream } from '../lib/playMedia'
-import { C, T, radius, sans, serif } from '../design/tokens'
+import { C, T, heading, radius, sans, serif } from '../design/tokens'
 import { Select } from '../design/ui'
 import { editingSite } from '../lib/siteEdit'
 
@@ -86,7 +86,7 @@ export default function AvatarStudio({ onExit, embedded = false }: Props) {
   const currentIndex = STEPS.findIndex((s) => s.id === step)
 
   return (
-    <div className="legacy-studio" style={{ minHeight: embedded ? undefined : '100dvh', background: embedded ? 'transparent' : C.paper, fontFamily: sans, color: C.ink }}>
+    <div className={embedded ? "legacy-studio legacy-studio--embedded" : "legacy-studio"} style={{ minHeight: embedded ? undefined : '100dvh', background: embedded ? 'transparent' : C.paper, fontFamily: sans, color: C.ink }}>
       <div className="legacy-studio-inner" style={{ maxWidth: 760, margin: embedded ? 0 : '0 auto', padding: embedded ? '8px 0 12px' : '48px 24px 96px' }}>
         {!embedded && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -195,8 +195,8 @@ function Intro({
   }
 
   return (
-    <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 28, margin: 0 }}>{hasVoice ? 'Update your live avatar' : 'Set up your live avatar'}</h2>
+    <div className="studio-card" style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 28, margin: 0 }}>{hasVoice ? 'Update your live avatar' : 'Set up your live avatar'}</h2>
       <p style={{ fontSize: 15, lineHeight: 1.6, color: C.ink2, marginTop: 12 }}>
         Record your <strong>voice</strong> and take a <strong>photo</strong>. The system automatically
         clones your voice and builds a talking avatar from your face — no extra steps on other websites.
@@ -255,7 +255,7 @@ function Intro({
       </ul>
       <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
         <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update live avatar' : 'Begin'}</button>
-        {cloned && <span style={{ fontFamily: sans, fontSize: 13, color: C.sage }}>Your voice sample is cloned.</span>}
+        {cloned && <span style={{ fontFamily: sans, fontSize: 13, color: C.sage }}>Your voice sample is saved.</span>}
         {hasVoice && !cloned && <span style={{ fontFamily: sans, fontSize: 13, color: T.error }}>Re-record the voice sample in the Voice step.</span>}
       </div>
       <p style={{ fontSize: 12, color: C.ink3, marginTop: 16 }}>You’ll be asked for microphone and camera permission. Nothing is shared — only you and people you invite can see it.</p>
@@ -431,8 +431,8 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
   const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= MIN_VOICE_SECONDS
 
   return (
-    <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Record your voice</h2>
+    <div className="studio-card" style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Record your voice</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
         Choose the language you’ll speak, then read the whole passage slowly and naturally. Aim for 60–90 seconds in a quiet room. Under 30 seconds cannot be cloned.
       </p>
@@ -694,8 +694,8 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   }
 
   return (
-    <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
+    <div className="studio-card" style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 520 }}>
         Sit back so your head and shoulders have space around them — a close-up face crop is what makes
         the live avatar look warped. Look straight at the camera. You can also upload a photo from your phone.
@@ -893,7 +893,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         onProgress: (p) => setPhase(p),
       })
       if (prov.liveReady) {
-        setNotice('Your face and cloned voice are ready. Go to your legacy page to talk face to face in real time.')
+        setNotice('Your face and cloned voice are ready. Open Ask the archive to talk with it face to face.')
         setStatus('done')
         return
       }
@@ -917,8 +917,8 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
   const retry = () => { run() }
 
   return (
-    <div style={card}>
-      <h2 style={{ fontFamily: serif, fontWeight: 400, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
+    <div className="studio-card" style={card}>
+      <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
         We&apos;re building your live avatar from your photo and cloning your voice. This usually takes about a minute.
         If a previous version looked warped or didn&apos;t sound like you, retake the photo a little farther back
@@ -929,9 +929,9 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
 
       {status === 'done' && (
         <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: radius.card }}>
-          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Live avatar ready</div>
+          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Ready for a live call</div>
           <p style={{ fontSize: 14, color: C.ink2, margin: 0, lineHeight: 1.5 }}>
-            {notice || 'Your face and voice are set up. Use Live Call on your legacy page for a real-time conversation.'}
+            {notice || 'Your face and voice are set up. Open Ask the archive to start a live call.'}
           </p>
         </div>
       )}

@@ -261,7 +261,7 @@ export default function FamilyAccessScreen() {
             ))}
           </div>
           <Divider tone="dark" />
-          <PrivacyNote onDark>Only invited family can access this</PrivacyNote>
+          <PrivacyNote onDark>Only you and the people you invite can access this archive.</PrivacyNote>
         </Panel>
       </div>
     </>

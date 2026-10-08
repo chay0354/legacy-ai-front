@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { T, radius, sans, serif } from '../../design/tokens'
-import { BAND, BRAND, BRAND_SUB, NAV } from '../../design/copy'
+import { NAV } from '../../design/copy'
+import { Wordmark } from '../../design/Wordmark'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
 import { archiveQuery } from '../../lib/siteEdit'
+import { SiteFooter } from '../../site/SiteChrome'
 import {
-  canEditArchive, canManageAccess, canRunInterview, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
+  canEditArchive, canManageAccess, canRunInterview, canSetUpLiveAvatar, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
 
-export type ArchiveRouteKey = 'edit' | 'settings' | 'billing' | 'access' | 'ask' | 'interview'
+export type ArchiveRouteKey = 'edit' | 'voicePhoto' | 'settings' | 'billing' | 'access' | 'ask' | 'interview'
 
 function Monogram({ name, size = 30 }: { name: string; size?: number }) {
   const initials = name.split(/\s+/).map((w) => w[0]?.toUpperCase() || '').join('').slice(0, 2) || '—'
@@ -20,50 +22,6 @@ function Monogram({ name, size = 30 }: { name: string; size?: number }) {
       display: 'grid', placeItems: 'center', fontFamily: serif, fontSize: 12,
       letterSpacing: '.06em', color: T.onDark2,
     }}>{initials}</div>
-  )
-}
-
-/** Editorial bottom band. Structured columns, quiet dividers, no ornament. */
-export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
-  const col: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }
-  const rule = '1px solid rgba(179,144,47,.35)'
-  return (
-    <footer className="editorial-band" style={{
-      borderTop: `1px solid ${T.line}`, background: T.paperDeep,
-      padding: '26px 40px', display: 'grid',
-      gridTemplateColumns: 'minmax(180px,1fr) minmax(200px,1.2fr) minmax(200px,1.2fr) minmax(160px,.9fr)',
-      gap: 40, alignItems: 'start',
-    }}>
-      <div style={col}>
-        <Eyebrow color={T.ink2}>{BAND.eyebrow}</Eyebrow>
-        <span style={{ fontFamily: sans, fontSize: 13, color: T.ink3, lineHeight: 1.55 }}>
-          {BAND.line}
-        </span>
-      </div>
-      <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <span style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.4, color: T.ink }}>
-          {BAND.emotional}
-        </span>
-      </div>
-      <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <span style={{ fontFamily: sans, fontSize: 13, color: T.ink3 }}>{BAND.privacy}</span>
-        <button
-          type="button" onClick={onLearnMore}
-          style={{
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
-            fontFamily: sans, fontSize: 13, fontWeight: 600, color: T.sienna,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}
-        >
-          {BAND.link}
-          <Icon name="arrow" size={15} strokeWidth={1.5} />
-        </button>
-      </div>
-      <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <span style={{ fontFamily: serif, fontSize: 15, color: T.ink2, letterSpacing: '.04em' }}>{BRAND}</span>
-        <Eyebrow color={T.ink3}>{BRAND_SUB}</Eyebrow>
-      </div>
-    </footer>
   )
 }
 
@@ -140,7 +98,7 @@ export default function ArchiveShell({
     }}>
       <div className="archive-mobile-bar" data-la-nav="">
         <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} style={{ textDecoration: 'none' }}>
-          <span style={{ fontFamily: serif, fontSize: 20, color: T.onDark }}>{BRAND}</span>
+          <Wordmark tone="light" width={64} />
         </Link>
         <button
           ref={menuBtn}
@@ -163,11 +121,8 @@ export default function ArchiveShell({
           position: 'sticky', top: 0, height: '100dvh',
         }}
       >
-        <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '26px 26px 18px', display: 'block' }}>
-          <div style={{ fontFamily: serif, fontSize: 21, color: T.onDark, letterSpacing: '.01em' }}>{BRAND}</div>
-          <div style={{ marginTop: 5 }}>
-            <Eyebrow color="rgba(179,144,47,.85)">{BRAND_SUB}</Eyebrow>
-          </div>
+        <Link to={archiveQuery() ? `/${archiveQuery()}` : '/'} className="archive-sidebar-brand" style={{ textDecoration: 'none', padding: '22px 26px 14px', display: 'block' }}>
+          <Wordmark tone="light" width={72} />
         </Link>
 
         <div style={{ padding: '0 26px 6px' }}>
@@ -209,6 +164,12 @@ export default function ArchiveShell({
             <Link to={`/interview${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'interview')}>
               <Icon name="interview" size={18} color={iconColor(activeRoute === 'interview')} />
               {NAV.interview}
+            </Link>
+          )}
+          {!locked && canSetUpLiveAvatar(role) && (
+            <Link to={`/voice-and-photo${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'voicePhoto')}>
+              <Icon name="live" size={18} color={iconColor(activeRoute === 'voicePhoto')} />
+              {NAV.voicePhoto}
             </Link>
           )}
           {!locked && canManageAccess(role) && (
@@ -362,11 +323,11 @@ export default function ArchiveShell({
       {/* paper workspace */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
         <div style={{ flex: 1, backgroundColor: T.paper }}>
-          <div className="archive-paper" style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '38px var(--la-gutter) 46px' }}>
+          <div className="archive-paper" style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '38px var(--la-gutter) 80px' }}>
             {children}
           </div>
         </div>
-        {band && <EditorialBand onLearnMore={() => navigate('/how-it-works')} />}
+        {band && <SiteFooter />}
       </div>
     </div>
   )

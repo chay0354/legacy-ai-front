@@ -24,7 +24,7 @@ import MemoryEditorModal, { type MemoryFormValues } from '../MemoryEditorModal'
 function stageAsk(level: number, started: boolean) {
   if (level >= 3) {
     return {
-      eyebrow: 'Keep Legacy open', title: 'Add another memory',
+      eyebrow: 'Keep your archive open', title: 'Add another memory',
       note: 'Talk, write, or add a photograph. The structured interviews are done — the archive stays open.',
       cta: CTA.addMemory, stage: 'memory' as string | null,
     }
@@ -253,7 +253,7 @@ export default function ArchiveHome() {
       />
       <header className="ask-hero overview-hero" style={{
         display: 'grid', gap: 28, marginBottom: 32,
-        gridTemplateColumns: 'minmax(220px, 300px) minmax(0, 1fr)', alignItems: 'start',
+        gridTemplateColumns: 'minmax(180px, 220px) minmax(0, 1fr)', alignItems: 'center',
       }}>
         <div className="overview-hero-portrait">
         <AskPortrait
@@ -350,7 +350,7 @@ export default function ArchiveHome() {
                     ? `Read everything ${ownerFirst} has recorded, and manage who else can open this archive.`
                     : 'Read the entries, listen to the voice memories, and ask the archive a question.'}
                 </Body>
-                <PrivacyNote>Only invited family can access this</PrivacyNote>
+                <PrivacyNote>Only you and the people you invite can access this archive.</PrivacyNote>
               </Panel>
             )}
 
@@ -427,7 +427,7 @@ export default function ArchiveHome() {
           count={voiceUrl ? (hasRealMemory ? '1 memory' : 'Sample recorded') : 'No sample yet'}
           note={hasRealMemory
             ? 'A story kept as a recording, the way it was told.'
-            : 'The clone sample used to build the live voice. It is not a story.'}
+            : 'Your voice sample is used to create the AI-generated voice for live calls. It is not a story.'}
         >
           <VoiceBlock
             voiceUrl={canPlayVoice ? (voiceUrl || 'tts') : null} playing={playing} onToggle={toggleVoice}

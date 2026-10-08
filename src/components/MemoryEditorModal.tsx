@@ -100,10 +100,10 @@ export default function MemoryEditorModal({
         }}
       >
         <h2 id={titleId} style={{ fontFamily: serif, fontSize: 24, fontWeight: 400, color: T.ink, margin: 0 }}>
-          {mode === 'add' ? 'Add a memory' : 'Edit memory'}
+          {mode === 'add' ? 'Add an entry' : 'Edit entry'}
         </h2>
         <p style={{ fontFamily: sans, fontSize: 14, color: T.ink2, margin: '8px 0 18px', lineHeight: 1.5 }}>
-          Write a story in your own words. It stays on your legacy home — no need to restart the interview.
+          Write a story in your own words, and keep it in your archive.
         </p>
 
         <label style={{ display: 'block', marginBottom: 14 }}>
@@ -173,7 +173,7 @@ export default function MemoryEditorModal({
               opacity: canSave && !saving ? 1 : 0.55,
             }}
           >
-            {saving ? 'Saving…' : mode === 'add' ? 'Add memory' : 'Save changes'}
+            {saving ? 'Saving…' : mode === 'add' ? 'Add entry' : 'Save changes'}
           </button>
           <button
             type="button"
