@@ -28,7 +28,8 @@ export function useSectionNav(): SectionNav {
 }
 
 function routeFromPath(pathname: string): ArchiveRouteKey | undefined {
-  if (pathname.startsWith('/edit') || pathname.startsWith('/voice-and-photo')) return 'edit'
+  if (pathname.startsWith('/voice-and-photo')) return 'voicePhoto'
+  if (pathname.startsWith('/edit')) return 'edit'
   if (pathname.startsWith('/family-access')) return 'access'
   if (pathname.startsWith('/settings')) return 'settings'
   if (pathname.startsWith('/billing')) return 'billing'

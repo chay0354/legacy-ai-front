@@ -8,10 +8,10 @@ import type { Membership, Role } from '../../lib/api'
 import { archiveQuery } from '../../lib/siteEdit'
 import { SiteFooter } from '../../site/SiteChrome'
 import {
-  canEditArchive, canManageAccess, canRunInterview, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
+  canEditArchive, canManageAccess, canRunInterview, canSetUpLiveAvatar, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
 
-export type ArchiveRouteKey = 'edit' | 'settings' | 'billing' | 'access' | 'ask' | 'interview'
+export type ArchiveRouteKey = 'edit' | 'voicePhoto' | 'settings' | 'billing' | 'access' | 'ask' | 'interview'
 
 function Monogram({ name, size = 30 }: { name: string; size?: number }) {
   const initials = name.split(/\s+/).map((w) => w[0]?.toUpperCase() || '').join('').slice(0, 2) || '—'
@@ -164,6 +164,12 @@ export default function ArchiveShell({
             <Link to={`/interview${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'interview')}>
               <Icon name="interview" size={18} color={iconColor(activeRoute === 'interview')} />
               {NAV.interview}
+            </Link>
+          )}
+          {!locked && canSetUpLiveAvatar(role) && (
+            <Link to={`/voice-and-photo${cQuery}`} onClick={() => setMenuOpen(false)} style={itemStyle(activeRoute === 'voicePhoto')}>
+              <Icon name="live" size={18} color={iconColor(activeRoute === 'voicePhoto')} />
+              {NAV.voicePhoto}
             </Link>
           )}
           {!locked && canManageAccess(role) && (

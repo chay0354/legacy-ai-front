@@ -17,6 +17,7 @@ export const NAV = {
   photos: 'Photos & documents',
   people: 'People',
   live: 'Live avatar',
+  voicePhoto: 'Voice & photograph',
   access: 'Family Access',
   settings: 'Settings',
   billing: 'Plan and purchases',
