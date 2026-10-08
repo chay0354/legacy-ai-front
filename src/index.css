@@ -549,7 +549,7 @@ a:hover {
 
   .overview-hero-portrait {
     flex: none !important;
-    max-width: 170px;
+    max-width: 240px;
   }
 
   .next-action-photo {

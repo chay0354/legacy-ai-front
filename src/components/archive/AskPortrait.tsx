@@ -86,7 +86,7 @@ export default function AskPortrait({
       padding: 10, boxShadow: shadow.panel,
     }}>
       <div style={{
-        width: '100%', aspectRatio: '2 / 3', background: T.paperDeep,
+        width: '100%', aspectRatio: '1 / 1', background: T.paperDeep,
         position: 'relative', overflow: 'hidden', borderRadius: radius.sm,
       }}>
         {src ? (
@@ -141,7 +141,7 @@ export default function AskPortrait({
               disablePictureInPicture
               style={{
                 position: 'absolute', inset: 0, width: '100%', height: '100%',
-                objectFit: 'cover', display: 'block', background: 'transparent',
+                objectFit: 'contain', display: 'block', background: T.paperDeep,
                 opacity: videoLive ? 1 : 0, transition: 'opacity .55s ease',
                 pointerEvents: videoLive ? 'auto' : 'none',
                 transform: 'translateZ(0)',
