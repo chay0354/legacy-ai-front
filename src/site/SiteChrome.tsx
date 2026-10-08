@@ -174,7 +174,7 @@ export function SiteFooter() {
           <Link to={session ? '/overview' : '/signin'} style={link}>{session ? 'Open archive' : 'Sign in'}</Link>
         </div>
         <div style={{ ...col, borderLeft: `1px solid ${T.darkLine}`, paddingLeft: 30 }}>
-          <span style={{ fontFamily: sans, fontSize: 16, fontWeight: 500, color: T.onDark, lineHeight: 1.5 }}>
+          <span style={{ fontFamily: sans, fontSize: 16, fontWeight: 400, color: 'rgba(240,231,214,.78)', lineHeight: 1.5 }}>
             {BAND.emotional}
           </span>
           <Link
