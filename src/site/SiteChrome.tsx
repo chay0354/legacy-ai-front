@@ -140,6 +140,10 @@ export function SiteHeader({ onDark = true }: { onDark?: boolean }) {
 
 /** Walnut editorial footer — structured columns, quiet dividers, no ornament. */
 export function SiteFooter() {
+  const [session, setSession] = useState<Session | null>(null)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+  }, [])
   const col: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }
   const link: CSSProperties = {
     fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.70)', textDecoration: 'none',
@@ -167,7 +171,7 @@ export function SiteFooter() {
           <Eyebrow color={T.onDark3}>The company</Eyebrow>
           <Link to="/about" style={link}>About</Link>
           <Link to="/about#privacy" style={link}>Security & privacy</Link>
-          <Link to="/signin" style={link}>Sign in</Link>
+          <Link to={session ? '/overview' : '/signin'} style={link}>{session ? 'Open archive' : 'Sign in'}</Link>
         </div>
         <div style={{ ...col, borderLeft: `1px solid ${T.darkLine}`, paddingLeft: 30 }}>
           <span style={{ fontFamily: serif, fontSize: 18, color: T.onDark, lineHeight: 1.45 }}>

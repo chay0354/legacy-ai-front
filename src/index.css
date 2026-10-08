@@ -556,25 +556,3 @@ a:hover {
     display: none;
   }
 }
-
-/* Closing band on tablets and phones: one tidy column, logo first, no column rules. */
-@media (max-width: 900px) {
-  .editorial-band {
-    padding: 28px 20px 32px !important;
-    gap: 18px !important;
-  }
-
-  .editorial-band > div {
-    border-left: none !important;
-    padding-left: 0 !important;
-    gap: 6px !important;
-  }
-
-  .editorial-band > div:last-child {
-    order: -1;
-  }
-
-  .editorial-band > div:nth-child(2) span {
-    font-size: 16px !important;
-  }
-}

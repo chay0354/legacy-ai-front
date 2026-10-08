@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { T, radius, sans, serif } from '../../design/tokens'
-import { BAND, NAV } from '../../design/copy'
+import { NAV } from '../../design/copy'
 import { Wordmark } from '../../design/Wordmark'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
 import { archiveQuery } from '../../lib/siteEdit'
+import { SiteFooter } from '../../site/SiteChrome'
 import {
   canEditArchive, canManageAccess, canRunInterview, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
@@ -21,49 +22,6 @@ function Monogram({ name, size = 30 }: { name: string; size?: number }) {
       display: 'grid', placeItems: 'center', fontFamily: serif, fontSize: 12,
       letterSpacing: '.06em', color: T.onDark2,
     }}>{initials}</div>
-  )
-}
-
-/** Editorial bottom band. Structured columns, quiet dividers, no ornament. */
-export function EditorialBand({ onLearnMore }: { onLearnMore?: () => void }) {
-  const col: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }
-  const rule = '1px solid rgba(179,144,47,.35)'
-  return (
-    <footer className="editorial-band" style={{
-      borderTop: `1px solid ${T.line}`, background: T.paperDeep,
-      padding: '26px 40px', display: 'grid',
-      gridTemplateColumns: 'minmax(180px,1fr) minmax(200px,1.2fr) minmax(200px,1.2fr) minmax(160px,.9fr)',
-      gap: 40, alignItems: 'start',
-    }}>
-      <div style={col}>
-        <Eyebrow color={T.ink2}>{BAND.eyebrow}</Eyebrow>
-        <span style={{ fontFamily: sans, fontSize: 13, color: T.ink3, lineHeight: 1.55 }}>
-          {BAND.line}
-        </span>
-      </div>
-      <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <span style={{ fontFamily: serif, fontSize: 17, lineHeight: 1.4, color: T.ink }}>
-          {BAND.emotional}
-        </span>
-      </div>
-      <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <span style={{ fontFamily: sans, fontSize: 13, color: T.ink3 }}>{BAND.privacy}</span>
-        <button
-          type="button" onClick={onLearnMore}
-          style={{
-            background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
-            fontFamily: sans, fontSize: 13, fontWeight: 600, color: T.sienna,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}
-        >
-          {BAND.link}
-          <Icon name="arrow" size={15} strokeWidth={1.5} />
-        </button>
-      </div>
-      <div style={{ ...col, borderLeft: rule, paddingLeft: 28 }}>
-        <Wordmark tone="dark" width={56} />
-      </div>
-    </footer>
   )
 }
 
@@ -363,7 +321,7 @@ export default function ArchiveShell({
             {children}
           </div>
         </div>
-        {band && <EditorialBand onLearnMore={() => navigate('/how-it-works')} />}
+        {band && <SiteFooter />}
       </div>
     </div>
   )
