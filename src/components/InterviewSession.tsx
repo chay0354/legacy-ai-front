@@ -1129,7 +1129,7 @@ export default function InterviewSession({
                 : stageLabel === "Foundation"
                   ? "I'll ask gentle questions about your life — identity, family, chapters, and what makes you you. Just talk; I'll listen and move us along when you're ready."
                   : stageLabel === "Enriched"
-                    ? "This stage goes deeper into the stories, relationships, and wisdom behind your life. Take your time — each answer adds richness to your legacy."
+                    ? "This stage goes deeper into the stories, relationships, and wisdom behind your life. Take your time — each answer adds richness to your archive."
                     : "This is the reflective stage — values, personality, gratitude, and what you want preserved for generations. Silence is welcome."}
             </p>
             {(aiVoice || stageLabel === "Foundation") && (
@@ -1148,7 +1148,7 @@ export default function InterviewSession({
                   `About ${TOTAL} topics in this stage — one conversation, at your pace`,
                   "Talk naturally; the interviewer may ask a gentle follow-up before moving on",
                   "Pause anytime, skip a topic if you want, or ask how far you are",
-                  "When you finish, your answers help build your living legacy",
+                  "When you finish, your answers help build your living archive",
                 ].map((line) => (
                   <li key={line} style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14.5, lineHeight: 1.45, color: C.ink2 }}>
                     <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: accent, marginTop: 7, flex: "none" }} />
@@ -1503,7 +1503,7 @@ export default function InterviewSession({
                 <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.gold, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 26, animation: "la-breathe 1.4s ease-in-out infinite" }}>
                   <span style={{ width: 16, height: 16, borderRadius: "50%", background: T.onPrimary }} />
                 </div>
-                <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your legacy…</h2>
+                <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 32, lineHeight: 1.15, margin: 0, color: C.ink }}>Preserving your archive…</h2>
                 <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 300, fontSize: 18, lineHeight: 1.5, color: C.ink2, margin: "18px 0 0" }}>
                   Your interview is finished. We're extracting your stories, values, and wisdom — this usually takes under a minute.
                 </p>
@@ -1518,8 +1518,8 @@ export default function InterviewSession({
                     : archiveLocked
                       ? "We kept what you recorded. To see the stories, people, and wisdom, you need to pay."
                       : extractionResult
-                        ? "We've extracted your stories, relationships, and wisdom. Your legacy dashboard is updated."
-                        : "This is your legacy. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
+                        ? "We've extracted your stories, relationships, and wisdom. Your archive is updated."
+                        : "This is your archive. From here you can invite the people you trust — add an administrator to help manage it, and they can invite the rest of the family."}
                 </p>
                 {processingError && onRetryPreservation && (
                   <button

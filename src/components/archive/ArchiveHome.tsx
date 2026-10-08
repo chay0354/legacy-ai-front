@@ -24,7 +24,7 @@ import MemoryEditorModal, { type MemoryFormValues } from '../MemoryEditorModal'
 function stageAsk(level: number, started: boolean) {
   if (level >= 3) {
     return {
-      eyebrow: 'Keep Legacy open', title: 'Add another memory',
+      eyebrow: 'Keep your archive open', title: 'Add another memory',
       note: 'Talk, write, or add a photograph. The structured interviews are done — the archive stays open.',
       cta: CTA.addMemory, stage: 'memory' as string | null,
     }
