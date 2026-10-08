@@ -1388,7 +1388,7 @@ export default function InterviewSession({
                     {paused ? "Resume interview" : "Pause interview"}
                   </button>
                   {aiError && (
-                    <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{aiError}</p>
+                    <p style={{ fontSize: 14, color: C.terra, margin: "12px 0 0", textAlign: "center" }}>{/permission denied|notallowed|permission dismissed|microphone/i.test(aiError) ? "We couldn’t reach your microphone. Allow it in your browser, or switch to Writing." : aiError}</p>
                   )}
                 </div>
               ) : (

@@ -255,7 +255,7 @@ function Intro({
       </ul>
       <div style={{ display: 'flex', gap: 10, marginTop: 18, alignItems: 'center' }}>
         <button style={primaryBtn} onClick={onStart}>{hasVoice ? 'Update live avatar' : 'Begin'}</button>
-        {cloned && <span style={{ fontFamily: sans, fontSize: 13, color: C.sage }}>Your voice sample is cloned.</span>}
+        {cloned && <span style={{ fontFamily: sans, fontSize: 13, color: C.sage }}>Your voice sample is saved.</span>}
         {hasVoice && !cloned && <span style={{ fontFamily: sans, fontSize: 13, color: T.error }}>Re-record the voice sample in the Voice step.</span>}
       </div>
       <p style={{ fontSize: 12, color: C.ink3, marginTop: 16 }}>You’ll be asked for microphone and camera permission. Nothing is shared — only you and people you invite can see it.</p>
