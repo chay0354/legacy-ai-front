@@ -1064,7 +1064,7 @@ export default function InterviewSession({
         flex: "none",
         borderBottom: embedded ? "none" : `1px solid ${C.line}`,
         background: embedded ? T.walnut : undefined,
-        margin: embedded ? "0 -8px 8px" : undefined,
+        margin: embedded ? "0 0 8px" : undefined,
         padding: embedded ? "10px 16px 12px" : undefined,
         borderRadius: embedded ? radius.control : undefined,
       }}>

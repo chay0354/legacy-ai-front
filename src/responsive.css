@@ -411,7 +411,7 @@ a.legacy-touch {
   .legacy-interview .legacy-interview-top {
     height: auto !important;
     min-height: 56px;
-    padding: 10px 16px !important;
+    padding: 10px 0 !important;
     flex-wrap: wrap;
     gap: 8px;
   }
@@ -553,3 +553,9 @@ a.legacy-touch {
 }
 .legacy-studio.legacy-studio--embedded { padding-bottom: 0 !important; }
 .legacy-studio.legacy-studio--embedded .legacy-studio-inner { padding: 8px 0 4px !important; }
+
+/* Interview stage track: keep all three stages on one line on phones. */
+@media (max-width: 640px) {
+  .legacy-interview .la-stage-track { padding-left: 0 !important; padding-right: 0 !important; }
+  .legacy-interview .la-stage-connector { min-width: 6px !important; margin: 0 8px !important; }
+}

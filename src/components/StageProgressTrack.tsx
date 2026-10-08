@@ -80,6 +80,7 @@ export default function StageProgressTrack({
             </div>
             {!isLast && (
               <div
+                className="la-stage-connector"
                 style={{
                   flex: 1,
                   height: status === 'done' && connectorDone ? 2 : 1,
