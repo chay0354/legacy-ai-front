@@ -152,12 +152,12 @@ export function SiteFooter() {
     <footer className="site-footer" style={{ background: T.walnut, padding: '36px 44px 26px' }}>
       <div className="site-footer-grid" style={{
         display: 'grid', gap: 44, maxWidth: 1280, margin: '0 auto',
-        gridTemplateColumns: 'minmax(220px,1.2fr) minmax(160px,.7fr) minmax(160px,.7fr) minmax(240px,1fr)',
+        gridTemplateColumns: 'minmax(200px,1fr) minmax(150px,.6fr) minmax(150px,.6fr) minmax(240px,1fr)',
       }}>
-        <div style={col}>
+        <div style={{ ...col, gap: 12 }}>
           <Wordmark tone="light" width={60} />
           <Eyebrow color="rgba(179,144,47,.85)">{BAND.eyebrow}</Eyebrow>
-          <span style={{ fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.62)', lineHeight: 1.6 }}>
+          <span style={{ fontFamily: sans, fontSize: 14, color: 'rgba(240,231,214,.62)', lineHeight: 1.6, maxWidth: 240 }}>
             {BAND.line}
           </span>
         </div>
