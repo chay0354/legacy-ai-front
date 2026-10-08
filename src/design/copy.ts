@@ -42,7 +42,7 @@ export const CTA = {
   beginInterview: 'Begin interview',
   addVoicePhoto: 'Add voice & photo',
   createLive: 'Create live avatar',
-  editLive: 'Edit live avatar',
+  editLive: 'Edit voice & photograph',
   recordVoice: 'Record a voice memory',
   addEntry: 'Add an entry',
   addMemory: 'Add another memory',
@@ -115,7 +115,7 @@ export const STATUS = {
   saved: 'Saved',
   draftSaved: 'Draft saved',
   private: 'Private by default',
-  onlyInvited: 'Only invited family can access this',
+  onlyInvited: 'Only you and the people you invite can access this archive.',
   sourced: 'This answer is based on recorded archive material',
   unknown: 'The archive does not have enough information to answer that yet',
 } as const
@@ -146,7 +146,7 @@ export const TRUST = [
   'Private by default',
   'Shared only with invited family',
   'Built only from what you choose to share',
-  'The archive should say when it does not know',
+  'If the archive does not know, it says so',
   'Voice and likeness require explicit permission',
 ] as const
 

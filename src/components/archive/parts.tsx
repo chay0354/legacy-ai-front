@@ -430,7 +430,7 @@ export function AccessSummary({
           ? 'No one has been invited yet. Only you can see this archive.'
           : `${invited} invited family ${invited === 1 ? 'member' : 'members'} can read what you have chosen to share.`}
       </Body>
-      <PrivacyNote>Only invited family can access this</PrivacyNote>
+      <PrivacyNote>Only you and the people you invite can access this archive.</PrivacyNote>
       {canManage && (
         <div style={{ marginTop: 4 }}>
           <Btn tone="quiet" size="sm" onClick={onManage}>

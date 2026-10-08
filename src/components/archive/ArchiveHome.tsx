@@ -350,7 +350,7 @@ export default function ArchiveHome() {
                     ? `Read everything ${ownerFirst} has recorded, and manage who else can open this archive.`
                     : 'Read the entries, listen to the voice memories, and ask the archive a question.'}
                 </Body>
-                <PrivacyNote>Only invited family can access this</PrivacyNote>
+                <PrivacyNote>Only you and the people you invite can access this archive.</PrivacyNote>
               </Panel>
             )}
 
@@ -427,7 +427,7 @@ export default function ArchiveHome() {
           count={voiceUrl ? (hasRealMemory ? '1 memory' : 'Sample recorded') : 'No sample yet'}
           note={hasRealMemory
             ? 'A story kept as a recording, the way it was told.'
-            : 'The clone sample used to build the live voice. It is not a story.'}
+            : 'Your voice sample is used to create the AI-generated voice for live calls. It is not a story.'}
         >
           <VoiceBlock
             voiceUrl={canPlayVoice ? (voiceUrl || 'tts') : null} playing={playing} onToggle={toggleVoice}

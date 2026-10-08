@@ -361,7 +361,7 @@ export default function AskArchiveScreen() {
       <div style={{
         marginTop: 22, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
       }}>
-        <PrivacyNote>Only invited family can access this</PrivacyNote>
+        <PrivacyNote>Only you and the people you invite can access this archive.</PrivacyNote>
         <span style={{ fontFamily: sans, fontSize: 13, color: T.ink3 }}>{TRUST[2]}</span>
       </div>
     </>

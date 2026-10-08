@@ -48,10 +48,10 @@ export default function VoiceAndPhotoScreen() {
           display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
           gap: 16, flexWrap: 'wrap', marginBottom: 10,
         }}>
-          <Display size={20}>Studio</Display>
+          <Display size={20}>Voice & photo setup</Display>
           <Eyebrow color={liveReady ? T.olive : T.ink3}>
             {liveReady
-              ? 'Live avatar ready — you can update it below'
+              ? 'Ready for a live call. You can update your voice and photograph below.'
               : voiceCloned
                 ? 'Voice sample ready — finish the photograph'
                 : 'Not set up yet'}
