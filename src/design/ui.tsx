@@ -152,7 +152,7 @@ export function Btn({
         cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.45 : 1,
         color: disabled ? T.disabled : undefined,
-        transition: 'opacity .18s ease, background .18s ease, border-color .18s ease',
+        transition: 'opacity .18s ease, background .18s ease, border-color .18s ease, filter .18s ease',
         ...BTN[tone], ...style,
       }}
     >
