@@ -421,30 +421,48 @@ export function AboutPage() {
     <SitePage>
       <PageHead
         eyebrow="About"
-        title="Why this exists"
-        standfirst="Most families discover what they wanted to ask a few years too late. This is a way to answer those questions while it is still easy to."
+        title="Why we started As Told"
+        standfirst="It began with missing the conversations that used to feel ordinary."
       />
       <div className="site-wrap" style={wrap}>
         <div className="about-split" style={{
           display: 'grid', gap: 40,
           gridTemplateColumns: 'minmax(320px, 1.15fr) minmax(260px, .8fr)', alignItems: 'start',
         }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 620 }}>
+          <article className="about-prose" style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 620 }}>
             <Body size={16.5}>
-              The idea started with an ordinary problem: a family that knew the outline of a life but
-              almost none of the detail. Where the stories came from, who was in them, what was
-              learned. The facts were recoverable. The voice was not.
+              Between us, we’ve lost a mother and a father. Those losses helped us understand how much a
+              person shares in ordinary conversation: not just their stories, but their humor, their
+              perspective, and the reasons behind the advice they give.
             </Body>
             <Body size={16.5}>
-              So the product is built around a conversation rather than a form. The questions do the
-              work of remembering, and what comes back is kept as you said it — text, voice,
-              photographs, and the people attached to each story.
+              That understanding is why we started As Told. We wanted to make it easier for people to
+              share these parts of themselves, in their own words.
             </Body>
             <Body size={16.5}>
-              It is private on purpose. An archive is only worth building if you can be honest in it,
-              which means you decide who reads it and when.
+              You don’t need to write a memoir or decide which moments are important enough to keep.
+              You can begin with a conversation: a place you remember, someone who shaped your life,
+              something you learned along the way.
             </Body>
-            <div id="privacy" style={{ marginTop: 12 }}>
+            <Body size={16.5}>
+              Over time, what you choose to share becomes a private family archive. Stories, voice
+              recordings and photographs, kept together for the people you choose. Not an imagined
+              version of you, but what you actually wanted to tell them.
+            </Body>
+            <p style={{ margin: 0, fontFamily: serif, fontStyle: 'italic', fontSize: 19, color: T.ink }}>Yael & Tom</p>
+
+            <Divider style={{ margin: '18px 0 6px' }} />
+            <Display as="h2" size={26}>Your stories stay yours.</Display>
+            <Body size={16.5}>
+              Every entry stays yours to shape. Add what you left out, correct a detail, or keep
+              something just for yourself. You choose who can open your archive, and you can change
+              your mind.
+            </Body>
+            <div style={{ marginTop: 4 }}>
+              <Btn size="lg" onClick={() => navigate('/signin?new=1')}>{CTA.begin}</Btn>
+            </div>
+
+            <div id="privacy" style={{ marginTop: 28 }}>
               <Eyebrow>Security & privacy</Eyebrow>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
                 {TRUST.map((line) => (
@@ -458,10 +476,7 @@ export function AboutPage() {
                 ))}
               </div>
             </div>
-            <div style={{ marginTop: 16 }}>
-              <Btn size="lg" onClick={() => navigate('/signin?new=1')}>{CTA.begin}</Btn>
-            </div>
-          </div>
+          </article>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <ImageSlot label="Framed photos on a hallway wall" height={230} />
             <ImageSlot label="A notebook kept for years" height={170} />
