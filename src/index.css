@@ -622,3 +622,28 @@ a:hover {
     width: 100%;
   }
 }
+
+/* Interaction states — one rule set for every screen.
+   Hover: buttons deepen a little, links on dark brighten. Focus: the same sienna ring on text fields as on buttons. */
+.la-btn, .site-header-cta, .site-header-nav a, .site-header-signin, .site-header-drawer a,
+.site-footer a, [data-la-nav] a, [data-la-nav] button,
+.legacy-studio button, .legacy-interview button, form button[type="submit"] {
+  transition: filter .18s ease, opacity .18s ease, background .18s ease, border-color .18s ease;
+}
+.la-btn:not(:disabled):hover,
+.site-header-cta:hover,
+.legacy-studio button:not(:disabled):hover,
+.legacy-interview button:not(:disabled):hover,
+form button[type="submit"]:not(:disabled):hover { filter: brightness(.94); }
+.la-btn:not(:disabled):active,
+.site-header-cta:active,
+.legacy-studio button:not(:disabled):active,
+.legacy-interview button:not(:disabled):active,
+form button[type="submit"]:not(:disabled):active { filter: brightness(.88); }
+.site-header-nav a:hover, .site-header-signin:hover, .site-header-drawer a:hover,
+.site-footer a:hover, [data-la-nav] a:hover, [data-la-nav] button:hover { filter: brightness(1.3); }
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--la-sienna) !important;
+  outline-offset: 2px;
+}
+button:disabled, select:disabled, input:disabled, textarea:disabled { cursor: default; }
