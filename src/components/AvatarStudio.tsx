@@ -893,7 +893,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         onProgress: (p) => setPhase(p),
       })
       if (prov.liveReady) {
-        setNotice('Your face and cloned voice are ready. Go to your legacy page to talk face to face in real time.')
+        setNotice('Your face and cloned voice are ready. Open Ask the archive to talk with it face to face.')
         setStatus('done')
         return
       }
@@ -931,7 +931,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
         <div style={{ margin: '20px 0', padding: '18px 20px', background: C.paper, border: `1px solid ${C.line}`, borderRadius: radius.card }}>
           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: '.08em', textTransform: 'uppercase', color: C.sage, marginBottom: 8 }}>✓ Ready for a live call</div>
           <p style={{ fontSize: 14, color: C.ink2, margin: 0, lineHeight: 1.5 }}>
-            {notice || 'Your face and voice are set up. Use Live Call on your legacy page for a real-time conversation.'}
+            {notice || 'Your face and voice are set up. Open Ask the archive to start a live call.'}
           </p>
         </div>
       )}
