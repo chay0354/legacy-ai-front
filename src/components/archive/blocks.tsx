@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import askNotebook from '../../assets/photos/ask-notebook.jpg'
 import { T, radius, sans, serif } from '../../design/tokens'
 import { STATUS, TRUST } from '../../design/copy'
 import {
@@ -291,7 +292,8 @@ export function WisdomBlock({ profile }: { profile: LegacyProfile }) {
 /* ─────────────────────────── ask the archive ─────────────────────── */
 export function AskBlock({ suggestions, onOpen }: { suggestions: string[]; onOpen: () => void }) {
   return (
-    <Panel pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <Panel pad={0} style={{ display: 'flex', overflow: 'hidden' }}>
+    <div style={{ padding: '24px 26px', display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minWidth: 0 }}>
       <Body size={14.5} style={{ maxWidth: 560 }}>
         Answers become available as stories are added. These prompts are examples.
       </Body>
@@ -307,6 +309,12 @@ export function AskBlock({ suggestions, onOpen }: { suggestions: string[]; onOpe
         ))}
       </div>
       <div><Btn tone="secondary" icon="ask" onClick={onOpen}>Open Ask the archive</Btn></div>
+    </div>
+    <div
+      className="next-action-photo"
+      aria-hidden="true"
+      style={{ flex: '0 0 30%', maxWidth: 190, backgroundImage: `url(${askNotebook})`, backgroundSize: 'cover', backgroundPosition: '50% 50%' }}
+    />
     </Panel>
   )
 }

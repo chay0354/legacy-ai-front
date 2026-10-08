@@ -4,6 +4,7 @@ import { T, heading, radius, sans, serif } from '../design/tokens'
 import { CTA, HERO, HOW_IT_WORKS, TRUST } from '../design/copy'
 import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel } from '../design/ui'
 import heroDesk from '../assets/hero-desk.jpg'
+import homeConversation from '../assets/photos/home-conversation.jpg'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -49,7 +50,8 @@ export default function HomePage() {
       {/* ── paper explanation ── */}
       <section className="site-section" style={{ background: T.paper, padding: '76px var(--la-gutter)' }}>
         <div style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto' }}>
-          <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="home-conversation" style={{ display: 'flex', gap: 48, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16, flex: '1 1 0', minWidth: 0 }}>
             <Eyebrow>A guided conversation</Eyebrow>
             <Display size={40}>
               Record the stories your family will one day ask for.
@@ -59,6 +61,11 @@ export default function HomePage() {
               a private archive of your words, your voice, and the people who matter to you. Nothing
               is public. Nothing leaves your archive unless you invite someone into it.
             </Body>
+          </div>
+          <img
+            className="home-conversation-photo" src={homeConversation} alt="" loading="lazy"
+            style={{ flex: '0 0 38%', maxWidth: 440, aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: radius.md, display: 'block' }}
+          />
           </div>
 
           <div style={{

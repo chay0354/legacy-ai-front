@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import howReviewPencil from '../assets/photos/how-review-pencil.jpg'
+import howReturnCorner from '../assets/photos/how-return-reading-corner.jpg'
+import archiveCassette from '../assets/photos/archive-cassette.jpg'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SitePage } from './SiteChrome'
 import { T, radius, sans, serif } from '../design/tokens'
@@ -25,10 +28,12 @@ function PageHead({
 
 const wrap: CSSProperties = { maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '56px var(--la-gutter) 80px' }
 
-const STEP_MEDIA: Record<number, { label: string; height: number }> = {
+const STEP_MEDIA: Record<number, { label: string; height: number; src?: string }> = {
   0: { label: 'A table, a notebook, an afternoon', height: 140 },
   1: { label: 'Letters and old prints', height: 140 },
+  2: { label: 'Pages, a pencil and an eraser on a kitchen table', height: 140, src: howReviewPencil },
   3: { label: 'A hallway of framed photos', height: 140 },
+  4: { label: 'A reading corner in afternoon light', height: 140, src: howReturnCorner },
 }
 
 /* ─────────────────────────── How it works ─────────────────────────── */
@@ -60,7 +65,7 @@ export function HowItWorksPage() {
               </div>
               {STEP_MEDIA[i] && (
                 <div className="how-step-media" style={{ paddingTop: 4 }}>
-                  <ImageSlot label={STEP_MEDIA[i].label} height={STEP_MEDIA[i].height} />
+                  <ImageSlot label={STEP_MEDIA[i].label} height={STEP_MEDIA[i].height} src={STEP_MEDIA[i].src} />
                 </div>
               )}
             </div>
@@ -105,6 +110,10 @@ export function TheArchivePage() {
               <Body size={14.5}>{s.body}</Body>
             </Panel>
           ))}
+        </div>
+
+        <div style={{ marginTop: 40 }}>
+          <ImageSlot label="A cassette, a cloth and an index card on a kitchen table" height={290} src={archiveCassette} />
         </div>
 
         <div className="archive-wont-card" style={{

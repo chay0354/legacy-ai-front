@@ -599,3 +599,18 @@ a:hover {
     font-size: 12.5px !important;
   }
 }
+
+@media (max-width: 900px) {
+  .home-conversation {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 28px !important;
+  }
+
+  .home-conversation-photo {
+    flex: none !important;
+    max-width: none !important;
+    width: 100%;
+    aspect-ratio: 16 / 10 !important;
+  }
+}
