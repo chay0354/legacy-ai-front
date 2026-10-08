@@ -543,3 +543,13 @@ a.legacy-touch {
     text-overflow: ellipsis;
   }
 }
+
+/* Voice & photograph sits inside a page panel already — no second card around the studio. */
+.legacy-studio--embedded .studio-card {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.legacy-studio.legacy-studio--embedded { padding-bottom: 0 !important; }
+.legacy-studio.legacy-studio--embedded .legacy-studio-inner { padding: 8px 0 4px !important; }

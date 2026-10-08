@@ -86,7 +86,7 @@ export default function AvatarStudio({ onExit, embedded = false }: Props) {
   const currentIndex = STEPS.findIndex((s) => s.id === step)
 
   return (
-    <div className="legacy-studio" style={{ minHeight: embedded ? undefined : '100dvh', background: embedded ? 'transparent' : C.paper, fontFamily: sans, color: C.ink }}>
+    <div className={embedded ? "legacy-studio legacy-studio--embedded" : "legacy-studio"} style={{ minHeight: embedded ? undefined : '100dvh', background: embedded ? 'transparent' : C.paper, fontFamily: sans, color: C.ink }}>
       <div className="legacy-studio-inner" style={{ maxWidth: 760, margin: embedded ? 0 : '0 auto', padding: embedded ? '8px 0 12px' : '48px 24px 96px' }}>
         {!embedded && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -195,7 +195,7 @@ function Intro({
   }
 
   return (
-    <div style={card}>
+    <div className="studio-card" style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 28, margin: 0 }}>{hasVoice ? 'Update your live avatar' : 'Set up your live avatar'}</h2>
       <p style={{ fontSize: 15, lineHeight: 1.6, color: C.ink2, marginTop: 12 }}>
         Record your <strong>voice</strong> and take a <strong>photo</strong>. The system automatically
@@ -431,7 +431,7 @@ function VoiceStep({ creatorId, assets, onDone }: { creatorId: string; assets: A
   const canSubmit = Boolean(blob && blob.size > 0) && !recording && recordedSeconds >= MIN_VOICE_SECONDS
 
   return (
-    <div style={card}>
+    <div className="studio-card" style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Record your voice</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
         Choose the language you’ll speak, then read the whole passage slowly and naturally. Aim for 60–90 seconds in a quiet room. Under 30 seconds cannot be cloned.
@@ -694,7 +694,7 @@ function PhotoStep({ creatorId, onDone, onBack }: { creatorId: string; onDone: (
   }
 
   return (
-    <div style={card}>
+    <div className="studio-card" style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Take your front-facing photo</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8, lineHeight: 1.55, maxWidth: 520 }}>
         Sit back so your head and shoulders have space around them — a close-up face crop is what makes
@@ -917,7 +917,7 @@ function GenerateVideoStep({ onDone, onBack }: { onDone: () => void; onBack: () 
   const retry = () => { run() }
 
   return (
-    <div style={card}>
+    <div className="studio-card" style={card}>
       <h2 style={{ fontFamily: serif, fontWeight: heading.weight, fontSize: 26, margin: 0 }}>Bringing your avatar to life</h2>
       <p style={{ fontSize: 14, color: C.ink2, marginTop: 8 }}>
         We&apos;re building your live avatar from your photo and cloning your voice. This usually takes about a minute.
