@@ -15,7 +15,7 @@ const C = {
   ink: '#241c15',
   ink3: '#5c5246',
   line: '#d8c9ae',
-  paper: '#faf5eb',
+  paper: '#f0e8de',
 }
 
 function statusOf(st: StageStep): StageStatus {
