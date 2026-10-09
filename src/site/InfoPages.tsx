@@ -431,12 +431,12 @@ export function AboutPage() {
         }}>
           <article className="about-prose" style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 620 }}>
             <Body size={16.5}>
-              Between us, we’ve lost a mother and a father. Those losses helped us understand how much a
+              Between the two of us, we’ve lost a mother and a father. Those losses helped us understand how much a
               person shares in ordinary conversation: not just their stories, but their humor, their
               perspective, and the reasons behind the advice they give.
             </Body>
             <Body size={16.5}>
-              That understanding is why we started As Told. We wanted to make it easier for people to
+              That understanding is why we started <strong style={{ fontWeight: 600, color: T.ink }}>As Told</strong>. We wanted to make it easier for people to
               share these parts of themselves, in their own words.
             </Body>
             <Body size={16.5}>
