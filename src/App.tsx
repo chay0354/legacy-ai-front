@@ -30,6 +30,8 @@ import SiteEditor from './site/SiteEditor'
 import PaywallCard from './components/PaywallCard'
 import UnlockArchiveScreen from './components/UnlockArchiveScreen'
 import AuthPage from './site/AuthPage'
+import ResetPasswordPage from './site/ResetPasswordPage'
+import { isPasswordRecovery, markPasswordRecovery } from './lib/recovery'
 import ArchiveHome from './components/archive/ArchiveHome'
 import EditArchiveScreen from './components/archive/EditArchiveScreen'
 import FamilyAccessScreen from './components/archive/FamilyAccessScreen'
@@ -106,7 +108,7 @@ function ScrollToTop() {
   const { pathname, hash } = useLocation()
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      if (hash) {
+      if (hash && !hash.includes('access_token') && !hash.includes('error') && !hash.includes('type=recovery')) {
         const el = document.getElementById(decodeURIComponent(hash.slice(1)))
         if (el) {
           el.scrollIntoView()
@@ -307,6 +309,10 @@ function PublicHome({ session }: { session: Session | null }) {
 
   useEffect(() => {
     if (!session) return
+    if (isPasswordRecovery()) {
+      navigate('/reset-password', { replace: true })
+      return
+    }
     let active = true
     const pendingJoin = pendingJoinToken()
     if (explicitNext) {
@@ -342,6 +348,10 @@ function SignInRoute({ session }: { session: Session | null }) {
 
   useEffect(() => {
     if (!session) return
+    if (isPasswordRecovery()) {
+      navigate('/reset-password', { replace: true })
+      return
+    }
     let active = true
     const pendingJoin = pendingJoinToken()
     if (explicitNext) {
@@ -915,6 +925,7 @@ export default function App() {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') markPasswordRecovery()
       if (event === 'TOKEN_REFRESHED') return
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') clearAuthTokenCache()
       if (event === 'SIGNED_IN' && s?.user?.id) {
@@ -953,6 +964,7 @@ export default function App() {
         <Route path="/billing/success" element={<BillingSuccessPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/signin" element={<SignInRoute session={session} />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin" element={<AdminPage />} />
 
         {/* the archive — one shell; sidebar does not remount */}

@@ -465,12 +465,20 @@ export const avatarApi = {
     apiFetch('/api/avatar/live/start', { method: 'POST', body: JSON.stringify({ creatorId }) }) as Promise<{
       simliToken: string;
       realtimeToken: string;
+      iceServers?: RTCIceServer[];
       speechTicket: string;
       usingOwnFace: boolean;
       usingOwnVoice: boolean;
       languageCode?: string;
       creatorId: string;
     }>,
+
+  /** Spoken reply when OpenAI Realtime is unavailable. The face still uses the cloned voice. */
+  liveReply: (ticket: string, text: string, history: { role: 'user' | 'assistant'; text: string }[] = []) =>
+    apiFetch('/api/avatar/live/reply', {
+      method: 'POST',
+      body: JSON.stringify({ ticket, text, history }),
+    }) as Promise<{ text: string }>,
 
   /** One spoken sentence in the cloned voice as a raw PCM16 16 kHz stream (for the live face). */
   liveSpeech: async (ticket: string, text: string, signal?: AbortSignal) => {

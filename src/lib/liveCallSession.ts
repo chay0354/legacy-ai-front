@@ -277,10 +277,109 @@ async function connectListener(opts: {
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`Listening service error ${res.status}: ${text.slice(0, 200)}`)
+    try { pc.close() } catch { /* ignore */ }
+    const unavailable = res.status === 429 || /credit_balance_exhausted|insufficient_quota|no credits/i.test(text)
+    const error = new Error(unavailable
+      ? 'Listening service is out of credits'
+      : `Listening service error ${res.status}: ${text.slice(0, 200)}`)
+    if (unavailable) error.name = 'ListeningUnavailable'
+    throw error
   }
   await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() })
   return { pc, dc, send }
+}
+
+const SPEECH_LANG: Record<string, string> = {
+  en: 'en-US', he: 'he-IL', ar: 'ar', ru: 'ru-RU', fr: 'fr-FR', es: 'es-ES',
+  de: 'de-DE', pt: 'pt-BR', it: 'it-IT', nl: 'nl-NL', pl: 'pl-PL', uk: 'uk-UA',
+  tr: 'tr-TR', fa: 'fa-IR', hi: 'hi-IN', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
+}
+
+type BrowserSpeech = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((ev: { resultIndex: number; results: SpeechRecognitionResultList }) => void) | null
+  onerror: ((ev: { error?: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+  abort: () => void
+}
+
+/** OpenAI Realtime is out of credits. Chrome's speech recognition listens, Claude answers. */
+function listenInBrowser(opts: {
+  ticket: string
+  languageCode: string
+  queue: SpeechQueue
+  mic: MediaStream
+  alive: () => boolean
+  onFail: (message: string) => void
+}) {
+  const Ctor = (window as unknown as {
+    SpeechRecognition?: new () => BrowserSpeech
+    webkitSpeechRecognition?: new () => BrowserSpeech
+  }).SpeechRecognition || (window as unknown as { webkitSpeechRecognition?: new () => BrowserSpeech }).webkitSpeechRecognition
+  if (!Ctor) {
+    throw new Error('The listening service is out of credits, and this browser cannot hear the microphone. Open the call in Chrome.')
+  }
+  opts.mic.getTracks().forEach((track) => track.stop())
+  const rec = new Ctor()
+  rec.continuous = true
+  rec.interimResults = false
+  rec.lang = SPEECH_LANG[opts.languageCode] || opts.languageCode || 'en-US'
+  const history: { role: 'user' | 'assistant'; text: string }[] = []
+  let replying = false
+
+  const speakAnswer = (text: string) => {
+    const parts = text.split(/(?<=[.!?…。！？])\s+/).map((part) => part.trim()).filter(Boolean)
+    for (const part of (parts.length ? parts : [text])) opts.queue.speak(part)
+  }
+
+  const ask = async (text: string) => {
+    if (!opts.alive() || replying) return
+    replying = true
+    try { rec.stop() } catch { /* not started yet */ }
+    try {
+      const { text: answer } = await avatarApi.liveReply(opts.ticket, text, history)
+      const spoken = (answer || '').trim()
+      if (!spoken || !opts.alive()) return
+      history.push({ role: 'user', text }, { role: 'assistant', text: spoken })
+      if (history.length > 8) history.splice(0, history.length - 8)
+      speakAnswer(spoken)
+    } catch (e) {
+      opts.onFail(e instanceof Error ? e.message : 'Could not answer')
+    } finally {
+      replying = false
+    }
+  }
+
+  rec.onresult = (event) => {
+    if (!opts.alive()) return
+    let said = ''
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i]
+      if (result.isFinal) said += result[0]?.transcript || ''
+    }
+    said = said.trim()
+    if (!said) return
+    if (opts.queue.busy) opts.queue.interrupt()
+    void ask(said)
+  }
+  rec.onerror = (event) => {
+    if (event.error === 'not-allowed') opts.onFail('Allow microphone access in your browser to talk, then tap Try again.')
+  }
+  rec.onend = () => { /* the pump starts it again once the face is quiet */ }
+
+  const pump = window.setInterval(() => {
+    if (!opts.alive() || replying || opts.queue.busy) return
+    try { rec.start() } catch { /* already listening */ }
+  }, 700)
+  void ask('The call just connected. Greet me now in one or two short sentences.')
+  return () => {
+    window.clearInterval(pump)
+    try { rec.abort() } catch { /* ignore */ }
+  }
 }
 
 /* ---------------------------------- session ----------------------------------- */
@@ -327,6 +426,7 @@ export async function startLiveSession(opts: {
   let alive = true
   let ended = false
   let simli: SimliClient | null = null
+  let stopBrowser = () => {}
   let pc: RTCPeerConnection | null = null
   let dc: RTCDataChannel | null = null
   let queue: SpeechQueue | null = null
@@ -340,6 +440,7 @@ export async function startLiveSession(opts: {
   const stop = async () => {
     alive = false
     if (activeSession === session) activeSession = null
+    stopBrowser()
     queue?.dispose()
     try { dc?.close() } catch { /* ignore */ }
     try { pc?.close() } catch { /* ignore */ }
@@ -353,7 +454,12 @@ export async function startLiveSession(opts: {
 
   try {
     handlers.onStatus('Connecting video…')
-    simli = new SimliClient(start.simliToken, videoEl, audioEl, null, LogLevel.ERROR, 'livekit')
+    const ice = (start.iceServers || []).filter((server) => server?.urls)
+    // LiveKit on this Simli account answers 429 and drops the room. A direct
+    // WebRTC connection uses the ICE servers from our API instead.
+    simli = ice.length
+      ? new SimliClient(start.simliToken, videoEl, audioEl, ice, LogLevel.ERROR, 'p2p')
+      : new SimliClient(start.simliToken, videoEl, audioEl, null, LogLevel.ERROR, 'livekit')
     simli.on('start', () => {
       if (!alive || stale()) return
       handlers.onVideoReady()
@@ -388,7 +494,9 @@ export async function startLiveSession(opts: {
       }
     }
 
-    const listener = await connectListener({
+    let listener: { pc: RTCPeerConnection; dc: RTCDataChannel } | null = null
+    try {
+      listener = await connectListener({
       token: start.realtimeToken,
       mic,
       onOpen: (send) => {
@@ -450,8 +558,20 @@ export async function startLiveSession(opts: {
         }
       },
     })
-    pc = listener.pc
-    dc = listener.dc
+    } catch (listenError) {
+      if ((listenError as Error)?.name !== 'ListeningUnavailable') throw listenError
+      handlers.onStatus('Listening…')
+      stopBrowser = listenInBrowser({
+        ticket: start.speechTicket,
+        languageCode,
+        queue: q,
+        mic,
+        alive: () => alive && !stale(),
+        onFail: (message) => { if (alive && !stale()) console.warn('[live] browser listen', message) },
+      })
+    }
+    pc = listener?.pc ?? null
+    dc = listener?.dc ?? null
     if (!alive || stale()) throw new Error('Connect cancelled')
 
     handlers.onStatus('')

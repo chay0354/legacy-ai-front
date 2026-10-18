@@ -77,12 +77,9 @@ export default function AuthPage() {
     setBusy(true)
     setError(null)
     try {
-      const next = params.get('next')
-      const redirectTo = next
-        ? `${window.location.origin}/signin?next=${encodeURIComponent(next)}`
-        : `${window.location.origin}/signin`
+      const redirectTo = `${window.location.origin}/reset-password`
       await requestPasswordReset(email.trim(), redirectTo)
-      setNotice(`Reset link sent to ${email.trim()}. Check your inbox, then sign in here.`)
+      setNotice(`Reset link sent to ${email.trim()}. Open the email and choose a new password.`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not send a reset email')
     } finally {

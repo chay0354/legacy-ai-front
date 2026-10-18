@@ -35,6 +35,9 @@ function friendlyLiveError(e: unknown): string {
   if (/402|plan|usage limit|Spend cap/i.test(msg)) {
     return 'This live call needs an active Package or Monthly plan.'
   }
+  if (/out of credits/i.test(msg)) {
+    return 'The listening service is out of credits. Add OpenAI credits, or open this call in Chrome so it can listen another way.'
+  }
   if (/Simli|OpenAI|ElevenLabs|Listening service|Too Many Retry|CONNECTION TIMED OUT/i.test(msg)) {
     return 'Could not start the live call. Please try again in a moment.'
   }
