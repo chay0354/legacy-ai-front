@@ -560,13 +560,11 @@ a.legacy-touch {
   .legacy-interview .la-stage-connector { min-width: 6px !important; margin: 0 8px !important; }
 }
 
-/* The Archive page: five cards, no empty slot. Three across, then two wider cards; two across on tablets with the last card full width; one column on phones. */
+/* The Archive page: six cards. Three across, two across on tablets, one column on phones. */
 @media (max-width: 900px) {
   .archive-section-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .archive-section-grid > * { grid-column: auto !important; }
-  .archive-section-grid > :last-child { grid-column: 1 / -1 !important; }
 }
 @media (max-width: 640px) {
   .archive-section-grid { grid-template-columns: 1fr !important; }
-  .archive-section-grid > :last-child { grid-column: auto !important; }
 }

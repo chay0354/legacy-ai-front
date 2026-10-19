@@ -86,6 +86,7 @@ const SECTIONS = [
   { icon: 'voice' as const, label: NAV.voice, body: 'Recordings kept as recordings. A story arrives the way you told it, in your voice.' },
   { icon: 'photo' as const, label: NAV.photos, body: 'Photographs, letters, and papers, sitting with the story they belong to.' },
   { icon: 'people' as const, label: NAV.people, body: 'The people who shaped the stories, and how you described them.' },
+  { icon: 'ask' as const, label: 'Ask the archive', body: 'Questions answered only from the stories and memories you shared. If it does not know, it says so.' },
   { icon: 'lock' as const, label: NAV.access, body: 'Who can open the archive, what they can see, and your record of every change.' },
 ]
 
@@ -103,8 +104,8 @@ export function TheArchivePage() {
           display: 'grid', gap: 16,
           gridTemplateColumns: 'repeat(6, 1fr)',
         }}>
-          {SECTIONS.map((s, i) => (
-            <Panel key={s.label} pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 10, gridColumn: i < 3 ? 'span 2' : 'span 3' }}>
+          {SECTIONS.map((s) => (
+            <Panel key={s.label} pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 10, gridColumn: 'span 2' }}>
               <Icon name={s.icon} size={20} color={T.gold} strokeWidth={1.4} />
               <Display size={21}>{s.label}</Display>
               <Body size={14.5}>{s.body}</Body>
