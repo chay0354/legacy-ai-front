@@ -66,7 +66,7 @@ export function Display({
   return (
     <Tag style={{
       fontFamily: serif, fontSize: size, fontWeight: weight ?? (italic ? heading.italicWeight : heading.weight), lineHeight: 1.12,
-      letterSpacing: '-.012em', color, margin: 0,
+      letterSpacing: '-.006em', color, margin: 0,
       fontStyle: italic ? 'italic' : 'normal', textWrap: 'pretty',
       ...style,
     }}>{children}</Tag>
