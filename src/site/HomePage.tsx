@@ -1,166 +1,144 @@
-import { useNavigate } from 'react-router-dom'
-import { SiteFooter, SiteHeader } from './SiteChrome'
-import { T, heading, radius, sans, serif } from '../design/tokens'
-import { CTA, HERO, HOW_IT_WORKS, TRUST } from '../design/copy'
-import { Body, Btn, Display, Divider, Eyebrow, Icon, Panel } from '../design/ui'
-import heroDesk from '../assets/hero-desk.jpg'
-import homeConversation from '../assets/photos/home-conversation.jpg'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
+import heroPhoto from '../assets/homepage/hero-original-reframed-c.png'
+import keepsakePhoto from '../assets/homepage/keepsake.png'
+import closingPhoto from '../assets/homepage/closing-family-table-v2.png'
+import logo from '../assets/homepage/logo-cream.svg'
+import './HomePage.css'
 
+/** Approved homepage; its styles are isolated from the other product screens. */
 export default function HomePage() {
-  const navigate = useNavigate()
-  const begin = () => navigate('/signin?new=1')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [session, setSession] = useState<Session | null>(null)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const header = useRef<HTMLElement>(null)
 
+  useEffect(() => {
+    let active = true
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setSession(data.session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
+    return () => { active = false; subscription.unsubscribe() }
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        menuButton.current?.focus()
+      }
+    }
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !header.current?.contains(event.target)) setMenuOpen(false)
+    }
+    const closeOnResize = () => { if (window.innerWidth > 850) setMenuOpen(false) }
+    document.addEventListener('keydown', closeOnEscape)
+    document.addEventListener('pointerdown', closeOutside)
+    window.addEventListener('resize', closeOnResize)
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape)
+      document.removeEventListener('pointerdown', closeOutside)
+      window.removeEventListener('resize', closeOnResize)
+    }
+  }, [menuOpen])
+
+  const beginTo = session ? '/overview' : '/signin?new=1'
   return (
-    <div style={{ minHeight: '100dvh', background: T.paper, display: 'flex', flexDirection: 'column' }}>
-      {/* ── atmospheric hero: a room, not a black panel ── */}
-      <section className="site-hero" style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
-        <div className="site-hero-photo" style={{ backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
-        <div style={{ position: 'relative' }}>
-          <SiteHeader />
-          <div className="site-hero-inner" style={{ padding: '112px var(--la-gutter) 88px', maxWidth: 1280, margin: '0 auto' }}>
-            <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 22 }}>
-              <h1 className="site-hero-title" style={{
-                fontFamily: serif, fontWeight: heading.weight, fontSize: 66, lineHeight: 1.03,
-                letterSpacing: '-.02em', color: T.onDark, margin: 0, textWrap: 'balance',
-              }}>
-                {HERO.headline[0]}
-                <br />
-                <em style={{ fontStyle: 'italic', fontWeight: heading.italicWeight }}>{HERO.headline[1]}</em>
-              </h1>
-              <p className="site-hero-sub" style={{
-                fontFamily: sans, fontSize: 18, lineHeight: 1.6, color: 'rgba(240,231,214,.82)',
-                margin: 0, maxWidth: 460, textWrap: 'pretty',
-              }}>{HERO.sub}</p>
-              <div className="site-btn-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
-                <Btn size="lg" onClick={begin}>{CTA.begin}</Btn>
-                <Btn size="lg" tone="onDark" onClick={() => navigate('/how-it-works')}>{CTA.learn}</Btn>
-              </div>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8,
-                fontFamily: sans, fontSize: 13.5, color: 'rgba(240,231,214,.55)',
-              }}>
-                <Icon name="lock" size={15} color="rgba(240,231,214,.5)" strokeWidth={1.3} />
-                Private by default. Shared only with the people you choose.
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="as-told-home">
 
-      {/* ── paper explanation ── */}
-      <section className="site-section" style={{ background: T.paper, padding: '76px var(--la-gutter)' }}>
-        <div style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto' }}>
-          <div className="home-conversation" style={{ display: 'flex', gap: 48, alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16, flex: '1 1 0', minWidth: 0 }}>
-            <Eyebrow>A guided conversation</Eyebrow>
-            <Display size={40}>
-              Record the stories your family will one day ask for.
-            </Display>
-            <Body size={17} style={{ maxWidth: 620 }}>
-              You answer questions at your own pace — out loud or in writing. What you share becomes
-              a private archive of your words, your voice, and the people who matter to you. Nothing
-              is public. Nothing leaves your archive unless you invite someone into it.
-            </Body>
-          </div>
-          <img
-            className="home-conversation-photo" src={homeConversation} alt="" loading="lazy"
-            style={{ flex: '0 0 38%', maxWidth: 440, aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: radius.md, display: 'block' }}
-          />
-          </div>
+  <a className="skip" href="#home-main">Skip to content</a>
+  <main id="home-main" tabIndex={-1}>
+    <section className="hero" aria-labelledby="hero-title">
+      <img className="hero-photo" src={heroPhoto} alt="Illustrative mother and daughter decorating a cake, viewed from behind in a sunlit kitchen." fetchPriority="high" width="1536" height="1024" />
+      <div className="hero-shade" aria-hidden="true"></div>
+      <header className="header" ref={header}>
+        <Link className="brand" to="/" aria-label="As Told home"><img src={logo} width="78" height="66" alt="As Told" /></Link>
+        <nav className="desktop-nav" aria-label="Main navigation">
+          <Link to="/about">About</Link>
+          <Link to="/how-it-works">How it works</Link>
+          <Link to="/the-archive">The Archive</Link>
+          <Link to="/pricing">Pricing</Link>
+        </nav>
+        <div className="header-actions">{!session && <Link className="signin" to="/signin">Sign in</Link>}<Link className="header-cta" to={beginTo}>{session ? 'Open archive' : 'Begin your archive'}</Link></div>
+        <button className="menu-toggle" type="button" ref={menuButton} aria-expanded={menuOpen} aria-controls="home-mobile-menu" onClick={() => setMenuOpen(open => !open)}>{menuOpen ? 'Close' : 'Menu'} <span aria-hidden="true">{menuOpen ? '×' : '☰'}</span></button>
+        <nav id="home-mobile-menu" className="mobile-menu" aria-label="Mobile navigation" hidden={!menuOpen} onClick={() => setMenuOpen(false)}>
+          <Link to="/about">About</Link><Link to="/how-it-works">How it works</Link><Link to="/the-archive">The Archive</Link><Link to="/pricing">Pricing</Link><Link to={session ? '/overview' : '/signin'}>{session ? 'Open archive' : 'Sign in'}</Link>
+        </nav>
+      </header>
+      <div className="hero-copy">
+        <h1 id="hero-title">Gather your<br /> stories.<br /><em>Keep them close.</em></h1>
+        <p className="hero-intro">Record your voice. Add your memories.<br className="desktop-break" /> Keep your stories for the people you choose.</p>
+        <div className="hero-actions"><Link className="primary" to={beginTo}>Begin your archive</Link><Link className="text-link" to="/how-it-works">Learn how it works</Link></div>
+        <p className="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg><span>Private by default. Shared only with the people you choose.</span></p>
+      </div>
+    </section>
 
-          <div style={{
-            marginTop: 46, display: 'grid', gap: 1, background: T.line,
-            border: `1px solid ${T.line}`, borderRadius: radius.md, overflow: 'hidden',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-          }}>
-            {HOW_IT_WORKS.slice(0, 3).map((s) => (
-              <div key={s.n} style={{
-                background: T.card, padding: '26px 24px 28px',
-                display: 'flex', flexDirection: 'column', gap: 10,
-              }}>
-                <span style={{ fontFamily: serif, fontSize: 15, color: T.gold, letterSpacing: '.1em' }}>{s.n}</span>
-                <span style={{ fontFamily: serif, fontWeight: heading.cardWeight, fontSize: 21, lineHeight: 1.25, color: T.ink }}>{s.title}</span>
-                <Body size={14}>{s.body}</Body>
-              </div>
-            ))}
-          </div>
+    <section id="conversation" className="conversation" aria-labelledby="conversation-title">
+      <div className="conversation-copy">
+        <p className="eyebrow">A guided conversation</p>
+        <h2 id="conversation-title">Record the stories<br className="wide-break" /> your family will<br className="wide-break" /> one day ask for.</h2>
+        <p>You answer questions at your own pace — out loud or in writing. What you share becomes a private archive of your words, your voice, and the people who matter to you.</p>
+        <p>Nothing is public. Nothing leaves your archive unless you invite someone into it.</p>
+      </div>
+      <figure><img loading="lazy" decoding="async" src={keepsakePhoto} alt="Illustrative photograph of hands holding a family beach snapshot." width="1448" height="1086" /></figure>
+    </section>
 
-          <div style={{ marginTop: 26 }}>
-            <Btn tone="quiet" onClick={() => navigate('/how-it-works')}>{CTA.seeBuilt}</Btn>
-          </div>
-        </div>
-      </section>
+    <section id="your-pace" className="steps" aria-label="How the archive is built">
+      <div className="step-grid">
+        <article><span className="number">01</span><h3>Begin with a guided conversation</h3><p>An interview that asks the questions your family would ask, one at a time, at your pace.</p></article>
+        <article><span className="number">02</span><h3>Add voice, photos, and family context</h3><p>Record a voice memory. Add photographs, letters, and the people who belong to each story.</p></article>
+        <article><span className="number">03</span><h3>Review and shape the archive</h3><p>Every entry stays yours to edit. Correct a date, add what you left out, remove what you would rather not keep.</p></article>
+      </div>
+      <Link className="text-link steps-action" to="/how-it-works">See how the archive is built</Link>
+    </section>
 
-      {/* ── walnut trust band: the room ── */}
-      <section className="site-section" style={{ background: T.walnut, padding: '72px var(--la-gutter)' }}>
-        <div className="home-trust" style={{
-          maxWidth: 'var(--la-content-max)', margin: '0 auto', display: 'grid', gap: 48,
-          gridTemplateColumns: 'minmax(280px, .9fr) minmax(320px, 1.1fr)', alignItems: 'start',
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <Eyebrow color="rgba(179,144,47,.9)">Trust</Eyebrow>
-            <Display size={34} color={T.onDark}>
-              Some stories deserve to be kept in their own words.
-            </Display>
-            <Body size={16} color={T.onDark2} style={{ maxWidth: 420 }}>
-              The archive holds only what you put into it. It answers from your recorded material,
-              and when it does not know something, it says so.
-            </Body>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {TRUST.map((line, i) => (
-              <div key={line} style={{
-                display: 'flex', alignItems: 'center', gap: 14, padding: '17px 0',
-                borderTop: i === 0 ? 'none' : `1px solid ${T.darkLine}`,
-              }}>
-                <Icon name="check" size={17} color="rgba(179,144,47,.9)" strokeWidth={1.4} />
-                <span style={{ fontFamily: sans, fontSize: 16, color: T.onDark }}>{line}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+    <section id="trust" className="trust" aria-labelledby="trust-title">
+      <div className="trust-copy">
+        <p className="eyebrow">Trust</p>
+        <h2 id="trust-title">Some stories deserve to be kept in their own words.</h2>
+        <p>The archive holds only what you put into it. It answers from your recorded material, and when it does not know something, it says so.</p>
+      </div>
+      <ul className="trust-list">
+        <li>Private by default</li>
+        <li>Shared only with invited family</li>
+        <li>Built only from what you choose to share</li>
+        <li>If the archive does not know, it says so.</li>
+        <li>Voice and likeness require explicit permission</li>
+      </ul>
+    </section>
 
-      {/* ── quiet close ── */}
-      <section className="site-section" style={{ background: T.paper, padding: '76px var(--la-gutter) 84px' }}>
-        <div className="home-close" style={{
-          maxWidth: 'var(--la-content-max)', margin: '0 auto', display: 'grid', gap: 40,
-          gridTemplateColumns: 'minmax(300px, 1.1fr) minmax(260px, .8fr)', alignItems: 'center',
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <Display size={38}>Build the archive your family can return to.</Display>
-            <Body size={16.5} style={{ maxWidth: 520 }}>
-              Start with one conversation. Add a voice memory when you feel like it. Invite the
-              people you choose, when you are ready.
-            </Body>
-            <div className="site-btn-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <Btn size="lg" onClick={begin}>{CTA.guided}</Btn>
-              <Btn size="lg" tone="quiet" onClick={() => navigate('/pricing')}>Pricing</Btn>
-            </div>
-          </div>
-          <Panel pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Eyebrow>What you end up with</Eyebrow>
-            <Divider tone="gold" />
-            {[
-              'Stories in your own words',
-              'Voice memories, kept as recordings',
-              'Photographs and documents in context',
-              'The people who belong to each story',
-              'Family access you control',
-            ].map((line) => (
-              <span key={line} style={{
-                fontFamily: sans, fontSize: 14.5, color: T.ink2,
-                display: 'flex', gap: 10, alignItems: 'center',
-              }}>
-                <Icon name="check" size={15} color={T.olive} strokeWidth={1.4} />
-                {line}
-              </span>
-            ))}
-          </Panel>
-        </div>
-      </section>
-
-      <SiteFooter />
+    <section className="closing closing-photographic" aria-labelledby="closing-title">
+      <figure className="closing-photo"><img loading="lazy" decoding="async" src={closingPhoto} width="1254" height="1254" alt="Illustrative family snapshot of parents and children sharing sandwiches and laughter around a kitchen table." /></figure>
+      <div className="closing-copy">
+        <h2 id="closing-title">Build the archive your family can return to.</h2>
+        <p>Start with one conversation. Add a voice memory when you feel like it. Invite the people you choose, when you are ready.</p>
+        <div className="closing-actions"><Link className="primary" to={beginTo}>Start with a guided interview</Link><Link className="text-link" to="/pricing">Pricing</Link></div>
+        <details className="closing-details">
+          <summary>What you end up with</summary>
+          <ul>
+            <li>Stories in your own words</li>
+            <li>Voice memories, kept as recordings</li>
+            <li>Photographs and documents in context</li>
+            <li>The people who belong to each story</li>
+            <li>Family access you control</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+  </main>
+  <footer className="home-footer">
+    <div className="footer-grid">
+      <div className="footer-brand"><img src={logo} width="66" height="56" alt="As Told" /><p className="eyebrow">Private family archive</p><p>Your stories, voice, and memories, kept with care.</p></div>
+      <nav aria-label="Product footer navigation"><h2 className="eyebrow">The product</h2><Link to="/how-it-works">How it works</Link><Link to="/the-archive">The Archive</Link><Link to="/pricing">Pricing</Link></nav>
+      <nav aria-label="Company footer navigation"><h2 className="eyebrow">The company</h2><Link to="/about">About</Link><Link to="/about#privacy">Security &amp; privacy</Link><Link to={session ? '/overview' : '/signin'}>{session ? 'Open archive' : 'Sign in'}</Link></nav>
+      <div className="footer-story"><p>Every story you add now gives your family something real to return to.</p><Link className="text-link" to="/how-it-works">Learn how the archive is built</Link></div>
     </div>
+    <div className="footer-bottom"><p>Built privately. Shared only with the people you choose.</p><p>© {new Date().getFullYear()} As Told</p></div>
+  </footer>
+      </div>
   )
 }
