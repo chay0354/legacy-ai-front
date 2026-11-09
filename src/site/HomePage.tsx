@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import heroPhoto from '../assets/homepage/hero-original-reframed-c.png'
-import keepsakePhoto from '../assets/homepage/keepsake.png'
-import closingPhoto from '../assets/homepage/closing-family-table-v2.png'
+import heroPhoto from '../assets/homepage/hero-original-reframed-c.webp'
+import keepsakePhoto from '../assets/homepage/keepsake.webp'
+import closingPhoto from '../assets/homepage/closing-family-table-v2.webp'
 import logo from '../assets/homepage/logo-cream.svg'
 import './HomePage.css'
 
@@ -55,6 +55,7 @@ export default function HomePage() {
     <section className="hero" aria-labelledby="hero-title">
       <img className="hero-photo" src={heroPhoto} alt="Illustrative mother and daughter decorating a cake, viewed from behind in a sunlit kitchen." fetchPriority="high" width="1536" height="1024" />
       <div className="hero-shade" aria-hidden="true"></div>
+      <div className="site-header-surface">
       <header className="header" ref={header}>
         <Link className="brand" to="/" aria-label="As Told home"><img src={logo} width="78" height="66" alt="As Told" /></Link>
         <nav className="desktop-nav" aria-label="Main navigation">
@@ -69,6 +70,7 @@ export default function HomePage() {
           <Link to="/about">About</Link><Link to="/how-it-works">How it works</Link><Link to="/the-archive">The Archive</Link><Link to="/pricing">Pricing</Link><Link to={session ? '/overview' : '/signin'}>{session ? 'Open archive' : 'Sign in'}</Link>
         </nav>
       </header>
+      </div>
       <div className="hero-copy">
         <h1 id="hero-title">Gather your<br /> stories.<br /><em>Keep them close.</em></h1>
         <p className="hero-intro">Record your voice. Add your memories.<br className="desktop-break" /> Keep your stories for the people you choose.</p>

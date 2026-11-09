@@ -1,157 +1,14 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import howReviewPencil from '../assets/photos/how-review-pencil.jpg'
-import howReturnCorner from '../assets/photos/how-return-reading-corner.jpg'
-import archiveCassette from '../assets/photos/archive-cassette.jpg'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { SitePage } from './SiteChrome'
-import { T, radius, sans, serif } from '../design/tokens'
-import { CTA, HOW_IT_WORKS, NAV, TRUST } from '../design/copy'
-import { Body, Btn, Display, Divider, Eyebrow, Icon, ImageSlot, Panel } from '../design/ui'
+import { EditorialSitePage } from './EditorialSiteChrome'
+import { CTA } from '../design/copy'
+import './PricingPage.css'
 import { billingApi, type BillingPlan, type BillingStatus } from '../lib/api'
 import { supabase } from '../lib/supabase'
 
-function PageHead({
-  eyebrow, title, standfirst,
-}: { eyebrow: string; title: string; standfirst?: string }) {
-  return (
-    <div className="site-page-head" style={{ background: T.walnut }}>
-      <div className="site-page-head-inner" style={{ padding: '48px var(--la-gutter) 42px', maxWidth: 'var(--la-content-max)', margin: '0 auto' }}>
-        <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Eyebrow color="rgba(179,144,47,.9)">{eyebrow}</Eyebrow>
-          <Display as="h1" size={46} color={T.onDark} style={{ fontSize: 'clamp(28px, 6vw, 46px)' }}>{title}</Display>
-          {standfirst && <Body size={17.5} color={T.onDark2} style={{ maxWidth: 620 }}>{standfirst}</Body>}
-        </div>
-      </div>
-    </div>
-  )
-}
+export { default as HowItWorksPage } from './HowItWorksPage'
 
-const wrap: CSSProperties = { maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '56px var(--la-gutter) 80px' }
-
-const STEP_MEDIA: Record<number, { label: string; height: number; src?: string }> = {
-  0: { label: 'A table, a notebook, an afternoon', height: 140 },
-  1: { label: 'Letters and old prints', height: 140 },
-  2: { label: 'Pages, a pencil and an eraser on a kitchen table', height: 140, src: howReviewPencil },
-  3: { label: 'A hallway of framed photos', height: 140 },
-  4: { label: 'A reading corner in afternoon light', height: 140, src: howReturnCorner },
-}
-
-/* ─────────────────────────── How it works ─────────────────────────── */
-export function HowItWorksPage() {
-  const navigate = useNavigate()
-  return (
-    <SitePage>
-      <PageHead
-        eyebrow="How it works"
-        title="A guided conversation that becomes a private family archive."
-        standfirst="Five steps, at your pace. You can stop after any one of them and pick it up months later."
-      />
-      <div className="site-wrap" style={wrap}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {HOW_IT_WORKS.map((s, i) => (
-            <div key={s.n} className="how-step" style={{
-              display: 'grid',
-              gridTemplateColumns: STEP_MEDIA[i]
-                ? '72px minmax(0,1fr) minmax(0,.8fr)'
-                : '72px minmax(0,1fr)',
-              gap: 30, padding: '30px 0',
-              borderTop: `1px solid ${i === 0 ? T.line : T.lineSoft}`,
-              alignItems: 'start',
-            }}>
-              <span className="how-step-num" style={{ fontFamily: sans, fontSize: 18, fontWeight: 600, color: T.ink, letterSpacing: '.04em' }}>{s.n}</span>
-              <div className="how-step-copy" style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                <Display size={26}>{s.title}</Display>
-                <Body size={15.5} style={{ maxWidth: 520 }}>{s.body}</Body>
-              </div>
-              {STEP_MEDIA[i] && (
-                <div className="how-step-media" style={{ paddingTop: 4 }}>
-                  <ImageSlot label={STEP_MEDIA[i].label} height={STEP_MEDIA[i].height} src={STEP_MEDIA[i].src} />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="how-step-cta site-btn-row" style={{ marginTop: 40, display: 'flex', gap: 12, flexWrap: 'wrap', marginLeft: 102 }}>
-          <Btn size="lg" onClick={() => navigate('/signin?new=1')}>{CTA.start}</Btn>
-          <Btn size="lg" tone="quiet" onClick={() => navigate('/the-archive')}>See what an archive holds</Btn>
-        </div>
-      </div>
-    </SitePage>
-  )
-}
-
-/* ──────────────────────────── The Archive ─────────────────────────── */
-const SECTIONS = [
-  { icon: 'story' as const, label: NAV.stories, body: 'Entries gathered in conversation, each with a date, the people in it, and what you took from it.' },
-  { icon: 'voice' as const, label: NAV.voice, body: 'Recordings kept as recordings. A story arrives the way you told it, in your voice.' },
-  { icon: 'photo' as const, label: NAV.photos, body: 'Photographs, letters, and papers, sitting with the story they belong to.' },
-  { icon: 'people' as const, label: NAV.people, body: 'The people who shaped the stories, and how you described them.' },
-  { icon: 'ask' as const, label: 'Ask the archive', body: 'Questions answered only from the stories and memories you shared. If it does not know, it says so.' },
-  { icon: 'lock' as const, label: NAV.access, body: 'Who can open the archive, what they can see, and your record of every change.' },
-]
-
-export function TheArchivePage() {
-  const navigate = useNavigate()
-  return (
-    <SitePage>
-      <PageHead
-        eyebrow="The Archive"
-        title="A private archive of the stories only you can tell."
-        standfirst="Everything you record is organized into sections you can read, correct, and add to for as long as you like."
-      />
-      <div className="site-wrap" style={wrap}>
-        <div className="archive-section-grid" style={{
-          display: 'grid', gap: 16,
-          gridTemplateColumns: 'repeat(6, 1fr)',
-        }}>
-          {SECTIONS.map((s) => (
-            <Panel key={s.label} pad="24px 26px" style={{ display: 'flex', flexDirection: 'column', gap: 10, gridColumn: 'span 2' }}>
-              <Icon name={s.icon} size={20} color={T.gold} strokeWidth={1.4} />
-              <Display size={21}>{s.label}</Display>
-              <Body size={14.5}>{s.body}</Body>
-            </Panel>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 40 }}>
-          <ImageSlot label="A cassette, a cloth and an index card on a kitchen table" height={290} src={archiveCassette} />
-        </div>
-
-        <div className="archive-wont-card" style={{
-          marginTop: 40, background: T.walnut, borderRadius: radius.md,
-          padding: '40px 42px', display: 'grid', gap: 36,
-          gridTemplateColumns: 'minmax(280px,1fr) minmax(260px,.85fr)', alignItems: 'center',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Eyebrow color="rgba(179,144,47,.9)">What the archive will not do</Eyebrow>
-            <Display size={28} color={T.onDark}>It answers only from what you shared.</Display>
-            <Body size={15.5} color={T.onDark2} style={{ maxWidth: 460 }}>
-              No invention, no filling in the gaps. If your family asks something the archive does
-              not hold, it says so — and the question is kept, in case you want to answer it later.
-            </Body>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {TRUST.slice(0, 4).map((line) => (
-              <span key={line} style={{
-                display: 'flex', gap: 10, alignItems: 'flex-start',
-                fontFamily: sans, fontSize: 15, color: T.onDark,
-                lineHeight: 1.45, overflowWrap: 'anywhere',
-              }}>
-                <Icon name="check" size={16} color="rgba(179,144,47,.9)" strokeWidth={1.4} />
-                {line}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 34 }}>
-          <Btn size="lg" onClick={() => navigate('/signin?new=1')}>{CTA.build}</Btn>
-        </div>
-      </div>
-    </SitePage>
-  )
-}
+export { TheArchivePage, AboutPage } from './EditorialInfoPages'
 
 /* ────────────────────────────── Pricing ──────────────────────────── */
 const FALLBACK_PLANS: BillingPlan[] = [
@@ -304,186 +161,44 @@ export function PricingPage() {
     : []
 
   const renderCard = (p: BillingPlan) => (
-    <Panel
-      key={p.id}
-      pad="30px 30px 32px"
-      style={{
-        display: 'flex', flexDirection: 'column', gap: 14,
-        borderColor: p.primary ? 'rgba(176,94,55,.45)' : T.cardEdge,
-      }}
-    >
-      <Eyebrow color={p.primary ? T.sienna : T.ink3}>{p.id === 'setup' ? 'The package' : p.name}</Eyebrow>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-        <span style={{ fontFamily: serif, fontSize: 34, color: T.ink }}>{p.displayPrice}</span>
-        <span style={{ fontFamily: sans, fontSize: 13.5, color: T.ink3 }}>{p.cadence}</span>
-      </div>
-      <Divider tone="gold" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {p.lines.map((l) => (
-          <span key={l} style={{
-            display: 'flex', gap: 10, alignItems: 'flex-start',
-            fontFamily: sans, fontSize: 14.5, color: T.ink2, lineHeight: 1.5,
-          }}>
-            <Icon name="check" size={15} color={T.olive} strokeWidth={1.4} style={{ marginTop: 3 }} />
-            {l}
-          </span>
-        ))}
-      </div>
-      <div className="pricing-cta" style={{ marginTop: 'auto', paddingTop: 16 }}>
-        <Btn
-          disabled={Boolean(busy) || Boolean(billing?.paid && billing.plan === p.id) || Boolean(p.id === 'setup' && billing?.hasSetup)}
-          onClick={() => void startCheckout(p.id)}
-        >
-          {ctaFor(p)}
-        </Btn>
-      </div>
-    </Panel>
+    <article className="pricing-plan" key={p.id}>
+      <h2 className="eyebrow">{p.id === 'setup' ? 'The package' : p.name}</h2>
+      <div className="pricing-price">{p.displayPrice}</div>
+      <p className="pricing-cadence">{p.cadence}</p>
+      <ul className="pricing-inclusions">{p.lines.map(line => <li key={line}>{line}</li>)}</ul>
+      <button className="primary pricing-action" type="button"
+        disabled={Boolean(busy) || Boolean(billing?.paid && billing.plan === p.id) || Boolean(p.id === 'setup' && billing?.hasSetup)}
+        onClick={() => void startCheckout(p.id)}>{ctaFor(p)}</button>
+    </article>
   )
 
   return (
-    <SitePage>
-      <PageHead
-        eyebrow="Pricing"
-        title={hasSetup
-          ? 'The package is paid. Choose how to continue.'
-          : 'Start with the package.'}
-        standfirst={hasSetup
-          ? 'Keep interviewing with Monthly, or keep the stored archive open with Storage.'
-          : 'Pay $699 once. That opens the interview, the archive, the live avatar, and family access — with 180 minutes for the first three months.'}
-      />
-      <div className="site-wrap" style={wrap}>
-        {error && (
-          <div style={{
-            maxWidth: 860, marginBottom: 22, padding: '14px 16px',
-            border: `1px solid ${T.sienna}`, borderRadius: radius.sm, background: T.card,
-          }}>
-            <Body size={14.5} color={T.error}>{error}</Body>
-          </div>
-        )}
-        {ready && signedIn && billing?.hasSetup && (
-          <div style={{
-            maxWidth: 860, marginBottom: 22, padding: '14px 16px',
-            border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
-            display: 'flex', flexDirection: 'column', gap: 4,
-          }}>
-            <Eyebrow>Your package is paid</Eyebrow>
-            <Body size={14.5}>
-              Choose Monthly to keep interview minutes, or Storage to keep the archive open.
-              Extra minutes live on your billing page.
-            </Body>
-          </div>
-        )}
-        {ready && signedIn && !billing?.hasSetup && (
-          <div style={{
-            maxWidth: 860, marginBottom: 22, padding: '14px 16px',
-            border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
-            display: 'flex', flexDirection: 'column', gap: 4,
-          }}>
-            <Eyebrow>Your account is ready</Eyebrow>
-            <Body size={14.5}>
-              The first choice is the package. How you continue comes later, after these three months.
-            </Body>
-          </div>
-        )}
-        {entry && !hasSetup && (
-          <div style={{ maxWidth: 560 }}>
-            {renderCard(entry)}
-          </div>
-        )}
-        {hasSetup && next.length > 0 && (
-          <div className="pricing-grid" style={{
-            display: 'grid', gap: 18,
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', maxWidth: 860,
-          }}>
-            {next.map(renderCard)}
-          </div>
-        )}
-        {!hasSetup && (
-          <Body size={14} color={T.status} style={{ marginTop: 22, maxWidth: 520 }}>
-            After the first three months you choose whether to keep interviewing or only keep
-            the archive. Invited family never pays separately. Nothing is deleted without you.
-          </Body>
-        )}
-        {hasSetup && (
-          <Body size={14} color={T.status} style={{ marginTop: 26, maxWidth: 620 }}>
-            Extra interview minutes appear on your billing page when Monthly is active, or when
-            those minutes run out. Storage does not include interview time.
-          </Body>
-        )}
-      </div>
-    </SitePage>
-  )
-}
-
-/* ─────────────────────────────── About ───────────────────────────── */
-export function AboutPage() {
-  const navigate = useNavigate()
-  return (
-    <SitePage>
-      <PageHead
-        eyebrow="About"
-        title="Why we started As Told"
-        standfirst="It began with missing the conversations that used to feel ordinary."
-      />
-      <div className="site-wrap" style={wrap}>
-        <div className="about-split" style={{
-          display: 'grid', gap: 40,
-          gridTemplateColumns: 'minmax(320px, 1.15fr) minmax(260px, .8fr)', alignItems: 'start',
-        }}>
-          <article className="about-prose" style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 620 }}>
-            <Body size={16.5}>
-              Between the two of us, we’ve lost a mother and a father. Those losses helped us understand how much a
-              person shares in ordinary conversation: not just their stories, but their humor, their
-              perspective, and the reasons behind the advice they give.
-            </Body>
-            <Body size={16.5}>
-              That understanding is why we started <strong style={{ fontWeight: 600, color: T.ink }}>As Told</strong>. We wanted to make it easier for people to
-              share these parts of themselves, in their own words.
-            </Body>
-            <Body size={16.5}>
-              You don’t need to write a memoir or decide which moments are important enough to keep.
-              You can begin with a conversation: a place you remember, someone who shaped your life,
-              something you learned along the way.
-            </Body>
-            <Body size={16.5}>
-              Over time, what you choose to share becomes a private family archive. Stories, voice
-              recordings and photographs, kept together for the people you choose. Not an imagined
-              version of you, but what you actually wanted to tell them.
-            </Body>
-            <p style={{ margin: 0, fontFamily: serif, fontStyle: 'italic', fontSize: 19, color: T.ink }}>Yael & Tom</p>
-
-            <Divider style={{ margin: '18px 0 6px' }} />
-            <Display as="h2" size={26}>Your stories stay yours.</Display>
-            <Body size={16.5}>
-              Every entry stays yours to shape. Add what you left out, correct a detail, or keep
-              something just for yourself. You choose who can open your archive, and you can change
-              your mind.
-            </Body>
-            <div style={{ marginTop: 4 }}>
-              <Btn size="lg" onClick={() => navigate('/signin?new=1')}>{CTA.begin}</Btn>
-            </div>
-
-            <div id="privacy" style={{ marginTop: 28 }}>
-              <Eyebrow>Security & privacy</Eyebrow>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-                {TRUST.map((line) => (
-                  <span key={line} style={{
-                    display: 'flex', gap: 10, alignItems: 'flex-start',
-                    fontFamily: sans, fontSize: 15, color: T.ink2, lineHeight: 1.5,
-                  }}>
-                    <Icon name="lock" size={15} color={T.olive} strokeWidth={1.3} style={{ marginTop: 3 }} />
-                    {line}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </article>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <ImageSlot label="Framed photos on a hallway wall" height={230} />
-            <ImageSlot label="A notebook kept for years" height={170} />
-          </div>
+    <EditorialSitePage>
+      <div className={`editorial-wrap pricing-page${hasSetup ? ' pricing-continuation' : ''}`}>
+        <header className="pricing-intro editorial-intro-copy">
+          <p className="eyebrow">Pricing</p>
+          <h1>{hasSetup ? 'The package is paid. Choose how to continue.' : 'Start with the package.'}</h1>
+          <p className="editorial-lead">{hasSetup
+            ? 'Keep interviewing with Monthly, or keep the stored archive open with Storage.'
+            : 'Pay $699 once. That opens the interview, the archive, the live avatar, and family access — with 180 minutes for the first three months.'}</p>
+        </header>
+        <div className="pricing-options">
+          {error && <p className="pricing-notice pricing-error" role="alert">{error}</p>}
+          {ready && signedIn && billing?.hasSetup && (
+            <div className="pricing-notice"><p className="eyebrow">Your package is paid</p><p>Choose Monthly to keep interview minutes, or Storage to keep the archive open.
+              Extra minutes live on your billing page.</p></div>
+          )}
+          {ready && signedIn && !billing?.hasSetup && (
+            <div className="pricing-notice"><p className="eyebrow">Your account is ready</p><p>The first choice is the package. How you continue comes later, after these three months.</p></div>
+          )}
+          {entry && !hasSetup && renderCard(entry)}
+          {hasSetup && next.length > 0 && <div className="pricing-plan-grid">{next.map(renderCard)}</div>}
+          {!hasSetup && <p className="pricing-aftercare">After the first three months you choose whether to keep interviewing or only keep
+            the archive. Invited family never pays separately. Nothing is deleted without you.</p>}
+          {hasSetup && <p className="pricing-aftercare">Extra interview minutes appear on your billing page when Monthly is active, or when
+            those minutes run out. Storage does not include interview time.</p>}
         </div>
       </div>
-    </SitePage>
+    </EditorialSitePage>
   )
 }

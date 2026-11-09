@@ -1,18 +1,12 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { requestPasswordReset, signInWithPassword, signUpWithPassword } from '../lib/auth'
-import { T, heading, radius, sans, serif } from '../design/tokens'
 import { BRAND, CTA, HERO } from '../design/copy'
-import { Wordmark } from '../design/Wordmark'
-import heroDesk from '../assets/hero-desk.jpg'
-import { Body, Btn, Display, Eyebrow, Icon } from '../design/ui'
 import { billingApi, type BillingPlan } from '../lib/api'
-
-const input: CSSProperties = {
-  width: '100%', boxSizing: 'border-box', background: T.card,
-  border: `1px solid ${T.line}`, borderRadius: radius.sm, padding: '12px 14px',
-  fontFamily: sans, fontSize: 15, color: T.ink, outline: 'none',
-}
+import logo from '../assets/homepage/logo-cream.svg'
+import photo from '../assets/editorial/p01.webp'
+import './HomePage.css'
+import './AuthPage.css'
 
 export default function AuthPage() {
   const [params] = useSearchParams()
@@ -88,125 +82,70 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-split" style={{ minHeight: '100dvh', display: 'grid', gridTemplateColumns: 'minmax(0,1.05fr) minmax(380px,.95fr)' }}>
-      {/* atmosphere */}
-      <section style={{ position: 'relative', background: T.walnutDeep, overflow: 'hidden' }}>
-        <div className="site-hero-photo site-hero-photo--auth" style={{ top: 0, backgroundImage: `url(${heroDesk})` }} aria-hidden="true" />
-        <div style={{
-          position: 'relative', height: '100%', padding: '34px 44px 48px',
-          display: 'flex', flexDirection: 'column',
-        }}>
-          <Link to="/" aria-label={BRAND} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Wordmark tone="light" width={56} />
-            <span aria-hidden="true" style={{ width: 1, height: 34, background: 'rgba(243,237,226,.28)' }} />
-            <Eyebrow color="rgba(179,144,47,.9)" style={{ lineHeight: 1.5 }}>Private<br />family archive</Eyebrow>
-          </Link>
-          <div style={{ marginTop: 'auto', paddingTop: 72, maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <h1 style={{
-              fontFamily: serif, fontWeight: heading.weight, fontSize: 44, lineHeight: 1.08,
-              color: T.onDark, margin: 0, letterSpacing: '-.015em',
-            }}>
-              {HERO.headline[0]}<br />
-              <em style={{ fontStyle: 'italic', fontWeight: heading.italicWeight }}>{HERO.headline[1]}</em>
-            </h1>
-            <Body size={16} color="rgba(240,231,214,.78)">{HERO.sub}</Body>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 6,
-              fontFamily: sans, fontSize: 13.5, color: 'rgba(240,231,214,.55)',
-            }}>
-              <Icon name="lock" size={15} color="rgba(240,231,214,.5)" strokeWidth={1.3} />
-              Private by default. Shared only with the people you choose.
-            </span>
+    <div className="as-told-home auth-page">
+      <a className="skip" href="#auth-form">Skip to sign in</a>
+      <header className="site-header-surface auth-header">
+        <Link to="/" aria-label={`${BRAND} home`}><img src={logo} width="78" height="66" alt={BRAND} /></Link>
+        <p className="eyebrow">Private family archive</p>
+      </header>
+      <main className="auth-layout">
+        <section className="auth-atmosphere" aria-label="Your private archive">
+          <img className="auth-photo" src={photo} width="1536" height="768" alt="Illustrative parent and adult child sharing family photographs at a kitchen table." fetchPriority="high" />
+          <div className="auth-story">
+            <h2>{HERO.headline[0]}<br /><em>{HERO.headline[1]}</em></h2>
+            <p>{HERO.sub}</p>
+            <p className="auth-privacy">Private by default. Shared only with the people you choose.</p>
           </div>
-        </div>
-      </section>
-
-      {/* paper form */}
-      <section style={{
-        background: T.paper, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '48px 44px',
-      }}>
-        <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Eyebrow>{mode === 'signup' ? 'Begin your archive' : 'Welcome back'}</Eyebrow>
-            <Display size={30}>
-              {mode === 'signup' ? 'Create your account' : 'Sign in to your archive'}
-            </Display>
-            <Body size={14.5}>
-              {mode === 'signup'
+        </section>
+        <section className="auth-form-panel" id="auth-form" tabIndex={-1} aria-labelledby="auth-title">
+          <div className="auth-form-content">
+            <div className="auth-intro">
+              <p className="eyebrow">{mode === 'signup' ? 'Begin your archive' : 'Welcome back'}</p>
+              <h1 id="auth-title">{mode === 'signup' ? 'Create your account' : 'Sign in to your archive'}</h1>
+              <p>{mode === 'signup'
                 ? 'Your account holds your archive. You choose who is ever invited into it.'
-                : 'Your archive is where you left it.'}
-            </Body>
-          </div>
-
-          {chosenPlan && (
-            <div style={{
-              border: `1px solid ${T.line}`, borderRadius: radius.sm, background: T.card,
-              padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4,
-            }}>
-              <Eyebrow>Next step</Eyebrow>
-              <Body size={14}>
-                {plan
+                : 'Your archive is where you left it.'}</p>
+            </div>
+            {chosenPlan && (
+              <div className="auth-plan">
+                <p className="eyebrow">Next step</p>
+                <p>{plan
                   ? `${plan.name} — ${plan.displayPrice} ${plan.cadence}.`
                   : chosenPlan === 'setup' ? 'Package — $699.'
                     : chosenPlan === 'monthly' ? 'Monthly — $69.90.'
                       : chosenPlan === 'storage' ? 'Storage — $6.99.'
                         : 'Your plan.'}
-                {' '}Payment comes after your account, on Stripe’s secure page.
-              </Body>
-            </div>
-          )}
-
-          {notice && <Body size={13.5} color={T.olive}>{notice}</Body>}
-          {error && <Body size={13.5} color={T.siennaDeep}>{error}</Body>}
-
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {mode === 'signup' && (
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <Eyebrow>Your name</Eyebrow>
-                <input value={name} onChange={(e) => setName(e.target.value)} required style={input} />
-              </label>
+                  {' '}Payment comes after your account, on Stripe’s secure page.
+                </p>
+              </div>
             )}
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <Eyebrow>Email</Eyebrow>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={input} />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <Eyebrow>Password</Eyebrow>
-              <input
-                type="password" value={password} minLength={6} required
-                onChange={(e) => setPassword(e.target.value)} style={input}
-              />
-            </label>
-            <div style={{ marginTop: 6 }}>
-              <Btn type="submit" size="lg" disabled={busy} style={{ width: '100%', justifyContent: 'center' }}>
+            {notice && <p className="auth-notice" role="status">{notice}</p>}
+            {error && <p className="auth-error" role="alert">{error}</p>}
+            <form onSubmit={submit}>
+              {mode === 'signup' && (
+                <label>Your name
+                  <input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                </label>
+              )}
+              <label>Email
+                <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </label>
+              <label>Password
+                <input type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} minLength={6} required onChange={(e) => setPassword(e.target.value)} />
+              </label>
+              <button className="primary auth-submit" type="submit" disabled={busy}>
                 {busy ? 'Please wait…' : mode === 'signup' ? CTA.begin : CTA.signIn}
-              </Btn>
+              </button>
+            </form>
+            <div className="auth-options">
+              <button type="button" onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null) }}>
+                {mode === 'signup' ? 'I already have an account' : 'Create an account'}
+              </button>
+              <button type="button" onClick={forgot} disabled={busy}>Forgot password?</button>
             </div>
-          </form>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <button
-              type="button" onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null) }}
-              style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                fontFamily: sans, fontSize: 13.5, fontWeight: 600, color: T.sienna,
-              }}
-            >
-              {mode === 'signup' ? 'I already have an account' : 'Create an account'}
-            </button>
-            <button
-              type="button" onClick={forgot} disabled={busy}
-              style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                fontFamily: sans, fontSize: 13.5, color: T.ink3,
-              }}
-            >
-              Forgot password?
-            </button>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
     </div>
   )
 }
