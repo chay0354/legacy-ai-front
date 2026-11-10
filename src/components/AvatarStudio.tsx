@@ -137,7 +137,7 @@ export default function AvatarStudio({ onExit, embedded = false }: Props) {
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.paper, fontFamily: sans, color: C.ink, gap: 14, padding: '0 24px' }}>
+    <div className="studio-centered-state" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: C.paper, fontFamily: sans, color: C.ink, gap: 14, padding: '0 24px' }}>
       {children}
     </div>
   )

@@ -12,7 +12,7 @@ export function SectionHeader({
   eyebrow, title, note, actions,
 }: { eyebrow: string; title: string; note?: string; actions?: ReactNode }) {
   return (
-    <header style={{
+    <header className="archive-section-header" style={{
       display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
       gap: 24, flexWrap: 'wrap', marginBottom: 26,
     }}>

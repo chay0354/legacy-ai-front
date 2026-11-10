@@ -1060,10 +1060,10 @@ export default function InterviewSession({
       fontFamily: sans, color: C.ink, display: "flex", flexDirection: "column", WebkitFontSmoothing: "antialiased",
     }}>
       {/* TOP BAR */}
-      <div style={{
+      <div className="interview-session-header" style={{
         flex: "none",
         borderBottom: embedded ? "none" : `1px solid ${C.line}`,
-        background: embedded ? T.walnut : undefined,
+        background: embedded ? C.paper : undefined,
         margin: embedded ? "0 0 8px" : undefined,
         padding: embedded ? "10px 16px 12px" : undefined,
         borderRadius: embedded ? radius.control : undefined,
@@ -1076,9 +1076,9 @@ export default function InterviewSession({
                 <div className="legacy-interview-brand" style={{ fontFamily: serif, fontSize: 19, color: C.ink }}>Legacy AI</div>
               </>
             )}
-            <h1 style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, margin: 0, color: embedded ? T.onDark : C.ink }}>Interview</h1>
+            <h1 style={{ fontFamily: sans, fontSize: 15, fontWeight: 600, margin: 0, color: C.ink }}>Interview</h1>
           </div>
-          <div className="legacy-interview-status" style={{ fontFamily: sans, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600, color: embedded ? "rgba(240,231,214,.62)" : C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
+          <div className="legacy-interview-status" style={{ fontFamily: sans, fontSize: 11, letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600, color: C.ink3, display: "flex", alignItems: "center", gap: 7 }}>
             {running ? (
               <>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.terra, animation: ambient && !paused ? "la-rec 1.4s ease-in-out infinite" : "none" }} />
@@ -1091,7 +1091,7 @@ export default function InterviewSession({
               <button
                 type="button"
                 onClick={onBack}
-                style={{ cursor: "pointer", background: embedded ? "rgba(240,231,214,.10)" : C.card, border: `1px solid ${embedded ? "rgba(240,231,214,.22)" : C.line}`, color: embedded ? T.onDark : C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: radius.control, whiteSpace: "nowrap" }}
+                style={{ cursor: "pointer", background: "transparent", border: `1px solid ${C.line}`, color: C.ink2, fontFamily: sans, fontWeight: 500, fontSize: 13, padding: "8px 16px", borderRadius: radius.control, whiteSpace: "nowrap" }}
               >
                 Back to home
               </button>
@@ -1099,7 +1099,7 @@ export default function InterviewSession({
           </div>
         </div>
         <div className="la-stage-track" style={{ maxWidth: 920, margin: "0 auto", padding: "0 28px 14px", display: "flex", justifyContent: "center" }}>
-          <StageProgressTrack stages={stages} variant={embedded ? 'dark' : 'light'} margin="0" maxWidth={520} />
+          <StageProgressTrack stages={stages} variant="light" margin="0" maxWidth={520} />
         </div>
       </div>
 
@@ -1108,8 +1108,9 @@ export default function InterviewSession({
 
         {/* INTRO */}
         {!started && !complete && (
-          <div style={{ width: "100%", maxWidth: 560, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ position: "relative", width: 56, height: 56, marginBottom: 26 }}>
+          <div className="interview-intro" style={{ width: "100%", maxWidth: 560, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div className="interview-intro-copy">
+            <div className="interview-intro-mark" aria-hidden="true" style={{ position: "relative", width: 56, height: 56, marginBottom: 26 }}>
               <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: C.gold, animation: ambient ? "la-ring 2.6s ease-out infinite" : "none", opacity: ambient ? undefined : 0 }} />
               <div style={{ position: "relative", width: 56, height: 56, borderRadius: "50%", background: "radial-gradient(circle at 38% 34%, #d8b34d, #b3902f)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ width: 15, height: 15, borderRadius: "50%", background: "rgba(255,251,242,.9)" }} />
@@ -1158,6 +1159,8 @@ export default function InterviewSession({
               </ul>
             )}
 
+            </div>
+            <div className="interview-start-panel">
             {pronouns && !changingIdentity ? (
               <div style={{
                 marginTop: 26, width: "100%", maxWidth: 420, textAlign: "left",
@@ -1250,6 +1253,7 @@ export default function InterviewSession({
             )}
 
             <button
+              className="interview-start-primary"
               onClick={() => startVoice("guided")}
               disabled={identityBusy}
               style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 34, background: accent, color: T.onPrimary, border: "none", fontFamily: sans, fontWeight: 600, fontSize: 17, padding: "18px 40px", borderRadius: radius.control, display: "inline-flex", alignItems: "center", gap: 12, opacity: identityBusy ? 0.7 : 1 }}
@@ -1266,6 +1270,7 @@ export default function InterviewSession({
             <button onClick={startText} disabled={identityBusy} style={{ cursor: identityBusy ? "wait" : "pointer", marginTop: 12, background: "transparent", border: "none", color: C.ink3, fontFamily: sans, fontWeight: 500, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 3 }}>I'd rather type my answers</button>
             <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: C.ink3, marginTop: 30 }}>
               {TOTAL} topics · pause anytime · ask how far you are anytime
+            </div>
             </div>
           </div>
         )}

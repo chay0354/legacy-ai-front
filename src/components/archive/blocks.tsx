@@ -29,7 +29,7 @@ export function Band({
   children: ReactNode
 }) {
   return (
-    <section id={id} ref={refFn} style={{ scrollMarginTop: 24, paddingTop: 8 }}>
+    <section className="archive-content-band" id={id} ref={refFn} style={{ scrollMarginTop: 24, paddingTop: 8 }}>
       <header style={{
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
         gap: 22, flexWrap: 'wrap', marginBottom: 18,
@@ -53,7 +53,7 @@ export function Band({
 function Quiet({ children }: { children: ReactNode }) {
   return (
     <Panel pad="16px 18px">
-      <Body size={14.5} color={T.ink2}>{children}</Body>
+      <div style={{ fontFamily: sans, fontSize: 14.5, lineHeight: 1.62, color: T.ink2, textWrap: 'pretty' }}>{children}</div>
     </Panel>
   )
 }
@@ -202,7 +202,7 @@ export function PhotosBlock({
   return (
     <div style={{
       display: 'grid', gap: 14,
-      gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 212px), 1fr))',
     }}>
       {items.map((g) => (
         <figure key={g.id} style={{
@@ -233,7 +233,7 @@ export function PeopleBlock({ profile }: { profile: LegacyProfile }) {
   return (
     <div style={{
       display: 'grid', gap: 14,
-      gridTemplateColumns: 'repeat(auto-fill, minmax(292px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 292px), 1fr))',
     }}>
       {people.map((p, i) => (
         <Panel key={`${p.name}-${i}`} pad="18px 20px" style={{ display: 'flex', gap: 14 }}>
@@ -265,7 +265,7 @@ export function WisdomBlock({ profile }: { profile: LegacyProfile }) {
   return (
     <div style={{
       display: 'grid', gap: 14,
-      gridTemplateColumns: 'repeat(auto-fill, minmax(292px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 292px), 1fr))',
     }}>
       {rows.map((w, i) => (
         <Panel key={i} pad="20px 22px" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

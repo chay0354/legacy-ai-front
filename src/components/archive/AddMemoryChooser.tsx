@@ -23,6 +23,7 @@ export default function AddMemoryChooser({
   return (
     <div
       role="dialog"
+      className="legacy-modal-overlay"
       aria-modal="true"
       aria-labelledby={titleId}
       onClick={onClose}
@@ -35,6 +36,7 @@ export default function AddMemoryChooser({
     >
       <div
         ref={panelRef}
+        className="legacy-modal-panel"
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{

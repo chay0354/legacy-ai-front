@@ -54,11 +54,11 @@ export const T = {
 } as const
 
 /** One heading standard for the whole site: Newsreader 600; italic emphasis inside a heading steps down to 400. */
-export const heading = { weight: 600, italicWeight: 400, cardWeight: 500 } as const
+export const heading = { weight: 'var(--la-heading-weight, 600)', italicWeight: 400, cardWeight: 'var(--la-card-heading-weight, 500)' } as const
 
-export const serif = "'Newsreader', 'Newsreader Fallback', Georgia, serif"
+export const serif = "var(--la-font-serif, 'Newsreader', 'Newsreader Fallback', Georgia, serif)"
 export const sans =
-  "'Source Sans 3', 'Source Sans 3 Fallback', system-ui, sans-serif"
+  "var(--la-font-sans, 'Source Sans 3', 'Source Sans 3 Fallback', system-ui, sans-serif)"
 /** Retained only for legacy call sites; new work uses `sans`. */
 export const mono = sans
 

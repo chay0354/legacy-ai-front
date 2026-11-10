@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+const visibleControls = (panel: HTMLElement) =>
+  [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((node) => node.getClientRects().length > 0)
 
 /** Move focus into a dialog, trap Tab, close on Escape, and restore the opener. */
 export function useDialogA11y(open: boolean, onClose: () => void) {
@@ -13,7 +15,7 @@ export function useDialogA11y(open: boolean, onClose: () => void) {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const panel = panelRef.current
     const frame = window.requestAnimationFrame(() => {
-      const nodes = panel ? [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)] : []
+      const nodes = panel ? visibleControls(panel) : []
       ;(nodes[0] || panel)?.focus()
     })
     const onKey = (e: KeyboardEvent) => {
@@ -23,7 +25,7 @@ export function useDialogA11y(open: boolean, onClose: () => void) {
         return
       }
       if (e.key !== 'Tab' || !panel) return
-      const nodes = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      const nodes = visibleControls(panel)
       if (!nodes.length) {
         e.preventDefault()
         panel.focus()

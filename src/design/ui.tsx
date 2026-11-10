@@ -99,7 +99,7 @@ export function Panel({
   children, pad = 24, style, onDark, className,
 }: { children: ReactNode; pad?: number | string; style?: CSSProperties; onDark?: boolean; className?: string }) {
   return (
-    <section className={className} style={{
+    <section className={['la-panel', className].filter(Boolean).join(' ')} style={{
       background: onDark ? T.walnut : T.card,
       border: `1px solid ${onDark ? T.darkLine : T.cardEdge}`,
       borderRadius: radius.card,

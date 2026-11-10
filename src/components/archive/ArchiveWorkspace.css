@@ -1,0 +1,199 @@
+/* The signed-in workspace shares the approved public palette and typefaces.
+   Scope every override here: public pages and the staff editor keep their theme. */
+@import '../../site/HomePage.css';
+
+.archive-shell {
+  --la-paper: #f3ede2;
+  --la-card: #faf7f0;
+  --la-paper-deep: #e9e1d4;
+  --la-ink: #302820;
+  --la-ink-2: #685c50;
+  --la-status: #685c50;
+  --la-card-edge: #ddd2c3;
+  --la-line: #d7cbbc;
+  --la-line-soft: #e1d8ca;
+  --la-walnut: #382d26;
+  --la-walnut-deep: #382d26;
+  --la-walnut-mid: #382d26;
+  --la-walnut-soft: #54473b;
+  --la-sienna: #a24e2c;
+  --la-sienna-deep: #8c4023;
+  --la-gold: #947a48;
+  --la-on-dark: #f3ede2;
+  --la-on-dark-2: #e3d8c9;
+  --la-on-dark-3: #c9baaa;
+  --la-dark-line: #67594d;
+  --la-on-primary: #fff8ef;
+  --la-disabled: #9a8f82;
+  --la-heading-weight: 400;
+  --la-card-heading-weight: 400;
+  --la-font-serif: AsToldHomeNewsreader, Georgia, serif;
+  --la-font-sans: 'As Told Home Sans', Arial, sans-serif;
+  --la-radius-control: 3px;
+  --la-radius-card: 5px;
+  --la-gutter: clamp(24px, 3.5vw, 56px);
+  --la-content-max: 1240px;
+  font-family: var(--la-font-sans);
+}
+
+.archive-shell .archive-paper {
+  padding-top: 40px !important;
+  padding-left: var(--la-gutter) !important;
+  padding-right: var(--la-gutter) !important;
+  padding-bottom: 48px !important;
+  background-image: none !important;
+}
+.archive-shell .archive-sidebar { border-right: 0 !important; }
+.archive-shell .archive-sidebar-brand { padding: 30px 28px 26px !important; }
+.archive-shell .archive-sidebar-brand svg { width: 76px; }
+.archive-shell .archive-sidebar :is(a, button):focus-visible {
+  outline-color: var(--la-on-dark);
+  outline-offset: -3px;
+}
+.archive-shell .archive-nav-scroll :is(a, button):hover {
+  background: rgba(243,237,226,.08) !important;
+  color: var(--la-on-dark) !important;
+}
+.archive-shell .la-panel { box-shadow: none !important; }
+.archive-shell .archive-section-header { margin-bottom: 30px !important; }
+.archive-shell .archive-section-header h1 {
+  font-size: clamp(34px, 3.1vw, 44px) !important;
+  letter-spacing: -.025em !important;
+}
+.archive-shell .archive-section-header p { font-size: 16px !important; }
+.archive-shell .archive-content-band { scroll-margin-top: 110px !important; }
+.archive-shell .studio-centered-state { min-height: 240px !important; padding: 32px 24px !important; }
+.archive-shell .studio-card { box-shadow: none !important; }
+.archive-shell .studio-card > div { border-radius: var(--la-radius-card) !important; }
+.archive-shell .overview-hero-copy h1 { font-size: clamp(36px, 3.5vw, 48px) !important; }
+.archive-shell .next-action-photo { display: none; }
+.archive-shell :is(input, select, textarea) { font-family: var(--la-font-sans) !important; }
+.archive-shell :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--la-sienna);
+  outline-offset: 3px;
+}
+.archive-workspace-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px 28px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--la-line);
+  margin: 0 var(--la-gutter);
+  padding: 20px 0 24px;
+  color: var(--la-status);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.archive-workspace-footer a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Keep all archive forms reachable on short and narrow screens. */
+.archive-shell .legacy-modal-overlay { background: rgba(56,45,38,.48) !important; }
+.archive-shell .legacy-modal-panel {
+  border-radius: var(--la-radius-card) !important;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+}
+.archive-shell .legacy-modal-panel button { min-height: 44px; }
+@media (max-width: 540px) {
+  .archive-shell .legacy-modal-overlay { padding: 12px !important; align-items: center !important; }
+  .archive-shell .legacy-modal-panel { padding: 22px 20px !important; max-height: calc(100dvh - 24px) !important; }
+}
+
+/* Interview: a quiet introduction beside a compact start area. */
+.archive-shell .interview-session-header {
+  padding: 0 0 24px !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--la-line) !important;
+}
+.archive-shell .legacy-interview-top {
+  max-width: none !important;
+  height: auto !important;
+  min-height: 48px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.archive-shell .legacy-interview-top h1 {
+  font-family: var(--la-font-serif) !important;
+  font-size: 30px !important;
+  font-weight: 400 !important;
+}
+.archive-shell .interview-session-header > .la-stage-track {
+  margin: 22px 0 0 !important;
+  padding: 0 !important;
+  justify-content: flex-start !important;
+}
+.archive-shell .legacy-interview-main { padding-top: 48px !important; }
+.archive-shell .interview-intro {
+  max-width: 980px !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: start !important;
+  text-align: left !important;
+}
+.archive-shell .interview-intro-copy { min-width: 0; }
+.archive-shell .interview-intro-mark { display: none; }
+.archive-shell .interview-intro .legacy-interview-question {
+  font-size: clamp(36px, 3.6vw, 52px) !important;
+  font-weight: 400 !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.025em !important;
+}
+.archive-shell .interview-intro-copy > p { margin-top: 24px !important; }
+.archive-shell .interview-intro-copy > ul { margin-top: 28px !important; gap: 14px !important; }
+.archive-shell .interview-start-panel {
+  background: var(--la-card);
+  border: 1px solid var(--la-card-edge);
+  padding: 26px;
+  border-radius: var(--la-radius-card);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  text-align: center;
+}
+.archive-shell .interview-start-panel > div:first-child {
+  margin-top: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 0 24px !important;
+  border-bottom: 1px solid var(--la-line) !important;
+  border-radius: 0 !important;
+}
+.archive-shell .interview-start-primary {
+  justify-content: center;
+  margin-top: 24px !important;
+  padding: 15px 18px !important;
+  min-height: 52px;
+  line-height: 1.4;
+}
+.archive-shell .interview-start-panel > button { min-height: 44px; }
+.archive-shell .interview-start-panel > div:last-child { line-height: 1.6; margin-top: 22px !important; }
+
+@media (max-width: 1100px) {
+  .archive-shell .interview-intro { grid-template-columns: 1fr; max-width: 640px !important; gap: 32px; }
+  .archive-shell .interview-intro-copy > :is(p, ul) { max-width: none !important; }
+  .archive-shell .interview-start-panel > div:first-child { max-width: none !important; }
+}
+@media (max-width: 900px) {
+  .archive-shell { --la-gutter: 24px; }
+  .archive-shell .archive-mobile-bar { min-height: 84px; padding: 12px 24px; }
+  .archive-shell .archive-mobile-bar svg { width: 56px; }
+  .archive-shell .archive-mobile-menu-btn { font-family: var(--la-font-sans); }
+  .archive-shell .archive-sidebar { padding-top: max(100px, calc(env(safe-area-inset-top) + 88px)) !important; }
+  .archive-shell .archive-sidebar:not(.is-open) { visibility: hidden; }
+  .archive-shell .archive-sidebar.is-open { visibility: visible; }
+  .archive-shell .archive-paper { padding-top: 28px !important; }
+  .archive-shell .legacy-interview-main { padding: 32px 0 !important; }
+  .archive-shell .overview-hero-copy { grid-row: 1; }
+  .archive-shell .overview-hero-portrait { max-width: 240px; }
+}
+@media (max-width: 480px) {
+  .archive-shell { --la-gutter: 20px; }
+  .archive-shell .legacy-interview-status { order: 3; flex-basis: 100%; }
+  .archive-shell .interview-intro .legacy-interview-question { font-size: 36px !important; }
+  .archive-shell .interview-start-panel { padding: 22px; }
+  .archive-shell :is(input, textarea, select) { font-size: 16px !important; }
+}

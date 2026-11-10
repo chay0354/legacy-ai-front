@@ -6,7 +6,7 @@ import { Wordmark } from '../../design/Wordmark'
 import { Divider, Eyebrow, Icon } from '../../design/ui'
 import type { Membership, Role } from '../../lib/api'
 import { archiveQuery } from '../../lib/siteEdit'
-import { SiteFooter } from '../../site/SiteChrome'
+import './ArchiveWorkspace.css'
 import {
   canEditArchive, canManageAccess, canRunInterview, canSetUpLiveAvatar, isOwner, sectionNavLabel, sectionsForRole, type SectionKey,
 } from './sections'
@@ -67,9 +67,14 @@ export default function ArchiveShell({
   useEffect(() => {
     document.documentElement.classList.toggle('la-drawer-open', menuOpen)
     document.body.classList.toggle('la-drawer-open', menuOpen)
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    if (menuOpen) document.addEventListener('keydown', closeOnEscape)
     if (drawerWasOpen.current && !menuOpen) menuBtn.current?.focus()
     drawerWasOpen.current = menuOpen
     return () => {
+      document.removeEventListener('keydown', closeOnEscape)
       document.documentElement.classList.remove('la-drawer-open')
       document.body.classList.remove('la-drawer-open')
     }
@@ -93,7 +98,7 @@ export default function ArchiveShell({
   const iconColor = (active: boolean) => (active ? T.onDark : 'rgba(240,231,214,.6)')
 
   return (
-    <div className="archive-shell" style={{
+    <div className="archive-shell" data-route={activeRoute || 'overview'} style={{
       minHeight: '100dvh', display: 'flex', background: T.paper, color: T.ink,
     }}>
       <div className="archive-mobile-bar" data-la-nav="">
@@ -243,6 +248,8 @@ export default function ArchiveShell({
           ) : mayEdit ? (
             <Link
               to={`/edit${cQuery}`}
+              onClick={() => setMenuOpen(false)}
+              aria-current={activeRoute === 'edit' ? 'page' : undefined}
               style={{
                 display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px',
                 borderRadius: radius.sm, textDecoration: 'none',
@@ -321,13 +328,16 @@ export default function ArchiveShell({
       </nav>
 
       {/* paper workspace */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
+      <div className="archive-workspace" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.paper }}>
         <div style={{ flex: 1, backgroundColor: T.paper }}>
           <div className="archive-paper" style={{ maxWidth: 'var(--la-content-max)', margin: '0 auto', padding: '38px var(--la-gutter) 80px' }}>
             {children}
           </div>
         </div>
-        {band && <SiteFooter />}
+        {band && <footer className="archive-workspace-footer">
+          <span>Built privately. Shared only with the people you choose.</span>
+          <Link to="/about#privacy">Security & privacy</Link>
+        </footer>}
       </div>
     </div>
   )
