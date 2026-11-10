@@ -75,6 +75,29 @@ export function takeSentences(buffer: string): { sentences: string[]; rest: stri
   return { sentences, rest }
 }
 
+/** One voice request per turn, so the face does not restart between every sentence. */
+function speakWhole(queue: SpeechQueue, text: string) {
+  let rest = text.replace(/\s+/g, ' ').trim()
+  while (rest) {
+    if (rest.length <= 550) {
+      queue.speak(rest)
+      return
+    }
+    let cut = -1
+    const limit = Math.min(550, rest.length - 1)
+    for (let i = limit; i > 80; i -= 1) {
+      if (!/[.!?…。！？]/.test(rest[i])) continue
+      if (i + 1 < rest.length && !/\s/.test(rest[i + 1])) continue
+      cut = i + 1
+      break
+    }
+    if (cut < 0) cut = 550
+    const head = rest.slice(0, cut).trim()
+    rest = rest.slice(cut).trim()
+    if (head) queue.speak(head)
+  }
+}
+
 function cleanForSpeech(text: string): string {
   return text
     .replace(/[*_`#>]+/g, '')
@@ -332,8 +355,7 @@ function listenInBrowser(opts: {
   let replying = false
 
   const speakAnswer = (text: string) => {
-    const parts = text.split(/(?<=[.!?…。！？])\s+/).map((part) => part.trim()).filter(Boolean)
-    for (const part of (parts.length ? parts : [text])) opts.queue.speak(part)
+    speakWhole(opts.queue, text)
   }
 
   const ask = async (text: string) => {
@@ -485,13 +507,10 @@ export async function startLiveSession(opts: {
     let sendEvent: (e: object) => void = () => {}
 
     const flush = (final: boolean) => {
-      const { sentences, rest } = takeSentences(textBuffer)
-      for (const s of sentences) q.speak(s)
-      textBuffer = rest
-      if (final && textBuffer.trim()) {
-        q.speak(textBuffer)
-        textBuffer = ''
-      }
+      if (!final) return
+      const spoken = textBuffer.trim()
+      textBuffer = ''
+      if (spoken) speakWhole(q, spoken)
     }
 
     let listener: { pc: RTCPeerConnection; dc: RTCDataChannel } | null = null
